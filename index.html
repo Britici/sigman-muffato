@@ -616,90 +616,90 @@ const USE_API = true;
 // TEMPLATE DE INSPEÇÃO DIÁRIA
 // Cada objeto = uma sala com seus equipamentos
 // Para adicionar sala: { sala: 'Nome', equips: [{ id:'id_unico', nome:'Nome', subs:[] }] }
-// Para adicionar sub-item (ex: Ulma): coloque dentro do array subs
+// Para adicionar sub-item (ex: ULMA): coloque dentro do array subs
 // ══════════════════════════════════════════════════════════════════════
 const INSP_TMPL = [
   {"sala":"UTILIDADES",           "equips":[{"id":"DISJUNTORES","nome":"DISJUNTORES CCM","subs":[]}]},
   {"sala":"PIZZA",                "equips":[{"id":"PIZZA_LINHA","nome":"LINHA DE PRODUÇÃO","subs":[]}]},
-  {"sala":"Lácteos",              "equips":[
-    {"id":"lacteos_w905","nome":"Weber 905","subs":[]},
-    {"id":"lacteos_ulma","nome":"Ulma","subs":[
-      {"id":"lacteos_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"lacteos_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"LÁCTEOS",              "equips":[
+    {"id":"LACTEOS_W905","nome":"WEBER 905","subs":[]},
+    {"id":"LACTEOS_ULMA","nome":"ULMA","subs":[
+      {"id":"LACTEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"LACTEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
   {"sala":"Cárneos",              "equips":[
-    {"id":"carneos_w405","nome":"Weber 405","subs":[]},
-    {"id":"carneos_ulma","nome":"Ulma","subs":[
-      {"id":"carneos_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"carneos_ulma_imp","nome":"Teste de Impressora"}
+    {"id":"CARNEOS_W405","nome":"WEBER 405","subs":[]},
+    {"id":"CARNEOS_ULMA","nome":"ULMA","subs":[
+      {"id":"CARNEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"CARNEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Defumado",             "equips":[
-    {"id":"defum_ulma","nome":"Ulma","subs":[
-      {"id":"defum_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"defum_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"DEFUMADO",             "equips":[
+    {"id":"DEFUM_ULMA","nome":"ULMA","subs":[
+      {"id":"DEFUM_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"DEFUM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Bacalhau",             "equips":[
-    {"id":"bac_serra","nome":"Serra Fita","subs":[]},
-    {"id":"bac_ulma","nome":"Ulma","subs":[
-      {"id":"bac_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"bac_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"BACALHAU",             "equips":[
+    {"id":"BAC_SERRA","nome":"SERRA FITA","subs":[]},
+    {"id":"BAC_ULMA","nome":"ULMA","subs":[
+      {"id":"BAC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"BAC_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Linguiça",             "equips":[
-    {"id":"ling_elev","nome":"Elevador","subs":[]},
-    {"id":"ling_hand","nome":"Handtmann","subs":[]},
-    {"id":"ling_ulma","nome":"Ulma","subs":[
-      {"id":"ling_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"ling_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"LINGUIÇA",             "equips":[
+    {"id":"LING_ELEV","nome":"ELEVADOR","subs":[]},
+    {"id":"LING_HAND","nome":"HANDTMANN","subs":[]},
+    {"id":"LING_ULMA","nome":"ULMA","subs":[
+      {"id":"LING_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"LING_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Salmoura",             "equips":[
-    {"id":"salm_bal","nome":"Balança","subs":[]},
-    {"id":"salm_eko","nome":"Ekomex","subs":[]},
-    {"id":"salm_max","nome":"Maxmac","subs":[]},
-    {"id":"salm_tam","nome":"Tambler","subs":[]},
-    {"id":"salm_inj","nome":"Injetora","subs":[]},
-    {"id":"salm_sal","nome":"Salmoura","subs":[]}
+  {"sala":"SALMOURA",             "equips":[
+    {"id":"SALM_BAL","nome":"BALANÇA","subs":[]},
+    {"id":"SALM_EKO","nome":"EKOMEX","subs":[]},
+    {"id":"SALM_MAX","nome":"MAXMAC","subs":[]},
+    {"id":"SALM_TAM","nome":"TAMBLER","subs":[]},
+    {"id":"SALM_INJ","nome":"Injetora","subs":[]},
+    {"id":"SALM_SAL","nome":"Salmoura","subs":[]}
   ]},
-  {"sala":"Temperados",           "equips":[
-    {"id":"temp_dvac","nome":"Dupla Vac","subs":[]},
-    {"id":"temp_tam","nome":"Tambler","subs":[]},
-    {"id":"temp_ulma","nome":"Ulma","subs":[
-      {"id":"temp_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"temp_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"TEMPERADOS",           "equips":[
+    {"id":"TEMP_DVAC","nome":"DUPLA VAC","subs":[]},
+    {"id":"TEMP_TAM","nome":"TAMBLER","subs":[]},
+    {"id":"TEMP_ULMA","nome":"ULMA","subs":[
+      {"id":"TEMP_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"TEMP_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Porcionamento",        "equips":[
-    {"id":"porc_fat","nome":"Fatiadora","subs":[]},
-    {"id":"porc_ulma","nome":"Ulma","subs":[
-      {"id":"porc_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"porc_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"PORCIONAMENTO",        "equips":[
+    {"id":"PORC_FAT","nome":"FATIADORA","subs":[]},
+    {"id":"PORC_ULMA","nome":"ULMA","subs":[
+      {"id":"PORC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"PORC_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Corredor Porcionamento","equips":[{"id":"corr_bal","nome":"Balança","subs":[]}]},
-  {"sala":"Carne Moída",          "equips":[
-    {"id":"cm_moe","nome":"Moedor","subs":[]},
-    {"id":"cm_hand","nome":"Handtmann","subs":[]},
-    {"id":"cm_gmd","nome":"GMD 99-2","subs":[]},
-    {"id":"cm_ws","nome":"WS 910","subs":[]},
-    {"id":"cm_ja","nome":"JA","subs":[]},
-    {"id":"cm_ulma","nome":"Ulma","subs":[
-      {"id":"cm_ulma_vac","nome":"Teste de Vácuo"},
-      {"id":"cm_ulma_imp","nome":"Teste de Impressora"}
+  {"sala":"CORREDOR PORCIONAMENTO","equips":[{"id":"CORR_BAL","nome":"BALANÇA","subs":[]}]},
+  {"sala":"CARNE MOÍDA",          "equips":[
+    {"id":"CM_MOE","nome":"MOEDOR","subs":[]},
+    {"id":"CM_HAND","nome":"HANDTMANN","subs":[]},
+    {"id":"CM_GMD","nome":"GMD 99-2","subs":[]},
+    {"id":"CM_WS","nome":"WS 910","subs":[]},
+    {"id":"CM_JA","nome":"JA","subs":[]},
+    {"id":"CM_ULMA","nome":"ULMA","subs":[
+      {"id":"CM_ULMA_VAC","nome":"TESTE DE VÁCUO"},
+      {"id":"CM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"Desossa",              "equips":[
-    {"id":"des_serra3","nome":"Serra Fita Esteira 3","subs":[]},
-    {"id":"des_serracirc","nome":"Serra Circular","subs":[]},
-    {"id":"des_esfol","nome":"Esfoliadeira Esteira 1","subs":[]},
-    {"id":"des_cryo","nome":"Cryovac","subs":[]},
-    {"id":"des_tunel","nome":"Túnel de Encolhimento","subs":[]},
-    {"id":"des_vento","nome":"Túnel de Vento","subs":[]},
-    {"id":"des_est","nome":"Esteiras","subs":[]},
-    {"id":"des_bal","nome":"Balança","subs":[]}
+  {"sala":"DESOSSA",              "equips":[
+    {"id":"DES_SERRA3","nome":"SERRA FITA ESTEIRA 3","subs":[]},
+    {"id":"DES_SERRACIRC","nome":"SERRA CIRCULAR","subs":[]},
+    {"id":"DES_ESFOL","nome":"ESFOLIADEIRA ESTEIRA 1","subs":[]},
+    {"id":"DES_CRYO","nome":"CRYOVAC","subs":[]},
+    {"id":"DES_TUNEL","nome":"TÚNEL DE ENCOLHIMENTO","subs":[]},
+    {"id":"DES_VENTO","nome":"TÚNEL DE VENTO","subs":[]},
+    {"id":"DES_EST","nome":"ESTEIRAS","subs":[]},
+    {"id":"DES_BAL","nome":"BALANÇA","subs":[]}
   ]}
 ];
 
@@ -710,18 +710,10 @@ const INSP_TMPL = [
 // ══════════════════════════════════════════════════════════════════════
 let db = {
   // Salas cadastradas (lista de strings)
-  salas: ['Carne Moída','Lácteos','Embutidos','Fatiados','Utilidades'],
+  salas: [],
 
   // Máquinas cadastradas (cada item: { nome, sala, tag })
   maquinas: [
-    {nome:'Cubadora',    sala:'Carne Moída', tag:'CUB-001'},
-    {nome:'Moedor',      sala:'Carne Moída', tag:'MOE-001'},
-    {nome:'Cubadora',    sala:'Lácteos',     tag:'CUB-002'},
-    {nome:'Pasteurizador',sala:'Lácteos',    tag:'PAS-001'},
-    {nome:'Embutideira', sala:'Embutidos',   tag:'EMB-001'},
-    {nome:'Fatiadora',   sala:'Fatiados',    tag:'FAT-001'},
-    {nome:'Compressor 1',sala:'Utilidades',  tag:'COMP-001'},
-    {nome:'Compressor 2',sala:'Utilidades',  tag:'COMP-002'}
   ],
 
   // Ordens de serviço executadas
@@ -959,7 +951,7 @@ const ROLES = {
   // Manutenção: vê tudo exceto Planejamento de OS e Ativos
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','solicitacao','inspecao']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao']
   },
   // Produção: só abre solicitações
   producao: {
