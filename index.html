@@ -891,12 +891,23 @@ async function apiLoadAll() {
 async function apiAppend(sheet, row) {
   if (!USE_API) return; // offline: não envia
   try {
-    await fetch(API_URL, {
+    console.log('[SIGMAN] Enviando para Sheets:', sheet, row);
+    const res = await fetch(API_URL, {
       method: 'POST',
+      // Apps Script precisa de text/plain para evitar preflight CORS
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'append', sheet, row })
     });
+    const json = await res.json();
+    if (json.ok) {
+      console.log('[SIGMAN] ✅ Gravado com sucesso em:', sheet);
+    } else {
+      console.error('[SIGMAN] ❌ Erro ao gravar em', sheet, ':', json.error);
+    }
+    return json;
   } catch(e) {
-    console.warn('Erro ao gravar no Sheets:', e.message);
+    console.error('[SIGMAN] ❌ Falha na requisição para o Sheets:', e.message);
+    console.error('[SIGMAN] Verifique se a API_URL está correta e se o Apps Script está publicado como "Qualquer pessoa"');
   }
 }
 
@@ -904,12 +915,16 @@ async function apiAppend(sheet, row) {
 async function apiUpdate(sheet, id, idCol, row) {
   if (!USE_API) return;
   try {
-    await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'update', sheet, id, idCol, row })
     });
+    const json = await res.json();
+    if (!json.ok) console.error('[SIGMAN] ❌ Erro ao atualizar em', sheet, ':', json.error);
+    return json;
   } catch(e) {
-    console.warn('Erro ao atualizar no Sheets:', e.message);
+    console.error('[SIGMAN] ❌ Falha ao atualizar no Sheets:', e.message);
   }
 }
 
@@ -1316,6 +1331,8 @@ function salvarOS() {
 
   showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
   clearAb();
+  // Redireciona para o Dashboard após salvar
+  setTimeout(() => showPage('dashboard'), 800);
 }
 
 // Limpa o formulário de abertura de OS
@@ -1361,6 +1378,8 @@ function salvarPlan() {
 
   showAlert('al-pl','O.S. Planejada criada!','ok');
   clearPl();
+  // Redireciona para o Dashboard após salvar
+  setTimeout(() => showPage('dashboard'), 800);
 }
 
 function clearPl() {
@@ -1400,6 +1419,8 @@ function salvarSol() {
   showAlert('al-sol','Solicitação enviada!','ok');
   clearSol();
   renderSol();
+  // Redireciona para o Dashboard após salvar
+  setTimeout(() => showPage('dashboard'), 800);
 }
 
 function clearSol() {
@@ -2173,6 +2194,61 @@ async function init() {
   if (tryAuto()) enterApp();
   else document.getElementById('login-screen').style.display = 'flex';
 }
+
+
+// ══════════════════════════════════════════════════════════════════════
+// DIAGNÓSTICO — funções acessíveis pelo Console do navegador (F12)
+// Use: testarAPI()  para testar a conexão com o Sheets
+// Use: testarGravacao() para testar uma gravação real
+// ══════════════════════════════════════════════════════════════════════
+window.testarAPI = async function() {
+  console.log('🔍 Testando conexão com o Google Sheets...');
+  console.log('   URL:', API_URL);
+  try {
+    const res  = await fetch(API_URL + '?action=ping');
+    const json = await res.json();
+    if (json.ok) {
+      console.log('✅ API respondeu com sucesso!', json);
+    } else {
+      console.error('❌ API retornou erro:', json);
+    }
+  } catch(e) {
+    console.error('❌ Não foi possível acessar a API:', e.message);
+    console.error('   Possíveis causas:');
+    console.error('   1. URL do Apps Script incorreta');
+    console.error('   2. Apps Script não publicado como "Qualquer pessoa"');
+    console.error('   3. Bloqueio CORS — verifique se o Apps Script retorna ContentService.MimeType.JSON');
+  }
+};
+
+window.testarGravacao = async function() {
+  console.log('🔍 Testando gravação no Sheets (aba Ordens_Executadas)...');
+  const linha = {
+    OS_Numero: 'OS-TESTE',
+    Data: new Date().toISOString().slice(0,10),
+    Sala: 'TESTE', Maquina: 'TESTE', Tipo: 'Corretiva',
+    Prioridade: 'Baixa', Manutentor: 'Teste Automatico',
+    Hora_Inicio: '08:00', Hora_Fim: '08:05', Duracao_Min: 5,
+    Problema: 'Teste de gravacao', Acao_Executada: 'Teste de gravacao',
+    Origem: 'teste', OS_Origem_Ref: '', Criado_Em: new Date().toISOString()
+  };
+  const resultado = await apiAppend('ordens', linha);
+  if (resultado && resultado.ok) {
+    console.log('✅ Gravação OK! Verifique a aba Ordens_Executadas na planilha.');
+  } else {
+    console.error('❌ Falha na gravação:', resultado);
+  }
+};
+
+window.verEstadoAPI = function() {
+  console.log('📊 Estado atual do SIGMAN:');
+  console.log('   USE_API:', USE_API);
+  console.log('   API_URL:', API_URL);
+  console.log('   OS em memória:', db.ordens.length);
+  console.log('   Planejadas em memória:', db.planejadas.length);
+  console.log('   Solicitações em memória:', db.solicitacoes.length);
+  console.log('   Usuário logado:', CU ? CU.nome + ' (' + CU.tipo + ')' : 'nenhum');
+};
 
 // Inicia o app
 init();
