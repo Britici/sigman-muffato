@@ -832,25 +832,35 @@ async function apiLoadAll() {
       db.solC = maxSOL + 1;
     }
 
-    // Usuários (do Sheets substitui os padrão se existirem)
-    if (d.usuarios && d.usuarios.length) {
-      db.users = d.usuarios
-        .filter(r => r.Login && r.Ativo !== 'nao')
-        .map(r => ({ login: r.Login, senha: r.Nome, nome: r.Nome, tipo: r.Tipo_Acesso }));
-      // Nota: senha não é salva no Sheets por segurança — manter no localStorage
-      // Faz merge com usuários locais para preservar senhas
+    // Usuários: merge entre os do Sheets e os locais (para preservar senhas)
+    // Senhas NÃO são salvas no Sheets — ficam só no localStorage
+    {
       const local = JSON.parse(localStorage.getItem('sigman_users') || '[]');
-      db.users = d.usuarios
-        .filter(r => r.Login && r.Ativo !== 'nao')
-        .map(r => {
-          const loc = local.find(u => u.login === r.Login);
-          return {
-            login: r.Login,
-            senha: loc ? loc.senha : 'mudar123', // senha do local ou padrão
-            nome:  r.Nome,
-            tipo:  r.Tipo_Acesso
-          };
+      if (d.usuarios && d.usuarios.length) {
+        // Tem usuários no Sheets → usa como base, pega senhas do local
+        const sheetsUsers = d.usuarios
+          .filter(r => r.Login && r.Ativo !== 'nao')
+          .map(r => {
+            const loc = local.find(u => u.login === r.Login);
+            return {
+              login: r.Login,
+              senha: loc ? loc.senha : 'mudar123',
+              nome:  r.Nome,
+              tipo:  r.Tipo_Acesso
+            };
+          });
+        // Mantém usuários locais que não estão no Sheets ainda
+        local.forEach(lu => {
+          if (!sheetsUsers.find(u => u.login === lu.login)) {
+            sheetsUsers.push(lu);
+          }
         });
+        db.users = sheetsUsers;
+      } else if (local.length) {
+        // Sheets vazio mas tem usuários locais → usa os locais
+        db.users = local;
+      }
+      // Se ambos vazios → mantém os padrões do db (admin/manut/prod)
     }
 
     // Inspeções
@@ -872,14 +882,28 @@ async function apiLoadAll() {
       db.inspecoes = Object.values(map);
     }
 
-    // Ativos (salas e máquinas do Sheets)
+    // Ativos: MERGE entre Sheets e padrões locais (não substitui, soma)
     if (d.ativos && d.ativos.length) {
-      const salas = d.ativos.filter(r => r.Tipo === 'sala' && r.Ativo !== 'nao').map(r => r.Sala || r.Nome);
-      const maquinas = d.ativos.filter(r => r.Tipo === 'maquina' && r.Ativo !== 'nao').map(r => ({
-        nome: r.Nome, sala: r.Sala, tag: r.Tag
-      }));
-      if (salas.length)   db.salas    = [...new Set(salas)];
-      if (maquinas.length) db.maquinas = maquinas;
+      const sheetsSalas = d.ativos
+        .filter(r => r.Tipo === 'sala' && r.Ativo !== 'nao')
+        .map(r => (r.Sala || r.Nome || '').trim())
+        .filter(Boolean);
+      const sheetsMaqs  = d.ativos
+        .filter(r => r.Tipo === 'maquina' && r.Ativo !== 'nao')
+        .map(r => ({ nome: (r.Nome||'').trim(), sala: (r.Sala||'').trim(), tag: r.Tag||'' }))
+        .filter(m => m.nome && m.sala);
+
+      if (sheetsSalas.length) {
+        // Adiciona salas do Sheets que não existem ainda
+        sheetsSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
+      }
+      if (sheetsMaqs.length) {
+        // Adiciona máquinas do Sheets que não existem ainda (por nome+sala)
+        sheetsMaqs.forEach(m => {
+          const exists = db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala);
+          if (!exists) db.maquinas.push(m);
+        });
+      }
     }
 
     console.log('✅ Dados carregados do Google Sheets');
@@ -929,13 +953,30 @@ async function apiUpdate(sheet, id, idCol, row) {
   }
 }
 
+// Marca um registro como inativo no Sheets (soft delete — não apaga a linha)
+async function apiDelete(sheet, id, idCol) {
+  if (!USE_API) return;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'delete', sheet, id, idCol })
+    });
+    const json = await res.json();
+    if (!json.ok) console.error('[SIGMAN] ❌ Erro ao deletar em', sheet, ':', json.error);
+    return json;
+  } catch(e) {
+    console.error('[SIGMAN] ❌ Falha ao deletar no Sheets:', e.message);
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // BANCO LOCAL (localStorage) — fallback quando USE_API=false
 // ══════════════════════════════════════════════════════════════════════
 function saveDB() {
   try {
     localStorage.setItem('sigman_v3', JSON.stringify(db));
-    // Salva usuários separado para preservar senhas mesmo com API ativa
+    // Salva usuários SEMPRE no localStorage (senhas não vão ao Sheets)
     localStorage.setItem('sigman_users', JSON.stringify(db.users));
   } catch(e) {}
 }
@@ -1018,8 +1059,8 @@ function doReg() {
   if (!nome || !login || !senha) { lAlert('Preencha todos os campos.'); return; }
   if (db.users.find(u => u.login === login)) { lAlert('Login já existe.'); return; }
   db.users.push({ login, senha, nome, tipo });
-  saveDB();
-  // Salva também no Sheets
+  saveDB(); // salva com senha no localStorage
+  // Salva no Sheets (sem senha por segurança)
   apiAppend('usuarios', {
     Login: login, Nome: nome, Tipo_Acesso: tipo,
     Ativo: 'sim', Criado_Em: new Date().toISOString()
@@ -1634,9 +1675,11 @@ function renderPlan() {
 }
 function delPlan(id) {
   if (!confirm('Excluir esta O.S. planejada?')) return;
+  const pl = db.planejadas.find(p => p.id === id);
   db.planejadas = db.planejadas.filter(p => p.id !== id);
   saveDB();
   renderPlan();
+  if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1675,10 +1718,12 @@ function renderExec() {
 }
 function delOS(id) {
   if (!confirm('Excluir esta O.S.?')) return;
+  const os = db.ordens.find(o => o.id === id);
   db.ordens = db.ordens.filter(o => o.id !== id);
   saveDB();
   renderExec();
   updStats();
+  if (os) apiDelete('ordens', os.numero, 'OS_Numero');
 }
 
 // Exporta todas as OS para CSV (compatível com Power BI e Excel)
@@ -2046,21 +2091,29 @@ function delSala(nome) {
   saveDB();
   populateAll();
   renderAtivos();
+  // Remove do Sheets também (soft delete: marca Ativo='nao')
+  apiDelete('ativos', nome, 'Sala');
 }
 
 function delMaq(i) {
   if (!confirm('Remover máquina?')) return;
+  const maq = db.maquinas[i];
   db.maquinas.splice(i,1);
   saveDB();
   populateAll();
   renderAtivos();
+  // Remove do Sheets (por nome+sala)
+  if (maq) apiDelete('ativos', maq.nome, 'Nome');
 }
 
 function delUser(i) {
   if (!confirm('Remover usuário?')) return;
+  const usr = db.users[i];
   db.users.splice(i,1);
   saveDB();
   renderUsers();
+  // Remove do Sheets (por login)
+  if (usr) apiDelete('usuarios', usr.login, 'Login');
 }
 
 // Modal de edição de sala/máquina
@@ -2140,6 +2193,7 @@ function salvarUsuario() {
       return;
     }
     db.users.push({ login, senha, nome, tipo });
+    // Salva no Sheets (sem a senha por segurança)
     apiAppend('usuarios', { Login:login, Nome:nome, Tipo_Acesso:tipo, Ativo:'sim', Criado_Em: new Date().toISOString() });
   } else {
     // Editar existente
@@ -2147,6 +2201,7 @@ function salvarUsuario() {
     apiUpdate('usuarios', login, 'Login', { Nome:nome, Tipo_Acesso:tipo });
   }
 
+  // Sempre salva usuários com senhas no localStorage
   saveDB();
   renderUsers();
   closeM('m-usr');
@@ -2175,25 +2230,44 @@ document.addEventListener('keydown', e => {
 // INICIALIZAÇÃO — roda quando a página carrega
 // ══════════════════════════════════════════════════════════════════════
 async function init() {
-  // 1. Carrega tema claro/escuro
+  // 1. Tema
   loadTheme();
 
-  // 2. Carrega dados locais (rápido, garante que a tela não fique em branco)
+  // 2. Dados locais (carregamento rápido — garante base mesmo sem internet)
   loadDB();
 
-  // 3. Carrega dados do Google Sheets (pode demorar 1-2 segundos)
+  // 3. Dados do Sheets (async — pode demorar 1-3s dependendo da conexão)
+  //    IMPORTANTE: precisa rodar ANTES de tryAuto para ter a lista de usuários atualizada
   if (USE_API) {
-    await apiLoadAll();
+    try {
+      await apiLoadAll();
+    } catch(e) {
+      console.warn('[SIGMAN] Não foi possível carregar do Sheets, usando dados locais:', e.message);
+    }
   }
 
-  // 4. Define datas padrão nos formulários
+  // 4. Datas padrão nos formulários
   sv('ab-dt', today());
   sv('mc-dt', today());
   sv('insp-dt', today());
 
-  // 5. Verifica se há sessão salva e faz login automático
-  if (tryAuto()) enterApp();
-  else document.getElementById('login-screen').style.display = 'flex';
+  // 5. Login automático — roda DEPOIS de apiLoadAll para ter usuários corretos
+  const sess = localStorage.getItem('sigman_sess');
+  if (sess) {
+    try {
+      const s = JSON.parse(sess);
+      // Revalida: busca o usuário na lista já atualizada do Sheets
+      const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
+      if (u) {
+        CU = u;
+        enterApp();
+        return;
+      }
+    } catch(e) {}
+    // Sessão inválida — limpa
+    localStorage.removeItem('sigman_sess');
+  }
+  document.getElementById('login-screen').style.display = 'flex';
 }
 
 
