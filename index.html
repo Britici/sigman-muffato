@@ -31,7 +31,7 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .sc{font-variant:small-caps;font-weight:700;letter-spacing:.04em}
 
 /* ── LOGIN ── */
-#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
+#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
 #login-screen::before{content:'';position:absolute;top:-30%;left:-20%;width:70vw;height:70vw;background:radial-gradient(circle,rgba(196,18,48,.1) 0%,transparent 65%);pointer-events:none}
 #login-screen::after{content:'';position:absolute;bottom:-20%;right:-10%;width:50vw;height:50vw;background:radial-gradient(circle,rgba(184,151,42,.07) 0%,transparent 65%);pointer-events:none}
 .lbox{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;margin:20px;box-shadow:var(--shad);position:relative;z-index:1}
@@ -271,6 +271,27 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 </style>
 </head>
 <body>
+
+<!-- ══ LOADING SCREEN — visível durante o init() ══ -->
+<div id="loading-screen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+">
+  <div style="
+    width:44px;height:44px;border-radius:50%;
+    border:3px solid var(--bord);
+    border-top-color:var(--red);
+    animation:spin .8s linear infinite;
+  "></div>
+  <div style="font-family:var(--fw);font-size:13px;color:var(--txt3);font-variant:small-caps;letter-spacing:1px;">
+    Carregando...
+  </div>
+</div>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 
 <!-- ══ LOGIN ══ -->
 <div id="login-screen">
@@ -765,16 +786,16 @@ async function apiLoadAll() {
     // Ordens executadas
     if (d.ordens && d.ordens.length) {
       db.ordens = d.ordens.map(r => ({
-        id:         Number(r.OS_Numero.replace('OS-','')) || Date.now(),
+        id:         Number(String(r.OS_Numero).replace('OS-','')) || Date.now(),
         numero:     r.OS_Numero,
         sala:       r.Sala,
         maq:        r.Maquina,
         tipo:       r.Tipo,
         prioridade: r.Prioridade,
         manut:      r.Manutentor,
-        data:       r.Data,
-        ini:        r.Hora_Inicio,
-        fim:        r.Hora_Fim,
+        data:       normDate(r.Data),
+        ini:        normTime(r.Hora_Inicio),
+        fim:        normTime(r.Hora_Fim),
         prob:       r.Problema,
         acao:       r.Acao_Executada,
         origem:     r.Origem,
@@ -789,19 +810,19 @@ async function apiLoadAll() {
     // OS Planejadas
     if (d.planejadas && d.planejadas.length) {
       db.planejadas = d.planejadas.map(r => ({
-        id:         Number(r.PL_Numero.replace('PL-','')) || Date.now(),
+        id:         Number(String(r.PL_Numero).replace('PL-','')) || Date.now(),
         numero:     r.PL_Numero,
         sala:       r.Sala,
         maq:        r.Maquina,
         tipo:       r.Tipo,
         prioridade: r.Prioridade,
-        prazo:      r.Prazo_Limite,
+        prazo:      normDate(r.Prazo_Limite),
         desc:       r.Descricao_Planejada,
         status:     r.Status || 'Pendente',
         manut:      r.Manutentor_Exec,
-        dtExec:     r.Data_Execucao,
-        ini:        r.Hora_Inicio,
-        fim:        r.Hora_Fim,
+        dtExec:     normDate(r.Data_Execucao),
+        ini:        normTime(r.Hora_Inicio),
+        fim:        normTime(r.Hora_Fim),
         desc2:      r.Servico_Executado,
         criadoEm:   r.Criado_Em,
         concluidoEm:r.Concluido_Em
@@ -813,7 +834,7 @@ async function apiLoadAll() {
     // Solicitações
     if (d.solicitacoes && d.solicitacoes.length) {
       db.solicitacoes = d.solicitacoes.map(r => ({
-        id:         Number(r.SOL_Numero.replace('SOL-','')) || Date.now(),
+        id:         Number(String(r.SOL_Numero).replace('SOL-','')) || Date.now(),
         numero:     r.SOL_Numero,
         sala:       r.Sala,
         maq:        r.Maquina,
@@ -823,7 +844,7 @@ async function apiLoadAll() {
         status:     r.Status || 'Não Executada',
         solicitante:r.Solicitante,
         manut:      r.Manutentor_Exec,
-        dtExec:     r.Data_Execucao,
+        dtExec:     normDate(r.Data_Execucao),
         desc2:      r.Servico_Executado,
         criadoEm:   r.Criado_Em,
         concluidoEm:r.Concluido_Em
@@ -1019,7 +1040,8 @@ function doLogin() {
   const user    = db.users.find(x => x.login === usuario && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
-  localStorage.setItem('sigman_sess', JSON.stringify(user));
+  // Salva sessão — contém login+senha para revalidar ao recarregar
+  localStorage.setItem('sigman_sess', JSON.stringify({ login: user.login, senha: user.senha }));
   enterApp();
 }
 
@@ -1082,6 +1104,7 @@ function lAlert(msg, type='err') {
 // INICIALIZAÇÃO DO APP APÓS LOGIN
 // ══════════════════════════════════════════════════════════════════════
 function enterApp() {
+  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').classList.add('on');
 
@@ -1270,10 +1293,60 @@ function sv(id, val) { const el = document.getElementById(id); if (el) el.value 
 function today() { return new Date().toISOString().slice(0,10); }
 
 // Formata data de YYYY-MM-DD para DD/MM/YYYY
+// Aceita: '2026-04-21', '2026-04-21T00:00:00.000Z', objetos Date
 function fd(d) {
   if (!d) return '—';
-  const parts = String(d).slice(0,10).split('-');
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+  const s = String(d).slice(0,10).trim();
+  // Formato ISO: 2026-04-21
+  const parts = s.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return s || '—';
+}
+
+// Normaliza uma data vinda do Google Sheets para YYYY-MM-DD
+// O Sheets pode enviar: '2026-04-21T00:00:00.000Z', Date object, ou número serial
+function normDate(v) {
+  if (!v) return '';
+  // Se é número (serial do Excel: dias desde 1899-12-30)
+  if (typeof v === 'number') {
+    // Converte serial para data: subtrai os dias do epoch do Excel
+    const ms = (v - 25569) * 86400 * 1000; // 25569 = diferença entre 1899-12-30 e 1970-01-01
+    const d  = new Date(ms);
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+    return '';
+  }
+  const s = String(v);
+  // Já está no formato YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Formato ISO completo: 2026-04-21T...
+  if (s.length >= 10 && s[4] === '-') return s.slice(0,10);
+  return s;
+}
+
+// Normaliza um horário vindo do Google Sheets para HH:MM
+// O Sheets pode enviar: '15:57', '15:57:28', número decimal (0.665 = 15:57), Date serial
+function normTime(v) {
+  if (!v) return '';
+  // Número decimal: fração do dia (ex: 0.6659722 = 15:58)
+  if (typeof v === 'number') {
+    // Se é um número grande (>1), pode ser serial de data+hora — pega só a parte fracionária
+    const frac = v % 1;
+    const totalMin = Math.round(frac * 24 * 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+  const s = String(v);
+  // Se é ISO com T (1899-12-30T15:57:28.000Z) — pega o horário
+  if (s.includes('T')) {
+    const timePart = s.split('T')[1] || '';
+    return timePart.slice(0,5); // HH:MM
+  }
+  // Se já é HH:MM ou HH:MM:SS
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
+  return '';
 }
 
 // Gera número de OS, PL ou SOL formatado
@@ -2230,43 +2303,64 @@ document.addEventListener('keydown', e => {
 // INICIALIZAÇÃO — roda quando a página carrega
 // ══════════════════════════════════════════════════════════════════════
 async function init() {
+  // O loading-screen já está visível (display:flex no HTML).
+  // Só revelamos o app ou o login DEPOIS de tudo pronto.
+
   // 1. Tema
   loadTheme();
 
-  // 2. Dados locais (carregamento rápido — garante base mesmo sem internet)
+  // 2. Dados locais (base rápida, evita tela em branco)
   loadDB();
 
-  // 3. Dados do Sheets (async — pode demorar 1-3s dependendo da conexão)
-  //    IMPORTANTE: precisa rodar ANTES de tryAuto para ter a lista de usuários atualizada
-  if (USE_API) {
-    try {
-      await apiLoadAll();
-    } catch(e) {
-      console.warn('[SIGMAN] Não foi possível carregar do Sheets, usando dados locais:', e.message);
-    }
-  }
-
-  // 4. Datas padrão nos formulários
-  sv('ab-dt', today());
-  sv('mc-dt', today());
-  sv('insp-dt', today());
-
-  // 5. Login automático — roda DEPOIS de apiLoadAll para ter usuários corretos
+  // 3. Se há sessão guardada, tenta login rápido com dados locais
+  //    para evitar tela de login piscando
   const sess = localStorage.getItem('sigman_sess');
   if (sess) {
     try {
       const s = JSON.parse(sess);
-      // Revalida: busca o usuário na lista já atualizada do Sheets
       const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
       if (u) {
         CU = u;
+        // Entra no app imediatamente com dados locais
         enterApp();
+        // Depois atualiza os dados do Sheets em segundo plano
+        if (USE_API) {
+          apiLoadAll().then(() => {
+            // Re-renderiza página atual com dados frescos do Sheets
+            const pid = document.querySelector('.nv-item.act');
+            if (pid) {
+              const page = pid.getAttribute('data-page');
+              if (page) showPage(page);
+            }
+            updStats();
+          }).catch(e => console.warn('[SIGMAN] Atualização em background falhou:', e.message));
+        }
+        // Esconde o spinner
+        document.getElementById('loading-screen').style.display = 'none';
         return;
       }
     } catch(e) {}
-    // Sessão inválida — limpa
+    // Sessão inválida
     localStorage.removeItem('sigman_sess');
   }
+
+  // 4. Sem sessão válida local → carrega Sheets antes de mostrar login
+  //    (para ter lista de usuários atualizada ao fazer login)
+  if (USE_API) {
+    try {
+      await apiLoadAll();
+    } catch(e) {
+      console.warn('[SIGMAN] Sheets indisponível, usando dados locais:', e.message);
+    }
+  }
+
+  // 5. Datas padrão
+  sv('ab-dt', today());
+  sv('mc-dt', today());
+  sv('insp-dt', today());
+
+  // 6. Esconde spinner, mostra login
+  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 }
 
