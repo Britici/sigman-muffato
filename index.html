@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>SIGMAN · Muffato Foods</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --red:#C41230;--red-d:#8a0c22;--red-l:#e8192f;
@@ -31,7 +32,7 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .sc{font-variant:small-caps;font-weight:700;letter-spacing:.04em}
 
 /* ── LOGIN ── */
-#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
+#login-screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);overflow:hidden;z-index:9000}
 #login-screen::before{content:'';position:absolute;top:-30%;left:-20%;width:70vw;height:70vw;background:radial-gradient(circle,rgba(196,18,48,.1) 0%,transparent 65%);pointer-events:none}
 #login-screen::after{content:'';position:absolute;bottom:-20%;right:-10%;width:50vw;height:50vw;background:radial-gradient(circle,rgba(184,151,42,.07) 0%,transparent 65%);pointer-events:none}
 .lbox{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;margin:20px;box-shadow:var(--shad);position:relative;z-index:1}
@@ -306,25 +307,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="fg"><label>Usuário</label><input type="text" id="l-u" placeholder="Login" autocomplete="username"></div>
    <div class="fg"><label>Senha</label><input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password"></div>
    <button class="btn btn-p btn-fl" onclick="doLogin()" style="margin-top:4px">Entrar</button>
-   <div id="l-admin-lnk" style="text-align:center;margin-top:12px;display:none">
-    <button class="btn btn-gh btn-sm" onclick="showReg()">+ Cadastrar Usuário</button>
-   </div>
-  </div>
-  <div id="lf-reg" style="display:none">
-   <div class="ltitle">Novo Usuário</div>
-   <div class="fg"><label>Nome Completo</label><input type="text" id="r-nome" placeholder="Nome"></div>
-   <div class="fg"><label>Login</label><input type="text" id="r-user" placeholder="Login de acesso"></div>
-   <div class="fg"><label>Senha</label><input type="password" id="r-pass" placeholder="Senha"></div>
-   <div class="fg"><label>Tipo de Acesso</label>
-    <select id="r-tipo">
-     <option value="administracao">Administração</option>
-     <option value="manutencao">Manutenção</option>
-     <option value="producao">Produção</option>
-    </select>
-   </div>
-   <div style="display:flex;gap:8px;margin-top:4px">
-    <button class="btn btn-gh btn-fl" onclick="backLogin()">Voltar</button>
-    <button class="btn btn-p btn-fl" onclick="doReg()">Cadastrar</button>
+   <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--txt3);font-family:var(--fw);letter-spacing:.5px">
+    Cadastro de usuários é feito pelo administrador
    </div>
   </div>
  </div>
@@ -406,8 +390,10 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
     </div>
     <div class="fr">
      <input type="text" id="fe-tx" placeholder="🔍 Buscar..." oninput="renderExec()">
-     <select id="fe-tp" onchange="renderExec()"><option value="">Todos os Tipos</option><option>Corretiva</option><option>Preventiva</option><option>Preditiva</option><option>Melhoria</option></select>
+     <select id="fe-tp" onchange="renderExec()"><option value="">Todos os Tipos</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select>
      <select id="fe-sl" onchange="renderExec()"><option value="">Todas as Salas</option></select>
+     <input type="date" id="fe-d1" onchange="renderExec()" title="De">
+     <input type="date" id="fe-d2" onchange="renderExec()" title="Até">
     </div>
     <div class="tw"><table><thead><tr>
      <th>OS #</th><th>Data</th><th>Sala</th><th>Máquina</th><th>Tipo</th><th>Prioridade</th><th>Manutentor</th><th>Tempo</th><th>Ações</th>
@@ -423,8 +409,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="fg-row">
       <div class="fg"><label>Sala / Local</label><select id="ab-sl" onchange="fMaq('ab')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="ab-mq"><option value="">Selecione a sala</option></select></div>
-      <div class="fg"><label>Tipo de Ação</label><select id="ab-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Preventiva</option><option>Preditiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Urgente">🔴 Urgente</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Tipo de Ação</label><select id="ab-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Manutentor Responsável</label><input type="text" id="ab-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -456,8 +442,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="fg-row">
       <div class="fg"><label>Sala / Local</label><select id="pl-sl" onchange="fMaq('pl')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="pl-mq"><option value="">Selecione a sala</option></select></div>
-      <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Preventiva</option><option>Preditiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Urgente">🔴 Urgente</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
      </div>
@@ -477,8 +463,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="fg-row">
       <div class="fg"><label>Sala / Local</label><select id="sol-sl" onchange="fMaq('sol')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="sol-mq"><option value="">Selecione a sala</option></select></div>
-      <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Preventiva</option><option>Preditiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Urgente">🔴 Urgente</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
      </div>
      <div class="fa">
@@ -532,19 +518,68 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <div class="fg"><label>Sala</label><select id="at-ms"><option value="">Selecione...</option></select></div>
        <div class="fg"><label>Nome da Máquina</label><input type="text" id="at-mn" placeholder="Ex: Cubadora"></div>
        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
+       <div class="fg-row">
+        <div class="fg"><label>Criticidade</label>
+         <select id="at-mc"><option value="A">A — Crítica</option><option value="B" selected>B — Importante</option><option value="C">C — Auxiliar</option></select>
+        </div>
+        <div class="fg"><label>Periodicidade Preventiva (dias)</label><input type="number" id="at-mp" placeholder="Ex: 30" min="1"></div>
+       </div>
        <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
       </div>
       <div class="card"><div class="card-t">Máquinas Cadastradas</div><div id="at-ml"></div></div>
      </div>
     </div>
-    <div id="at-users-wrap">
-     <div class="card">
-      <div class="card-t" style="justify-content:space-between">
-       <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>
-       <button class="btn btn-sm btn-p" onclick="showRegModal()">+ Novo Usuário</button>
-      </div>
-      <div id="at-ul"></div>
+    <div class="card"><div class="card-t">Distribuição por Criticidade</div><div style="position:relative;height:240px"><canvas id="chart-crit"></canvas></div></div>
+   </div>
+
+   <!-- USUÁRIOS (admin) -->
+   <div class="pg" id="pg-usuarios">
+    <div class="ph">
+     <div class="pt"><small>Cadastro</small>Usuários do Sistema</div>
+     <button class="btn btn-p btn-sm" onclick="showRegModal()">+ Novo Usuário</button>
+    </div>
+    <div class="card"><div id="at-ul"></div></div>
+   </div>
+
+   <!-- TEMPLATES DE INSPEÇÃO (admin) -->
+   <div class="pg" id="pg-tplinsp">
+    <div class="ph">
+     <div class="pt"><small>Configuração</small>Templates de Inspeção</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select id="tpli-sel" onchange="loadTplInspecao()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:8px 10px;font-family:var(--fb);font-size:13px">
+       <option value="rota">Inspeção de Rota</option>
+       <option value="mecanica_eletrica">Mecânica e Elétrica</option>
+      </select>
+      <button class="btn btn-p btn-sm" onclick="salvarTplInspecao()">💾 Salvar Template</button>
      </div>
+    </div>
+    <div class="alert" id="al-tpli"></div>
+    <div class="card">
+     <div class="card-t" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Itens deste template</span>
+      <button class="btn btn-sm btn-gh" onclick="addTplInspRow()">+ Adicionar Item</button>
+     </div>
+     <div class="tw"><table><thead><tr>
+      <th>#</th><th>Sala</th><th>Equipamento</th><th>Sub-item</th><th>Periodicidade</th><th>Ações</th>
+     </tr></thead><tbody id="tb-tpli"></tbody></table></div>
+    </div>
+   </div>
+
+   <!-- TEMPLATES DE PREVENTIVA (admin) -->
+   <div class="pg" id="pg-tplprev">
+    <div class="ph">
+     <div class="pt"><small>Configuração</small>Template de Preventiva</div>
+     <button class="btn btn-p btn-sm" onclick="salvarTplPreventiva()">💾 Salvar Template</button>
+    </div>
+    <div class="alert" id="al-tplp"></div>
+    <div class="card">
+     <div class="card-t" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Tarefas Preventivas — Mecânica/Elétrica</span>
+      <button class="btn btn-sm btn-gh" onclick="addTplPrevRow()">+ Adicionar Tarefa</button>
+     </div>
+     <div class="tw"><table><thead><tr>
+      <th>Sala</th><th>Equipamento</th><th>Tarefa</th><th>Periodicidade</th><th>Tempo (min)</th><th>Crit.</th><th>Ações</th>
+     </tr></thead><tbody id="tb-tplp"></tbody></table></div>
     </div>
    </div>
 
@@ -583,8 +618,35 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 <!-- MODAL RELATÓRIO -->
 <div class="mb" id="m-rel"><div class="modal" style="max-width:640px">
  <div class="mhd"><div class="mtit">Relatório de Inspeção</div><button class="mcl" onclick="closeM('m-rel')">×</button></div>
+ <div id="m-rel-nav" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:8px;background:var(--surf2);border-radius:var(--rs)">
+  <button class="btn btn-sm btn-gh" onclick="navRel(-1)">← Anterior</button>
+  <span id="m-rel-pos" style="font-family:var(--fm);font-size:12px;color:var(--txt2)"></span>
+  <button class="btn btn-sm btn-gh" onclick="navRel(1)">Próximo →</button>
+ </div>
  <div class="insp-report" id="m-rel-b"></div>
  <button class="wa-cp" onclick="copyRel()">📋 Copiar para WhatsApp</button>
+</div></div>
+
+<!-- MODAL EDITAR OS EXECUTADA -->
+<div class="mb" id="m-os"><div class="modal" style="max-width:560px">
+ <div class="mhd"><div class="mtit">Editar Ordem de Serviço</div><button class="mcl" onclick="closeM('m-os')">×</button></div>
+ <input type="hidden" id="mo-id">
+ <div class="fg-row">
+  <div class="fg"><label>Sala</label><select id="mo-sl" onchange="fMaqEdit()"></select></div>
+  <div class="fg"><label>Máquina</label><select id="mo-mq"></select></div>
+  <div class="fg"><label>Tipo</label><select id="mo-tp"><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
+  <div class="fg"><label>Prioridade</label><select id="mo-pr"><option value="Alta">Alta</option><option value="Média">Média</option><option value="Baixa">Baixa</option></select></div>
+  <div class="fg"><label>Manutentor</label><input type="text" id="mo-mn"></div>
+  <div class="fg"><label>Data</label><input type="date" id="mo-dt"></div>
+  <div class="fg"><label>Hora Início</label><input type="time" id="mo-in"></div>
+  <div class="fg"><label>Hora Fim</label><input type="time" id="mo-fm"></div>
+  <div class="fg fg-full"><label>Problema</label><textarea id="mo-pb"></textarea></div>
+  <div class="fg fg-full"><label>Ação Executada</label><textarea id="mo-ac"></textarea></div>
+ </div>
+ <div class="fa">
+  <button class="btn btn-gh" onclick="closeM('m-os')">Cancelar</button>
+  <button class="btn btn-p" onclick="salvarEditOS()">Salvar</button>
+ </div>
 </div></div>
 
 <!-- MODAL EDITAR -->
@@ -749,6 +811,14 @@ let db = {
   // Inspeções diárias salvas
   inspecoes: [],
 
+  // Templates de inspeção (admin) — carregados do Sheets
+  // Cada item: { id, nome, tipo:'rota'|'mecanica_eletrica', ordem, sala, equip, sub, periodicidade }
+  tplInspecao: [],
+
+  // Templates de preventiva (admin)
+  // Cada item: { id, nome, sala, equip, tarefa, periodicidade, tempo, criticidade }
+  tplPreventiva: [],
+
   // Usuários do sistema (login, senha, nome, tipo)
   users: [
     {login:'admin', senha:'admin123', nome:'Administrador',   tipo:'administracao'},
@@ -903,28 +973,73 @@ async function apiLoadAll() {
       db.inspecoes = Object.values(map);
     }
 
-    // Ativos: MERGE entre Sheets e padrões locais (não substitui, soma)
-    if (d.ativos && d.ativos.length) {
+    // Salas (nova aba)
+    if (d.salas && d.salas.length) {
+      db.salas = d.salas
+        .filter(r => r.Ativo !== 'nao' && r.Nome)
+        .map(r => String(r.Nome).trim())
+        .filter(Boolean);
+    }
+
+    // Máquinas (nova aba) — com criticidade e periodicidade
+    if (d.maquinas && d.maquinas.length) {
+      db.maquinas = d.maquinas
+        .filter(r => r.Ativo !== 'nao' && r.Nome)
+        .map(r => ({
+          nome: String(r.Nome).trim(),
+          sala: String(r.Sala||'').trim(),
+          tag:  r.Tag || '',
+          criticidade: r.Criticidade || 'B',
+          periodicidade: r.Periodicidade_Dias || ''
+        }));
+    }
+
+    // Fallback — aba antiga "Ativos" (migração suave)
+    if ((!db.salas || !db.salas.length) && d.ativos && d.ativos.length) {
       const sheetsSalas = d.ativos
         .filter(r => r.Tipo === 'sala' && r.Ativo !== 'nao')
-        .map(r => (r.Sala || r.Nome || '').trim())
+        .map(r => (r.Sala || r.Nome || '').toString().trim())
         .filter(Boolean);
-      const sheetsMaqs  = d.ativos
+      sheetsSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
+    }
+    if ((!db.maquinas || !db.maquinas.length) && d.ativos && d.ativos.length) {
+      d.ativos
         .filter(r => r.Tipo === 'maquina' && r.Ativo !== 'nao')
-        .map(r => ({ nome: (r.Nome||'').trim(), sala: (r.Sala||'').trim(), tag: r.Tag||'' }))
-        .filter(m => m.nome && m.sala);
+        .forEach(r => db.maquinas.push({
+          nome: (r.Nome||'').toString().trim(),
+          sala: (r.Sala||'').toString().trim(),
+          tag:  r.Tag||'',
+          criticidade: 'B', periodicidade: ''
+        }));
+    }
 
-      if (sheetsSalas.length) {
-        // Adiciona salas do Sheets que não existem ainda
-        sheetsSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
-      }
-      if (sheetsMaqs.length) {
-        // Adiciona máquinas do Sheets que não existem ainda (por nome+sala)
-        sheetsMaqs.forEach(m => {
-          const exists = db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala);
-          if (!exists) db.maquinas.push(m);
-        });
-      }
+    // Ordena alfabeticamente
+    db.salas.sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    db.maquinas.sort((a,b)=>a.sala.localeCompare(b.sala,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'));
+
+    // Templates de Inspeção
+    if (d.tplInspecao && d.tplInspecao.length) {
+      db.tplInspecao = d.tplInspecao.map(r => ({
+        id:    r.Template_ID || 'ROTA-01',
+        nome:  r.Nome_Template || '',
+        tipo:  r.Tipo || 'rota',
+        ordem: Number(r.Ordem)||0,
+        sala:  r.Sala||'', equip: r.Equipamento||'', sub: r.Sub_Item||'',
+        periodicidade: r.Periodicidade||''
+      }));
+    }
+
+    // Templates de Preventiva
+    if (d.tplPreventiva && d.tplPreventiva.length) {
+      db.tplPreventiva = d.tplPreventiva.map(r => ({
+        id:    r.Template_ID || 'PREV-01',
+        nome:  r.Nome_Template || '',
+        sala:  r.Sala||'', equip: r.Equipamento||'',
+        tarefa: r.Tarefa||'',
+        periodicidade: r.Periodicidade||'',
+        tempo: r.Tempo_Estimado_Min||'',
+        criticidade: r.Criticidade||'B'
+      }));
     }
 
     console.log('✅ Dados carregados do Google Sheets');
@@ -991,6 +1106,49 @@ async function apiDelete(sheet, id, idCol) {
   }
 }
 
+// Substitui TODAS as linhas de uma aba (usado para templates editáveis)
+async function apiReplaceAll(sheet, rows) {
+  if (!USE_API) return;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'replaceAll', sheet, rows })
+    });
+    const json = await res.json();
+    if (!json.ok) console.error('[SIGMAN] ❌ Erro replaceAll', sheet, json.error);
+    return json;
+  } catch(e) {
+    console.error('[SIGMAN] ❌ Falha replaceAll:', e.message);
+  }
+}
+
+// ── POLLING (atualização automática a cada 60s) ─────────────────────────
+let _lastTs = 0;
+let _pollTimer = null;
+async function startPolling() {
+  if (!USE_API || _pollTimer) return;
+  _pollTimer = setInterval(async () => {
+    if (document.hidden) return; // pausa quando aba inativa (economiza quota)
+    try {
+      const res  = await fetch(API_URL + '?action=lastUpdate');
+      const json = await res.json();
+      if (json.ok && json.ts && json.ts > _lastTs) {
+        _lastTs = json.ts;
+        await apiLoadAll();
+        // Re-renderiza página atual
+        const ni = document.querySelector('.nv-item.act');
+        if (ni) {
+          const pid = ni.getAttribute('data-page');
+          if (pid) showPage(pid);
+        }
+        updStats();
+        console.log('[SIGMAN] 🔄 Dados atualizados automaticamente');
+      }
+    } catch(e) { /* silencioso */ }
+  }, 60000);
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // BANCO LOCAL (localStorage) — fallback quando USE_API=false
 // ══════════════════════════════════════════════════════════════════════
@@ -1014,12 +1172,12 @@ function loadDB() {
 // Para mudar o que cada nível vê, edite o array 'menus' de cada tipo
 // ══════════════════════════════════════════════════════════════════════
 const ROLES = {
-  // Administração: vê tudo
+  // Administração: vê tudo (inclui páginas de cadastro)
   administracao: {
     label: 'Administração',
-    menus: ['dashboard','planejadas','executadas','abertura','planejamento','solicitacao','inspecao','ativos']
+    menus: ['dashboard','planejadas','executadas','abertura','planejamento','solicitacao','inspecao','ativos','usuarios','tplinsp','tplprev']
   },
-  // Manutenção: vê tudo exceto Planejamento de OS e Ativos
+  // Manutenção: operacional
   manutencao: {
     label: 'Manutenção',
     menus: ['dashboard','planejadas','executadas','abertura','inspecao']
@@ -1060,36 +1218,10 @@ function tryAuto() {
 function doLogout() {
   localStorage.removeItem('sigman_sess');
   CU = null;
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   document.getElementById('app').classList.remove('on');
   document.getElementById('login-screen').style.display = 'flex';
   sv('l-u',''); sv('l-p','');
-  document.getElementById('l-admin-lnk').style.display = 'none';
-  showLoginForm();
-}
-
-// Mostra formulário de cadastro de novo usuário
-function showReg()     { document.getElementById('lf-login').style.display='none'; document.getElementById('lf-reg').style.display='block'; }
-function backLogin()   { document.getElementById('lf-reg').style.display='none';   document.getElementById('lf-login').style.display='block'; }
-function showLoginForm(){ document.getElementById('lf-login').style.display='block'; document.getElementById('lf-reg').style.display='none'; }
-
-// Cadastra novo usuário (a partir da tela de login, só admin vê o botão)
-function doReg() {
-  const nome  = v('r-nome').trim();
-  const login = v('r-user').trim();
-  const senha = v('r-pass').trim();
-  const tipo  = v('r-tipo');
-  if (!nome || !login || !senha) { lAlert('Preencha todos os campos.'); return; }
-  if (db.users.find(u => u.login === login)) { lAlert('Login já existe.'); return; }
-  db.users.push({ login, senha, nome, tipo });
-  saveDB(); // salva com senha no localStorage
-  // Salva no Sheets (sem senha por segurança)
-  apiAppend('usuarios', {
-    Login: login, Nome: nome, Tipo_Acesso: tipo,
-    Ativo: 'sim', Criado_Em: new Date().toISOString()
-  });
-  lAlert('Usuário cadastrado!', 'ok');
-  setTimeout(backLogin, 1500);
-  sv('r-nome',''); sv('r-user',''); sv('r-pass','');
 }
 
 // Mostra alerta na tela de login
@@ -1115,8 +1247,6 @@ function enterApp() {
   document.getElementById('u-rl').textContent = ROLES[CU.tipo].label;
 
   // Controla visibilidade de elementos por nível de acesso
-  document.getElementById('l-admin-lnk').style.display = CU.tipo === 'administracao' ? 'block' : 'none';
-  document.getElementById('at-users-wrap').style.display = CU.tipo === 'administracao' ? 'block' : 'none';
   document.getElementById('tb-stat').style.display = CU.tipo !== 'producao' ? 'flex' : 'none';
 
   // Monta menu lateral e abre primeira página
@@ -1124,6 +1254,7 @@ function enterApp() {
   populateAll();
   showPage(ROLES[CU.tipo].menus[0]);
   updStats();
+  startPolling();
 
   // Pré-preenche campo manutentor com nome do usuário logado
   if (CU.tipo !== 'producao') {
@@ -1145,6 +1276,9 @@ const NAV = [
   { id:'solicitacao',  ic:'📣', lbl:'Solicitação de O.S.' },
   { id:'inspecao',     ic:'🔍', lbl:'Inspeção Diária'    },
   { id:'ativos',       ic:'🏭', lbl:'Ativos'             },
+  { id:'usuarios',     ic:'👥', lbl:'Usuários'           },
+  { id:'tplinsp',      ic:'📝', lbl:'Templates Inspeção' },
+  { id:'tplprev',      ic:'⚙️', lbl:'Templates Preventiva'},
 ];
 
 // Monta os itens do menu com base no nível de acesso
@@ -1172,7 +1306,10 @@ const LBLS = {
   planejamento: 'Planejamento de O.S.',
   solicitacao:  'Solicitação de O.S.',
   inspecao:     'Inspeção Diária',
-  ativos:       'Ativos'
+  ativos:       'Ativos',
+  usuarios:     'Usuários',
+  tplinsp:      'Templates de Inspeção',
+  tplprev:      'Template de Preventiva'
 };
 
 // Navega para uma página
@@ -1192,6 +1329,9 @@ function showPage(pid) {
   if (pid === 'solicitacao') renderSol();
   if (pid === 'ativos')      renderAtivos();
   if (pid === 'inspecao')    buildInsp();
+  if (pid === 'usuarios')    renderUsers();
+  if (pid === 'tplinsp')     loadTplInspecao();
+  if (pid === 'tplprev')     renderTplPreventiva();
   if (pid === 'abertura') {
     populateSalas('ab');
     sv('ab-dt', today());
@@ -1446,8 +1586,7 @@ function salvarOS() {
 
   showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
   clearAb();
-  // Redireciona para o Dashboard após salvar
-  setTimeout(() => showPage('dashboard'), 800);
+  setTimeout(() => showPage('dashboard'), 900);
 }
 
 // Limpa o formulário de abertura de OS
@@ -1493,8 +1632,7 @@ function salvarPlan() {
 
   showAlert('al-pl','O.S. Planejada criada!','ok');
   clearPl();
-  // Redireciona para o Dashboard após salvar
-  setTimeout(() => showPage('dashboard'), 800);
+  setTimeout(() => showPage('dashboard'), 900);
 }
 
 function clearPl() {
@@ -1627,9 +1765,9 @@ function concluir() {
   });
 
   closeM('m-con');
-  if (_ctp === 'plan') renderPlan();
-  else renderSol();
   updStats();
+  // Após concluir, vai para o dashboard
+  showPage('dashboard');
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1644,13 +1782,37 @@ function renderDash() {
   const ab  = db.planejadas.filter(p => p.status !== 'Concluída').length;
   const sp  = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
 
-  // Cartões de estatísticas
+  // ── Indicadores TPM/OEE (somente corretivas para MTTR/MTBF) ──────────
+  const corOrd = db.ordens.filter(o => o.tipo === 'Corretiva' && o.ini && o.fim);
+  let tParada = 0;
+  corOrd.forEach(o => {
+    const [h1,m1] = o.ini.split(':').map(Number);
+    const [h2,m2] = o.fim.split(':').map(Number);
+    const d = (h2*60+m2) - (h1*60+m1);
+    if (d > 0) tParada += d;
+  });
+  const mttr = corOrd.length ? Math.round(tParada / corOrd.length) : 0;
+  // MTBF: assume 30 dias × 8h = 14400 min de operação como base simplificada
+  const minOp = 30 * 8 * 60;
+  const mtbf = corOrd.length ? Math.round((minOp - tParada) / corOrd.length) : minOp;
+  // Disponibilidade
+  const disp = minOp > 0 ? Math.max(0, Math.round(((minOp - tParada) / minOp) * 1000) / 10) : 100;
+  // Compliance preventivas (executadas/planejadas)
+  const planTot  = db.planejadas.length;
+  const planExec = db.planejadas.filter(p => p.status === 'Concluída').length;
+  const compl = planTot > 0 ? Math.round((planExec / planTot) * 100) : 0;
+
+  // Cartões operacionais
   document.getElementById('d-stats').innerHTML = `
     <div class="sc-card c-go"><div class="sc-lbl">OS Hoje</div><div class="sc-val">${hj}</div></div>
     <div class="sc-card c-g"><div class="sc-lbl">Total Executadas</div><div class="sc-val">${tot}</div></div>
     <div class="sc-card c-r"><div class="sc-lbl">Corretivas</div><div class="sc-val">${cor}</div></div>
     <div class="sc-card c-b"><div class="sc-lbl">Planejadas Abertas</div><div class="sc-val">${ab}</div></div>
-    <div class="sc-card c-o"><div class="sc-lbl">Solicitações Pend.</div><div class="sc-val">${sp}</div></div>`;
+    <div class="sc-card c-o"><div class="sc-lbl">Solicitações Pend.</div><div class="sc-val">${sp}</div></div>
+    <div class="sc-card c-b"><div class="sc-lbl">MTTR (min)</div><div class="sc-val">${mttr}</div></div>
+    <div class="sc-card c-g"><div class="sc-lbl">MTBF (min)</div><div class="sc-val">${mtbf}</div></div>
+    <div class="sc-card c-go"><div class="sc-lbl">Disponibilidade</div><div class="sc-val">${disp}%</div></div>
+    <div class="sc-card c-o"><div class="sc-lbl">Compliance Prev.</div><div class="sc-val">${compl}%</div></div>`;
 
   // Últimas 5 OS executadas
   const rec = [...db.ordens].reverse().slice(0,5);
@@ -1703,10 +1865,13 @@ function renderDash() {
           </div>
         </div>`).join('');
 
-  // Preview da última inspeção
-  const lastInsp = [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
+  // Preview da última inspeção (preferindo a do dia atual)
+  const insHoje = db.inspecoes.filter(i => i.data === t)
+                    .sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
+  const lastInsp = insHoje[0]
+    || [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
   document.getElementById('d-insp').innerHTML = lastInsp
-    ? `<div style="font-size:12px;font-family:var(--fm);color:var(--txt3)">${lastInsp.data} · ${lastInsp.turno} · ${lastInsp.manut}</div>
+    ? `<div style="font-size:12px;font-family:var(--fm);color:var(--txt3)">${lastInsp.data} · ${lastInsp.turno} · ${lastInsp.manut}${lastInsp.data===t?' · <span style="color:var(--green);font-weight:600">HOJE</span>':''}</div>
        <div class="wa-prev" style="margin-top:8px;max-height:200px;overflow:auto">${gerarTextoRel(lastInsp)}</div>`
     : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada.</p></div>';
 }
@@ -1742,6 +1907,10 @@ function renderPlan() {
     <td><div style="display:flex;gap:4px;flex-wrap:wrap">
       ${p.status !== 'Concluída' ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${p.id},'plan')">Concluir</button>` : ''}
       <button class="btn btn-sm btn-gh" onclick="verDet(${p.id},'pl')">Ver</button>
+      ${p.status === 'Concluída' && CU && CU.tipo === 'administracao' ? (() => {
+        const osExec = db.ordens.find(o => o.origem === 'plan' && o.origemNum === p.numero);
+        return osExec ? `<button class="btn btn-sm btn-p" onclick="abrirEditOS(${osExec.id})">✎ OS</button>` : '';
+      })() : ''}
       <button class="btn btn-d" onclick="delPlan(${p.id})">✕</button>
     </div></td>
   </tr>`).join('');
@@ -1758,22 +1927,29 @@ function delPlan(id) {
 // ══════════════════════════════════════════════════════════════════════
 // O.S. EXECUTADAS — tabela com filtros e export CSV
 // ══════════════════════════════════════════════════════════════════════
-function renderExec() {
+function _filtrarExec() {
   populateSalaFilter('fe-sl');
   const tx = v('fe-tx').toLowerCase();
   const tp = v('fe-tp');
   const sl = v('fe-sl');
-
+  const d1 = v('fe-d1');
+  const d2 = v('fe-d2');
   let data = [...db.ordens].reverse();
   if (tx) data = data.filter(o => [o.numero,o.sala,o.maq,o.manut,o.tipo].some(x => x && x.toLowerCase().includes(tx)));
   if (tp) data = data.filter(o => o.tipo === tp);
   if (sl) data = data.filter(o => o.sala === sl);
-
+  if (d1) data = data.filter(o => o.data >= d1);
+  if (d2) data = data.filter(o => o.data <= d2);
+  return data;
+}
+function renderExec() {
+  const data = _filtrarExec();
   const tb = document.getElementById('tb-exec');
   if (!data.length) {
     tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`;
     return;
   }
+  const isAdm = CU && CU.tipo === 'administracao';
   tb.innerHTML = data.map(o => `<tr>
     <td><span class="osn">${o.numero}</span></td>
     <td style="font-size:12px">${fd(o.data)}</td>
@@ -1783,8 +1959,9 @@ function renderExec() {
     <td>${prio(o.prioridade)}</td>
     <td style="font-size:12px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim ? o.ini+' – '+o.fim : '—'}</td>
-    <td><div style="display:flex;gap:4px">
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn btn-sm btn-gh" onclick="verDet(${o.id},'os')">Ver</button>
+      ${isAdm ? `<button class="btn btn-sm btn-p" onclick="abrirEditOS(${o.id})">✎</button>` : ''}
       <button class="btn btn-d" onclick="delOS(${o.id})">✕</button>
     </div></td>
   </tr>`).join('');
@@ -1799,11 +1976,12 @@ function delOS(id) {
   if (os) apiDelete('ordens', os.numero, 'OS_Numero');
 }
 
-// Exporta todas as OS para CSV (compatível com Power BI e Excel)
+// Exporta as OS filtradas para CSV (compatível com Power BI e Excel)
 function exportCSV() {
-  if (!db.ordens.length) { alert('Sem dados para exportar.'); return; }
+  const data = _filtrarExec();
+  if (!data.length) { alert('Sem dados para exportar (verifique os filtros).'); return; }
   const headers = ['OS_Numero','Data','Sala','Maquina','Tipo','Prioridade','Manutentor','Hora_Inicio','Hora_Fim','Problema','Acao_Executada','Origem'];
-  const rows    = db.ordens.map(o => [
+  const rows    = data.map(o => [
     o.numero, o.data, o.sala, o.maq, o.tipo, o.prioridade||'', o.manut,
     o.ini||'', o.fim||'',
     (o.prob||'').replace(/,/g,'|'),
@@ -1850,11 +2028,39 @@ function renderSol() {
 // ══════════════════════════════════════════════════════════════════════
 // INSPEÇÃO DIÁRIA
 // ══════════════════════════════════════════════════════════════════════
+// Monta a estrutura {sala, equips:[{nome,subs:[]}]} a partir de db.tplInspecao
+// (filtrando por tipo escolhido — padrão: 'rota')
+function _tplInspParaEstrutura(tipo) {
+  tipo = tipo || 'rota';
+  const itens = db.tplInspecao.filter(t => t.tipo === tipo);
+  if (!itens.length) return INSP_TMPL; // fallback ao template hardcoded
+  // Agrupa por sala → equipamento → sub-itens
+  const bySala = {};
+  itens.sort((a,b) => (a.ordem||0) - (b.ordem||0));
+  itens.forEach(it => {
+    if (!bySala[it.sala]) bySala[it.sala] = {};
+    if (!bySala[it.sala][it.equip]) bySala[it.sala][it.equip] = [];
+    if (it.sub) bySala[it.sala][it.equip].push(it.sub);
+  });
+  const out = [];
+  Object.keys(bySala).forEach(sala => {
+    const equips = [];
+    Object.keys(bySala[sala]).forEach(eqNome => {
+      const subsNomes = bySala[sala][eqNome];
+      const eqId = (sala + '_' + eqNome).replace(/[^A-Za-z0-9]/g,'_').toLowerCase();
+      const subs = subsNomes.map((s,i) => ({ id: eqId+'_s'+i, nome: s }));
+      equips.push({ id: eqId, nome: eqNome, subs });
+    });
+    out.push({ sala, equips });
+  });
+  return out;
+}
+let _inspEstrutura = null;
 function buildInsp() {
   const c = document.getElementById('insp-secs');
-  if (c.dataset.built) return; // Já construído, não reconstrói
-  c.dataset.built = '1';
-  c.innerHTML = INSP_TMPL.map(sec => `
+  // Reconstrói sempre — template pode ter mudado via polling
+  _inspEstrutura = _tplInspParaEstrutura('rota');
+  c.innerHTML = _inspEstrutura.map(sec => `
     <div class="insp-sec" id="isec-${sec.sala.replace(/\s/g,'_')}">
       <div class="insp-hd" onclick="toggleSec(this)">
         <div class="insp-ht">${sec.sala}</div>
@@ -1917,7 +2123,8 @@ function setStatus(id, st, btn) {
 // Coleta todos os dados preenchidos na tela de inspeção
 function collectInsp() {
   const data = [];
-  INSP_TMPL.forEach(sec => {
+  const tmpl = _inspEstrutura || INSP_TMPL;
+  tmpl.forEach(sec => {
     const equips = [];
     sec.equips.forEach(eq => {
       const row = document.getElementById('row-' + eq.id);
@@ -1968,6 +2175,8 @@ function salvarInsp() {
   });
 
   showAlert('al-insp','Inspeção salva com sucesso!','ok');
+  // Após salvar, redireciona ao dashboard
+  setTimeout(() => showPage('dashboard'), 900);
 }
 
 // Gera o texto do relatório no formato WhatsApp
@@ -2010,10 +2219,8 @@ function gerarRel() {
 }
 
 function verRelatorio() {
-  const lastInsp = [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
-  if (!lastInsp) { alert('Nenhuma inspeção registrada.'); return; }
-  document.getElementById('m-rel-b').textContent = gerarTextoRel(lastInsp);
-  openM('m-rel');
+  // Abre histórico navegável (mais recente primeiro)
+  abrirHistoricoRel();
 }
 
 function copyRel() {
@@ -2080,6 +2287,10 @@ let _editType = null;
 let _editIdx  = null;
 
 function renderAtivos() {
+  // Garante ordem alfabética
+  db.salas.sort((a,b) => a.localeCompare(b,'pt-BR'));
+  db.maquinas.sort((a,b) => a.sala.localeCompare(b.sala,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'));
+
   populateAtMaqSala();
 
   // Lista de salas com botões editar/excluir
@@ -2094,14 +2305,18 @@ function renderAtivos() {
           </div>
         </div>`).join('');
 
-  // Lista de máquinas
+  // Lista de máquinas (com criticidade colorida)
+  const critCor = { A: 'var(--red)', B: 'var(--orange)', C: 'var(--green)' };
   document.getElementById('at-ml').innerHTML = db.maquinas.length === 0
     ? '<div class="empty"><p>Nenhuma máquina.</p></div>'
     : db.maquinas.map((m,i) => `
         <div class="edit-row">
           <div>
-            <div style="font-size:13px;font-weight:500">${m.nome}</div>
-            <div style="font-size:11px;color:var(--txt3)">${m.sala}${m.tag?' · '+m.tag:''}</div>
+            <div style="font-size:13px;font-weight:500">
+              ${m.nome}
+              <span style="display:inline-block;background:${critCor[m.criticidade]||'var(--txt3)'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;font-family:var(--fm)">${m.criticidade||'B'}</span>
+            </div>
+            <div style="font-size:11px;color:var(--txt3)">${m.sala}${m.tag?' · '+m.tag:''}${m.periodicidade?' · cada '+m.periodicidade+'d':''}</div>
           </div>
           <div class="edit-acts">
             <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${i})">✎</button>
@@ -2109,7 +2324,33 @@ function renderAtivos() {
           </div>
         </div>`).join('');
 
-  renderUsers();
+  // Gráfico de Criticidade
+  setTimeout(renderChartCrit, 50);
+}
+
+let _chartCrit = null;
+function renderChartCrit() {
+  const cv = document.getElementById('chart-crit');
+  if (!cv || !window.Chart) return;
+  const ct = { A:0, B:0, C:0 };
+  db.maquinas.forEach(m => { ct[m.criticidade||'B']++; });
+  if (_chartCrit) _chartCrit.destroy();
+  _chartCrit = new Chart(cv.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['A — Crítica', 'B — Importante', 'C — Auxiliar'],
+      datasets: [{
+        data: [ct.A, ct.B, ct.C],
+        backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--txt') } } }
+    }
+  });
 }
 
 function renderUsers() {
@@ -2139,8 +2380,8 @@ function addSala() {
   sv('at-sn','');
   populateAll();
   renderAtivos();
-  // Grava no Sheets
-  apiAppend('ativos', { Tipo:'sala', Sala:n, Nome:n, Tag:'', Ativo:'sim', Criado_Em: new Date().toISOString() });
+  // Grava no Sheets (aba Salas)
+  apiAppend('salas', { Nome:n, Ativo:'sim', Criado_Em: new Date().toISOString() });
 }
 
 // Adiciona nova máquina
@@ -2148,13 +2389,18 @@ function addMaq() {
   const sala = v('at-ms');
   const nome = v('at-mn').trim();
   const tag  = v('at-mt').trim();
+  const crit = v('at-mc') || 'B';
+  const per  = v('at-mp').trim();
   if (!sala || !nome) { alert('Selecione sala e informe o nome.'); return; }
-  db.maquinas.push({ nome, sala, tag });
+  db.maquinas.push({ nome, sala, tag, criticidade:crit, periodicidade:per });
   saveDB();
-  sv('at-mn',''); sv('at-mt','');
+  sv('at-mn',''); sv('at-mt',''); sv('at-mp','');
   populateAll();
   renderAtivos();
-  apiAppend('ativos', { Tipo:'maquina', Sala:sala, Nome:nome, Tag:tag, Ativo:'sim', Criado_Em: new Date().toISOString() });
+  apiAppend('maquinas', {
+    Nome:nome, Sala:sala, Tag:tag, Criticidade:crit, Periodicidade_Dias:per,
+    Ativo:'sim', Criado_Em: new Date().toISOString()
+  });
 }
 
 function delSala(nome) {
@@ -2164,8 +2410,7 @@ function delSala(nome) {
   saveDB();
   populateAll();
   renderAtivos();
-  // Remove do Sheets também (soft delete: marca Ativo='nao')
-  apiDelete('ativos', nome, 'Sala');
+  apiDelete('salas', nome, 'Nome');
 }
 
 function delMaq(i) {
@@ -2175,8 +2420,7 @@ function delMaq(i) {
   saveDB();
   populateAll();
   renderAtivos();
-  // Remove do Sheets (por nome+sala)
-  if (maq) apiDelete('ativos', maq.nome, 'Nome');
+  if (maq) apiDelete('maquinas', maq.nome, 'Nome');
 }
 
 function delUser(i) {
@@ -2204,7 +2448,17 @@ function openEdit(type, idx) {
         <select id="me-sl">${db.salas.map(s => `<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
       </div>
       <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
-      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>`;
+      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
+      <div class="fg-row">
+        <div class="fg"><label>Criticidade</label>
+          <select id="me-cr">
+            <option value="A"${m.criticidade==='A'?' selected':''}>A — Crítica</option>
+            <option value="B"${(m.criticidade||'B')==='B'?' selected':''}>B — Importante</option>
+            <option value="C"${m.criticidade==='C'?' selected':''}>C — Auxiliar</option>
+          </select>
+        </div>
+        <div class="fg"><label>Periodicidade (dias)</label><input type="number" id="me-pe" value="${m.periodicidade||''}" min="1"></div>
+      </div>`;
   }
   openM('m-edit');
 }
@@ -2216,13 +2470,35 @@ function salvarEdit() {
     const old = db.salas[_editIdx];
     db.salas[_editIdx] = nv;
     db.maquinas.forEach(m => { if (m.sala === old) m.sala = nv; });
+    saveDB();
+    populateAll();
+    renderAtivos();
+    closeM('m-edit');
+    // Atualiza no Sheets (renomeia)
+    apiUpdate('salas', old, 'Nome', { Nome: nv });
+    // E também ajusta máquinas que apontavam para esta sala
+    db.maquinas.filter(x => x.sala === nv).forEach(x =>
+      apiUpdate('maquinas', x.nome, 'Nome', { Sala: nv }));
   } else {
-    db.maquinas[_editIdx] = { nome: v('me-nm').trim(), sala: v('me-sl'), tag: v('me-tg').trim() };
+    const old = db.maquinas[_editIdx];
+    const nm = {
+      nome: v('me-nm').trim(),
+      sala: v('me-sl'),
+      tag:  v('me-tg').trim(),
+      criticidade: v('me-cr') || 'B',
+      periodicidade: v('me-pe').trim()
+    };
+    db.maquinas[_editIdx] = nm;
+    saveDB();
+    populateAll();
+    renderAtivos();
+    closeM('m-edit');
+    // Atualiza no Sheets (busca pelo nome antigo)
+    apiUpdate('maquinas', old.nome, 'Nome', {
+      Nome: nm.nome, Sala: nm.sala, Tag: nm.tag,
+      Criticidade: nm.criticidade, Periodicidade_Dias: nm.periodicidade
+    });
   }
-  saveDB();
-  populateAll();
-  renderAtivos();
-  closeM('m-edit');
 }
 
 // Modal de novo/editar usuário (admin)
@@ -2294,10 +2570,209 @@ document.querySelectorAll('.mb').forEach(b => b.addEventListener('click', e => {
 // Enter na tela de login faz submit
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
-    if (document.getElementById('lf-login').style.display !== 'none') doLogin();
-    else doReg();
+    doLogin();
   }
 });
+
+// ══════════════════════════════════════════════════════════════════════
+// EDIÇÃO DE OS EXECUTADA (admin)
+// ══════════════════════════════════════════════════════════════════════
+function abrirEditOS(id) {
+  const o = db.ordens.find(x => x.id === id);
+  if (!o) return;
+  sv('mo-id', String(id));
+  // Salas
+  const sl = document.getElementById('mo-sl');
+  sl.innerHTML = db.salas.map(s => `<option${s===o.sala?' selected':''}>${s}</option>`).join('');
+  fMaqEdit();
+  document.getElementById('mo-mq').value = o.maq;
+  sv('mo-tp', o.tipo); sv('mo-pr', o.prioridade||'Média');
+  sv('mo-mn', o.manut); sv('mo-dt', o.data);
+  sv('mo-in', o.ini||''); sv('mo-fm', o.fim||'');
+  sv('mo-pb', o.prob||''); sv('mo-ac', o.acao||'');
+  openM('m-os');
+}
+function fMaqEdit() {
+  const sala = v('mo-sl');
+  const sel  = document.getElementById('mo-mq');
+  sel.innerHTML = db.maquinas.filter(m => m.sala === sala)
+    .map(m => `<option>${m.nome}</option>`).join('');
+}
+function salvarEditOS() {
+  const id = parseInt(v('mo-id'));
+  const o  = db.ordens.find(x => x.id === id);
+  if (!o) return;
+  Object.assign(o, {
+    sala: v('mo-sl'), maq: v('mo-mq'), tipo: v('mo-tp'),
+    prioridade: v('mo-pr'), manut: v('mo-mn'), data: v('mo-dt'),
+    ini: v('mo-in'), fim: v('mo-fm'),
+    prob: v('mo-pb'), acao: v('mo-ac')
+  });
+  saveDB();
+  let durMin = '';
+  if (o.ini && o.fim) {
+    const [h1,m1] = o.ini.split(':').map(Number);
+    const [h2,m2] = o.fim.split(':').map(Number);
+    durMin = (h2*60+m2) - (h1*60+m1);
+  }
+  apiUpdate('ordens', o.numero, 'OS_Numero', {
+    Data: o.data, Sala: o.sala, Maquina: o.maq, Tipo: o.tipo,
+    Prioridade: o.prioridade, Manutentor: o.manut,
+    Hora_Inicio: o.ini, Hora_Fim: o.fim, Duracao_Min: durMin,
+    Problema: o.prob, Acao_Executada: o.acao
+  });
+  closeM('m-os');
+  renderExec();
+  updStats();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NAVEGAÇÃO ENTRE RELATÓRIOS DE INSPEÇÃO
+// ══════════════════════════════════════════════════════════════════════
+let _relList = [];
+let _relIdx = 0;
+function abrirHistoricoRel() {
+  _relList = [...db.inspecoes].sort((a,b) => (b.criadoEm||b.data).localeCompare(a.criadoEm||a.data));
+  if (!_relList.length) { alert('Sem inspeções registradas.'); return; }
+  _relIdx = 0;
+  _mostrarRel();
+}
+function navRel(d) {
+  if (!_relList.length) return;
+  _relIdx = Math.max(0, Math.min(_relList.length - 1, _relIdx + d));
+  _mostrarRel();
+}
+function _mostrarRel() {
+  const insp = _relList[_relIdx];
+  document.getElementById('m-rel-b').textContent = gerarTextoRel(insp);
+  document.getElementById('m-rel-pos').textContent = `${_relIdx+1} / ${_relList.length} — ${insp.data} ${insp.turno}`;
+  document.getElementById('m-rel-nav').style.display = _relList.length > 1 ? 'flex' : 'none';
+  openM('m-rel');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TEMPLATES DE INSPEÇÃO (admin)
+// ══════════════════════════════════════════════════════════════════════
+function loadTplInspecao() {
+  const tipo = v('tpli-sel') || 'rota';
+  const tb = document.getElementById('tb-tpli');
+  const itens = db.tplInspecao.filter(t => t.tipo === tipo)
+                  .sort((a,b) => (a.ordem||0) - (b.ordem||0));
+  if (!itens.length) {
+    tb.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="ei">📝</div><p>Sem itens. Clique "+ Adicionar Item".</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = itens.map((it, i) => `<tr data-ord="${it.ordem}">
+    <td style="font-family:var(--fm);font-size:11px">${i+1}</td>
+    <td><input type="text" value="${it.sala||''}" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.equip||''}" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.sub||''}" data-k="sub" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.periodicidade||'Diária'}" data-k="periodicidade" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>
+  </tr>`).join('');
+}
+function addTplInspRow() {
+  const tb = document.getElementById('tb-tpli');
+  if (tb.querySelector('.empty')) tb.innerHTML = '';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="font-family:var(--fm);font-size:11px">novo</td>
+    <td><input type="text" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" data-k="sub" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="Diária" data-k="periodicidade" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tb.appendChild(tr);
+}
+async function salvarTplInspecao() {
+  const tipo = v('tpli-sel') || 'rota';
+  const nome = tipo === 'rota' ? 'Inspeção de Rota' : 'Mecânica e Elétrica';
+  const tplId = tipo === 'rota' ? 'INSP-ROTA-01' : 'INSP-ME-01';
+  const trs = document.querySelectorAll('#tb-tpli tr');
+  const novosItens = [];
+  trs.forEach((tr, i) => {
+    const ipts = tr.querySelectorAll('input[data-k]');
+    if (!ipts.length) return;
+    const obj = { tipo, ordem: i+1 };
+    ipts.forEach(ip => obj[ip.getAttribute('data-k')] = ip.value.trim());
+    if (obj.sala || obj.equip) novosItens.push(obj);
+  });
+  // Mantém os itens dos OUTROS tipos no banco
+  const outros = db.tplInspecao.filter(t => t.tipo !== tipo);
+  db.tplInspecao = [...outros, ...novosItens.map(it => ({ id: tplId, nome, ...it }))];
+  saveDB();
+  // Replace all no Sheets (envia todos os tipos)
+  const rows = db.tplInspecao.map(it => ({
+    Template_ID: it.id, Nome_Template: it.nome, Tipo: it.tipo,
+    Ordem: it.ordem, Sala: it.sala||'', Equipamento: it.equip||'',
+    Sub_Item: it.sub||'', Periodicidade: it.periodicidade||''
+  }));
+  await apiReplaceAll('tplInspecao', rows);
+  showAlert('al-tpli', 'Template salvo!', 'ok');
+  loadTplInspecao();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TEMPLATE DE PREVENTIVA (admin)
+// ══════════════════════════════════════════════════════════════════════
+function renderTplPreventiva() {
+  const tb = document.getElementById('tb-tplp');
+  if (!db.tplPreventiva.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="ei">⚙️</div><p>Sem tarefas. Clique "+ Adicionar Tarefa".</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = db.tplPreventiva.map(it => `<tr>
+    <td><input type="text" value="${it.sala||''}" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.equip||''}" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.tarefa||''}" data-k="tarefa" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="${it.periodicidade||'30d'}" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="number" value="${it.tempo||30}" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
+      <option value="A"${it.criticidade==='A'?' selected':''}>A</option>
+      <option value="B"${(it.criticidade||'B')==='B'?' selected':''}>B</option>
+      <option value="C"${it.criticidade==='C'?' selected':''}>C</option>
+    </select></td>
+    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>
+  </tr>`).join('');
+}
+function addTplPrevRow() {
+  const tb = document.getElementById('tb-tplp');
+  if (tb.querySelector('.empty')) tb.innerHTML = '';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" data-k="tarefa" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="text" value="30d" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><input type="number" value="30" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
+    <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
+      <option value="A">A</option><option value="B" selected>B</option><option value="C">C</option>
+    </select></td>
+    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tb.appendChild(tr);
+}
+async function salvarTplPreventiva() {
+  const trs = document.querySelectorAll('#tb-tplp tr');
+  const novos = [];
+  trs.forEach(tr => {
+    const ipts = tr.querySelectorAll('[data-k]');
+    if (!ipts.length) return;
+    const obj = { id:'PREV-01', nome:'Preventiva Mecânica/Elétrica' };
+    ipts.forEach(ip => obj[ip.getAttribute('data-k')] = ip.value.trim());
+    if (obj.sala || obj.equip || obj.tarefa) novos.push(obj);
+  });
+  db.tplPreventiva = novos;
+  saveDB();
+  const rows = novos.map(it => ({
+    Template_ID: it.id, Nome_Template: it.nome,
+    Sala: it.sala||'', Equipamento: it.equip||'', Tarefa: it.tarefa||'',
+    Periodicidade: it.periodicidade||'', Tempo_Estimado_Min: it.tempo||'',
+    Criticidade: it.criticidade||'B'
+  }));
+  await apiReplaceAll('tplPreventiva', rows);
+  showAlert('al-tplp', 'Template salvo!', 'ok');
+  renderTplPreventiva();
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // INICIALIZAÇÃO — roda quando a página carrega
