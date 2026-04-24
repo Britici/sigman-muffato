@@ -352,7 +352,10 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
    <!-- DASHBOARD -->
    <div class="pg" id="pg-dashboard">
-    <div class="ph"><div class="pt"><small>Visão Geral</small>Dashboard</div></div>
+    <div class="ph">
+     <div class="pt"><small>Visão Geral</small>Dashboard</div>
+     <button id="btn-refresh" class="btn btn-sm btn-gh" onclick="refreshNow()">🔄 Atualizar</button>
+    </div>
     <div class="stats" id="d-stats"></div>
     <div class="two-col">
      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
@@ -520,7 +523,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
        <div class="fg-row">
         <div class="fg"><label>Criticidade</label>
-         <select id="at-mc"><option value="1">1 — Crítica</option><option value="2" selected>2 — Importante</option><option value="3" selected>2 — Normal</option><option value="4">4 — Baixa</option></select>
+         <select id="at-mc"><option value="1">1 — Crítica</option><option value="2" selected>2 — Importante</option><option value="3">3 — Auxiliar</option><option value="4">4 — Baixa</option></select>
         </div>
         <div class="fg"><label>Periodicidade Preventiva (dias)</label><input type="number" id="at-mp" placeholder="Ex: 30" min="1"></div>
        </div>
@@ -954,23 +957,29 @@ async function apiLoadAll() {
       // Se ambos vazios → mantém os padrões do db (admin/manut/prod)
     }
 
-    // Inspeções
+    // Inspeções — agrupa por Data+Turno+Manutentor → Sala → Equipamento → SubItens
     if (d.inspecoes && d.inspecoes.length) {
-      // Agrupa linhas por Data+Turno+Manutentor
       const map = {};
       d.inspecoes.forEach(r => {
-        const key = r.Data + '|' + r.Turno + '|' + r.Manutentor;
-        if (!map[key]) map[key] = { data: r.Data, turno: r.Turno, manut: r.Manutentor, id: Date.now(), itens: [] };
-        map[key].itens.push({
-          sala:      r.Sala,
-          equipNome: r.Equipamento,
-          subItem:   r.Sub_Item,
-          status:    r.Status,
-          hora:      r.Hora,
-          obs:       r.Observacoes
-        });
+        const key = (r.Data||'') + '|' + (r.Turno||'') + '|' + (r.Manutentor||'');
+        if (!map[key]) map[key] = {
+          data: r.Data, turno: r.Turno, manut: r.Manutentor,
+          criadoEm: r.Criado_Em || r.Data,
+          id: Date.now() + Math.random(),
+          itens: []
+        };
+        let sec = map[key].itens.find(s => s.sala === r.Sala);
+        if (!sec) { sec = { sala: r.Sala, equips: [] }; map[key].itens.push(sec); }
+        let eq = sec.equips.find(e => e.nome === r.Equipamento);
+        if (!eq) { eq = { nome: r.Equipamento, status:'', hora:'', obs:'', subs: [] }; sec.equips.push(eq); }
+        if (r.Sub_Item) {
+          eq.subs.push({ nome: r.Sub_Item, status: r.Status||'', hora: r.Hora||'', obs: r.Observacoes||'' });
+        } else {
+          eq.status = r.Status||''; eq.hora = r.Hora||''; eq.obs = r.Observacoes||'';
+        }
       });
-      db.inspecoes = Object.values(map);
+      db.inspecoes = Object.values(map)
+        .sort((a,b) => (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''));
     }
 
     // Salas (nova aba)
@@ -989,7 +998,7 @@ async function apiLoadAll() {
           nome: String(r.Nome).trim(),
           sala: String(r.Sala||'').trim(),
           tag:  r.Tag || '',
-          criticidade: r.Criticidade || '2',
+          criticidade: String(r.Criticidade || '2'),
           periodicidade: r.Periodicidade_Dias || ''
         }));
     }
@@ -1012,6 +1021,10 @@ async function apiLoadAll() {
           criticidade: '2', periodicidade: ''
         }));
     }
+
+    // Migração de criticidade A/B/C → 1/2/3 (compatibilidade)
+    const _critMap = { A:'1', B:'2', C:'3' };
+    db.maquinas.forEach(m => { if (_critMap[m.criticidade]) m.criticidade = _critMap[m.criticidade]; });
 
     // Ordena alfabeticamente
     db.salas.sort((a,b)=>a.localeCompare(b,'pt-BR'));
@@ -1038,7 +1051,7 @@ async function apiLoadAll() {
         tarefa: r.Tarefa||'',
         periodicidade: r.Periodicidade||'',
         tempo: r.Tempo_Estimado_Min||'',
-        criticidade: r.Criticidade||'2'
+        criticidade: String(r.Criticidade||'2')
       }));
     }
 
@@ -1123,30 +1136,39 @@ async function apiReplaceAll(sheet, rows) {
   }
 }
 
-// ── POLLING (atualização automática a cada 60s) ─────────────────────────
+// ── POLLING (15s no dashboard, 60s nas demais; pausa em aba inativa) ────
 let _lastTs = 0;
 let _pollTimer = null;
+let _pollTick = 0;
+async function refreshNow() {
+  try {
+    await apiLoadAll();
+    const ni = document.querySelector('.nv-item.act');
+    if (ni) { const pid = ni.getAttribute('data-page'); if (pid) showPage(pid); }
+    updStats();
+    const b = document.getElementById('btn-refresh');
+    if (b) { b.textContent = '✓ Atualizado'; setTimeout(()=>{ b.textContent = '🔄 Atualizar'; }, 1500); }
+  } catch(e) { console.warn('refresh erro:', e); }
+}
 async function startPolling() {
   if (!USE_API || _pollTimer) return;
   _pollTimer = setInterval(async () => {
-    if (document.hidden) return; // pausa quando aba inativa (economiza quota)
+    if (document.hidden) return;
+    _pollTick++;
+    const noDash = document.querySelector('.nv-item.act')?.getAttribute('data-page') === 'dashboard';
+    // No dashboard: a cada 15s força recarga; nas outras páginas: a cada 60s e só se houve mudança
+    if (noDash) { await refreshNow(); return; }
+    if (_pollTick % 4 !== 0) return;
     try {
       const res  = await fetch(API_URL + '?action=lastUpdate');
       const json = await res.json();
       if (json.ok && json.ts && json.ts > _lastTs) {
         _lastTs = json.ts;
-        await apiLoadAll();
-        // Re-renderiza página atual
-        const ni = document.querySelector('.nv-item.act');
-        if (ni) {
-          const pid = ni.getAttribute('data-page');
-          if (pid) showPage(pid);
-        }
-        updStats();
+        await refreshNow();
         console.log('[SIGMAN] 🔄 Dados atualizados automaticamente');
       }
     } catch(e) { /* silencioso */ }
-  }, 60000);
+  }, 15000);
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2332,16 +2354,16 @@ let _chartCrit = null;
 function renderChartCrit() {
   const cv = document.getElementById('chart-crit');
   if (!cv || !window.Chart) return;
-  const ct = {'1':0, '2':0, '3':0, '4':0};
-  db.maquinas.forEach(m => { ct[m.criticidade||'2']++; });
+  const ct = { '1':0, '2':0, '3':0, '4':0 };
+  db.maquinas.forEach(m => { ct[m.criticidade||'2'] = (ct[m.criticidade||'2']||0) + 1; });
   if (_chartCrit) _chartCrit.destroy();
   _chartCrit = new Chart(cv.getContext('2d'), {
     type: 'doughnut',
     data: {
-      labels: ['1 — Crítica', '2 — Importante', '3 — Normal', '4 — Baixa'],
+      labels: ['1 — Crítica', '2 — Importante', '3 — Auxiliar', '4 — Baixa'],
       datasets: [{
         data: [ct['1'], ct['2'], ct['3'], ct['4']],
-        backgroundColor: ['#dc2626', '#f59e0b','#eab308', '#10b981'],
+        backgroundColor: ['#dc2626', '#f59e0b', '#eab308', '#10b981'],
         borderWidth: 0
       }]
     },
@@ -2451,7 +2473,7 @@ function openEdit(type, idx) {
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
       <div class="fg-row">
         <div class="fg"><label>Criticidade</label>
-          <select id="me-cr" class="ipt">
+          <select id="me-cr">
             <option value="1"${m.criticidade==='1'?' selected':''}>1 — Crítica</option>
             <option value="2"${(m.criticidade||'2')==='2'?' selected':''}>2 — Importante</option>
             <option value="3"${m.criticidade==='3'?' selected':''}>3 — Auxiliar</option>
@@ -2729,9 +2751,10 @@ function renderTplPreventiva() {
     <td><input type="text" value="${it.periodicidade||'30d'}" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
     <td><input type="number" value="${it.tempo||30}" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
     <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
-      <option value="A"${it.criticidade==='A'?' selected':''}>A</option>
-      <option value="B"${(it.criticidade||'B')==='B'?' selected':''}>B</option>
-      <option value="C"${it.criticidade==='C'?' selected':''}>C</option>
+      <option value="1"${it.criticidade==='1'?' selected':''}>1</option>
+      <option value="2"${(it.criticidade||'2')==='2'?' selected':''}>2</option>
+      <option value="3"${it.criticidade==='3'?' selected':''}>3</option>
+      <option value="4"${it.criticidade==='4'?' selected':''}>4</option>
     </select></td>
     <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>
   </tr>`).join('');
@@ -2747,7 +2770,7 @@ function addTplPrevRow() {
     <td><input type="text" value="30d" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
     <td><input type="number" value="30" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
     <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
-      <option value="A">A</option><option value="B" selected>B</option><option value="C">C</option>
+      <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
     </select></td>
     <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>`;
   tb.appendChild(tr);
@@ -2768,7 +2791,7 @@ async function salvarTplPreventiva() {
     Template_ID: it.id, Nome_Template: it.nome,
     Sala: it.sala||'', Equipamento: it.equip||'', Tarefa: it.tarefa||'',
     Periodicidade: it.periodicidade||'', Tempo_Estimado_Min: it.tempo||'',
-    Criticidade: it.criticidade||'B'
+    Criticidade: it.criticidade||'2'
   }));
   await apiReplaceAll('tplPreventiva', rows);
   showAlert('al-tplp', 'Template salvo!', 'ok');
