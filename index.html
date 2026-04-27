@@ -84,8 +84,7 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:299}
 
 .sb-hd{padding:13px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bord);min-height:var(--hh)}
-.sb-logo{height:36px;min-width:36px;object-fit:contain;flex-shrink:0;mix-blend-mode:screen;filter:contrast(1.1)}
-[data-theme=light] .sb-logo{mix-blend-mode:multiply;filter:contrast(1.1)}
+.sb-logo{height:36px;min-width:36px;object-fit:contain;flex-shrink:0}
 .sb-brand{overflow:hidden;white-space:nowrap;transition:opacity .2s}
 .sb.col .sb-brand{opacity:0;pointer-events:none}
 .sb-sig{font-family:var(--fw);font-size:20px;font-weight:800;color:var(--txt);letter-spacing:1.5px;line-height:1}
@@ -112,27 +111,6 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .sb.col .nv-lbl{opacity:0;pointer-events:none}
 
 .sb.col .nv-item:hover::after{content:attr(data-label);position:absolute;left:calc(var(--sw2) + 8px);background:var(--surf3);color:var(--txt);padding:6px 12px;border-radius:var(--rs);font-family:var(--fw);font-size:12px;font-variant:small-caps;font-weight:700;white-space:nowrap;border:1px solid var(--bord2);box-shadow:0 4px 18px rgba(0,0,0,.4);z-index:999;pointer-events:none}
-
-/* Submenu (PCM) */
-.nv-grp{margin-bottom:2px}
-.nv-grp.open .nv-chev{transform:rotate(90deg)}
-.nv-chev{margin-left:auto;font-size:10px;color:var(--txt3);transition:transform .2s}
-.sb.col .nv-chev{display:none}
-.nv-sub{display:none;padding:2px 0 4px 6px;border-left:2px solid var(--bord);margin:2px 0 4px 22px}
-.nv-grp.open .nv-sub{display:block}
-.sb.col .nv-grp.open .nv-sub{display:none}
-.nv-sub .nv-item{padding:7px 10px}
-.nv-sub .nv-ic{width:28px;height:28px;font-size:13px}
-.nv-sub .nv-lbl{font-size:12px}
-
-/* Status dot indicador */
-.tb-dot{display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;font-family:var(--fm);font-size:11px;color:var(--txt3);cursor:default}
-.tb-dot .dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--txt3)}
-.tb-dot.ok .dot{background:var(--grn);box-shadow:0 0 8px var(--grn)}
-.tb-dot.warn .dot{background:#fbbf24;box-shadow:0 0 8px #fbbf24;animation:pulse 1s infinite}
-.tb-dot.alert .dot{background:#ff3d5a;box-shadow:0 0 10px #ff3d5a;animation:pulse .6s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.tb-refresh{padding:0 10px}
 
 .sb-ft{padding:8px;border-top:1px solid var(--bord)}
 .sb-usr{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--rs);overflow:hidden}
@@ -392,8 +370,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <button class="tb-tog" onclick="toggleSB()">☰</button>
    <div class="tb-title" id="tb-t">Dashboard</div>
    <div class="tb-r">
-    <div class="tb-dot" id="tb-dot" title="Status das ordens"><span class="dot"></span><span id="tb-dot-l">—</span></div>
-    <button class="tb-btn tb-refresh" id="btn-refresh" onclick="refreshNow()" title="Atualizar agora">↻</button>
     <div class="tb-stat" id="tb-stat"><span id="th-hj">0</span> OS hoje</div>
     <button class="tb-btn" onclick="toggleTheme()" id="th-btn">🌙</button>
     <button class="tb-btn" onclick="doLogout()" title="Sair">⎋</button>
@@ -466,7 +442,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="ab-sl" onchange="fMaq('ab')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="ab-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Ação</label><select id="ab-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="1">🔴 1 — Crítica</option><option value="2">🟠 2 — Alta</option><option value="3">🟡 3 — Normal</option><option value="4">🟢 4 — Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Manutentor Responsável</label><input type="text" id="ab-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -483,21 +459,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="card-t">Descrição</div>
      <div class="fg"><label>Problema / Ocorrência</label><textarea id="ab-pb" placeholder="Descreva o problema..."></textarea></div>
      <div class="fg" style="margin-top:10px"><label>Ação / Serviço Executado</label><textarea id="ab-ac" placeholder="Descreva o serviço..."></textarea></div>
-     <div class="fg" style="margin-top:10px"><label>Ação Preventiva (recomendação para evitar recorrência)</label><textarea id="ab-pv" placeholder="Descreva a ação preventiva..."></textarea></div>
-    </div>
-    <div class="card">
-     <div class="card-t">Foto da Ocorrência (opcional)</div>
-     <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
-      <div>
-       <input type="file" id="ab-foto-in" accept="image/*" onchange="onFotoSelect(event)" style="font-size:12px">
-       <div style="font-size:11px;color:var(--txt3);margin-top:6px">A foto será salva no Google Drive na pasta <b>sigman</b> (nome do arquivo = número da OS).</div>
-      </div>
-      <div id="ab-foto-prev" style="display:none;text-align:center">
-       <img id="ab-foto-img" style="max-width:160px;max-height:160px;border-radius:6px;border:1px solid var(--bord);display:block">
-       <button type="button" class="btn btn-d btn-sm" style="margin-top:6px" onclick="clearFoto()">✕ Remover</button>
-      </div>
-      <div id="ab-foto-st" style="font-size:12px;color:var(--txt3);align-self:center"></div>
-     </div>
     </div>
     <div class="fa">
      <button class="btn btn-gh" onclick="clearAb()">Limpar</button>
@@ -515,7 +476,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="pl-sl" onchange="fMaq('pl')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="pl-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="1">🔴 1 — Crítica</option><option value="2">🟠 2 — Alta</option><option value="3">🟡 3 — Normal</option><option value="4">🟢 4 — Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
       <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="8" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
@@ -537,7 +498,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="sol-sl" onchange="fMaq('sol')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="sol-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="1">🔴 1 — Crítica</option><option value="2">🟠 2 — Alta</option><option value="3">🟡 3 — Normal</option><option value="4">🟢 4 — Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
      </div>
      <div class="fa">
@@ -594,10 +555,9 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
        <div class="fg"><label>Criticidade</label>
         <select id="at-mc">
-         <option value="1">🔴 1 — Crítica</option>
-         <option value="2">🟠 2 — Alta</option>
-         <option value="3" selected>🟡 3 — Normal</option>
-         <option value="4">🟢 4 — Baixa</option>
+         <option value="Alta">Alta</option>
+         <option value="Média" selected>Média</option>
+         <option value="Baixa">Baixa</option>
         </select>
        </div>
        <div class="fg"><label>Periodicidade Preventiva</label>
@@ -769,7 +729,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 // ║  CONFIGURAÇÃO — altere apenas estas linhas                       ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-const API_URL    = 'https://script.google.com/macros/library/d/1IOlf3hIqw2O50YMjLzsr1h8_SddE-P1zR9VfyFNKwLXt79cD9bBShYLS/2';
+const API_URL    = 'https://script.google.com/macros/s/AKfycbxQ-okD4Ya5AAwlnnTJiW24B3_OD67N8BXMdB23ubLA68j0srmZA-Kw48BqDqqkWLv8Ng/exec';
 const USE_API    = true;   // false = modo offline (só localStorage)
 const POLL_MS    = 60000;  // Atualização automática a cada 60 segundos
 
@@ -867,14 +827,14 @@ const INSP_TMPL = [
 let db = {
   salas:        ['CARNE MOÍDA','LÁCTEOS','EMBUTIDOS','FATIADOS','UTILIDADES','PIZZA','CÁRNEOS','DEFUMADO','BACALHAU','LINGUIÇA','SALMOURA','TEMPERADOS','PORCIONAMENTO','CORREDOR PORCIONAMENTO','DESOSSA'],
   maquinas:     [
-    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'2', periodicidade:'Mensal'},
-    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'2', periodicidade:'Mensal'},
-    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'2', periodicidade:'Mensal'},
-    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'1', periodicidade:'Semanal'},
-    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'3', periodicidade:'Mensal'},
-    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'3', periodicidade:'Mensal'},
-    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'1', periodicidade:'Trimestral'},
-    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'2', periodicidade:'Trimestral'}
+    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'Alta',  periodicidade:'Semanal'},
+    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'Média', periodicidade:'Mensal'},
+    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'Média', periodicidade:'Mensal'},
+    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'Alta',  periodicidade:'Trimestral'},
+    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'Alta',  periodicidade:'Trimestral'}
   ],
   ordens:       [],
   planejadas:   [],
@@ -899,11 +859,11 @@ const ROLES = {
   administracao: {
     label: 'Administração',
     menus: ['dashboard','planejadas','executadas','abertura','planejamento',
-            'solicitacao','inspecao','ativos','usuarios','inspecao-tmpl','preventiva','pcm']
+            'solicitacao','inspecao','ativos','usuarios','inspecao-tmpl','preventiva']
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','solicitacao','inspecao','planejamento','preventiva','pcm']
+    menus: ['dashboard','planejadas','executadas','abertura','solicitacao','inspecao']
   },
   producao: {
     label: 'Produção',
@@ -998,7 +958,7 @@ async function apiLoadAll(silent = false) {
       sala:        normStr(r.Sala),
       maq:         normStr(r.Maquina),
       tipo:        normStr(r.Tipo),
-      prioridade:  prioNorm(normStr(r.Prioridade)) || normStr(r.Prioridade),
+      prioridade:  normStr(r.Prioridade),
       manut:       normStr(r.Manutentor),
       data:        normDate(r.Data),
       ini:         normTime(r.Hora_Inicio),
@@ -1007,8 +967,6 @@ async function apiLoadAll(silent = false) {
       paradaMin:   Number(r.Tempo_Parada_Min) || 0,
       prob:        normStr(r.Problema),
       acao:        normStr(r.Acao_Executada),
-      acaoPrev:    normStr(r.Acao_Preventiva),
-      fotoUrl:     normStr(r.Foto_URL),
       origem:      normStr(r.Origem),
       origemNum:   normStr(r.OS_Origem_Ref),
       criadoEm:    normStr(r.Criado_Em)
@@ -1025,7 +983,7 @@ async function apiLoadAll(silent = false) {
       sala:       normStr(r.Sala),
       maq:        normStr(r.Maquina),
       tipo:       normStr(r.Tipo),
-      prioridade: prioNorm(normStr(r.Prioridade)) || normStr(r.Prioridade),
+      prioridade: normStr(r.Prioridade),
       prazo:      normDate(r.Prazo_Limite),
       horasTurno: Number(r.Horas_Turno) || 8,
       desc:       normStr(r.Descricao_Planejada),
@@ -1050,7 +1008,7 @@ async function apiLoadAll(silent = false) {
       sala:       normStr(r.Sala),
       maq:        normStr(r.Maquina),
       tipo:       normStr(r.Tipo),
-      prioridade: prioNorm(normStr(r.Prioridade)) || normStr(r.Prioridade),
+      prioridade: normStr(r.Prioridade),
       desc:       normStr(r.Descricao),
       status:     normStr(r.Status) || 'Não Executada',
       solicitante:normStr(r.Solicitante),
@@ -1114,7 +1072,7 @@ async function apiLoadAll(silent = false) {
   if (d.maquinas && d.maquinas.length) {
     d.maquinas.filter(r => r.Ativo !== 'nao').forEach(r => {
       const m = { nome: normStr(r.Nome), sala: normStr(r.Sala), tag: normStr(r.Tag),
-                  criticidade: critNorm(normStr(r.Criticidade)) || '3',
+                  criticidade: normStr(r.Criticidade) || 'Média',
                   periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal' };
       if (!db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala)) db.maquinas.push(m);
     });
@@ -1151,12 +1109,6 @@ function loadDB() {
     if (r) Object.assign(db, JSON.parse(r));
     const u = localStorage.getItem('sigman_users');
     if (u) db.users = JSON.parse(u);
-    // Migração legado → novo (Alta/Média/Baixa → 1..4) executada uma vez.
-    // critNorm / prioNorm são function declarations (hoisting OK).
-    (db.maquinas    || []).forEach(m => { const n = critNorm(m.criticidade);  if (n) m.criticidade = n; });
-    (db.ordens      || []).forEach(o => { const n = prioNorm(o.prioridade);   if (n) o.prioridade  = n; });
-    (db.planejadas  || []).forEach(p => { const n = prioNorm(p.prioridade);   if (n) p.prioridade  = n; });
-    (db.solicitacoes|| []).forEach(s => { const n = prioNorm(s.prioridade);   if (n) s.prioridade  = n; });
   } catch(e) {}
 }
 
@@ -1176,7 +1128,7 @@ async function doLogin() {
       CU.senha = senha; // mantém para revalidação local
       localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
       // Atualiza lista local
-      const idx = db.users.findIndex(u => u.login === login);
+      const idx = db.usuarios.findIndex(u => u.login === login);
       if (idx >= 0) db.users[idx] = { ...db.users[idx], ...CU };
       else db.users.push(CU);
       saveDB();
@@ -1200,7 +1152,7 @@ function tryAuto() {
   if (!raw) return false;
   try {
     const s = JSON.parse(raw);
-    const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
+    const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
     if (u) { CU = u; return true; }
   } catch(e) {}
   localStorage.removeItem('sigman_sess');
@@ -1255,50 +1207,16 @@ function enterApp() {
     sv('mc-mn', CU.nome);
   }
 
-  // Inicia polling: 15s quando dashboard aberto, 60s nas demais páginas
-  if (CU.tipo !== 'producao') startPolling();
-}
-
-let _curPage = 'dashboard';
-function startPolling() {
-  if (_pollTimer) clearInterval(_pollTimer);
-  const act  = document.querySelector('.nv-item.act');
-  const pid  = act ? act.getAttribute('data-page') : _curPage;
-  const ms   = (pid === 'dashboard') ? 15000 : POLL_MS;
-  _pollTimer = setInterval(refreshNow, ms);
-}
-
-async function refreshNow() {
-  const btn = document.getElementById('btn-refresh');
-  if (btn) { btn.style.transform = 'rotate(360deg)'; btn.style.transition = 'transform .6s'; setTimeout(()=>{btn.style.transform='';btn.style.transition='';},600); }
-  try { await apiLoadAll(true); } catch(e) {}
-  const act = document.querySelector('.nv-item.act');
-  if (act) {
-    const pid = act.getAttribute('data-page');
-    // Re-renderiza só a página atual sem recarregar formulários
-    if (pid === 'dashboard')   renderDash();
-    if (pid === 'planejadas')  renderPlan();
-    if (pid === 'executadas')  renderExec();
-    if (pid === 'solicitacao') renderSol();
+  // Inicia polling de atualização automática (só admin e manut)
+  if (CU.tipo !== 'producao') {
+    _pollTimer = setInterval(async () => {
+      await apiLoadAll(true); // silencioso
+      // Atualiza página atual em background
+      const act = document.querySelector('.nv-item.act');
+      if (act) showPage(act.getAttribute('data-page'));
+      updStats();
+    }, POLL_MS);
   }
-  updStats();
-  updStatusDot();
-}
-
-function updStatusDot() {
-  const dot = document.getElementById('tb-dot');
-  const lbl = document.getElementById('tb-dot-l');
-  if (!dot || !lbl) return;
-  const pend  = (db.planejadas || []).filter(p => p.status !== 'Concluída').length
-              + (db.solicitacoes || []).filter(s => s.status !== 'Concluída' && s.status !== 'Executada').length;
-  const tHoje = today();
-  const atras = (db.planejadas || []).filter(p => p.status !== 'Concluída' && p.prazo && p.prazo < tHoje).length;
-  const urg   = (db.planejadas || []).filter(p => p.status !== 'Concluída' && (p.prioridade === '1' || p.prioridade === 'Alta' || p.prioridade === '1 — Crítica')).length
-              + (db.solicitacoes || []).filter(s => s.status !== 'Concluída' && s.status !== 'Executada' && (s.prioridade === '1' || s.prioridade === 'Alta')).length;
-  dot.classList.remove('ok','warn','alert');
-  if (atras > 0 || urg > 0)      { dot.classList.add('alert'); lbl.textContent = `${atras+urg} crítica(s)`; }
-  else if (pend > 0)             { dot.classList.add('warn');  lbl.textContent = `${pend} aberta(s)`; }
-  else                           { dot.classList.add('ok');    lbl.textContent = 'Tudo OK'; }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1309,63 +1227,34 @@ const NAV = [
   { id:'planejadas',     ic:'📅', lbl:'O.S. Planejadas'       },
   { id:'executadas',     ic:'✅', lbl:'O.S. Executadas'       },
   { id:'abertura',       ic:'🔧', lbl:'Abertura de O.S.'      },
-  { id:'pcm', group:true, ic:'📋', lbl:'PCM', children:[
-    { id:'planejamento',  ic:'📋', lbl:'Planejamento de OS'    },
-    { id:'inspecao',      ic:'🔍', lbl:'Inspeção de Rota'      },
-    { id:'preventiva',    ic:'🔩', lbl:'Manutenção Preventiva' },
-    { id:'inspecao-tmpl', ic:'📄', lbl:'Templates de Inspeção' },
-  ]},
+  { id:'planejamento',   ic:'📋', lbl:'Planejamento de O.S.'  },
   { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.'   },
+  { id:'inspecao',       ic:'🔍', lbl:'Inspeção Diária'       },
   { id:'ativos',         ic:'🏭', lbl:'Ativos'                },
   { id:'usuarios',       ic:'👥', lbl:'Usuários'              },
+  { id:'inspecao-tmpl',  ic:'📄', lbl:'Inspeção'              },
+  { id:'preventiva',     ic:'🔩', lbl:'Preventiva'            },
 ];
 
 const LBLS = {
   dashboard:'Dashboard', planejadas:'O.S. Planejadas', executadas:'O.S. Executadas',
-  abertura:'Abertura de O.S.', planejamento:'PCM · Planejamento de O.S.',
-  solicitacao:'Solicitação de O.S.', inspecao:'PCM · Inspeção de Rota',
-  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'PCM · Templates de Inspeção',
-  preventiva:'PCM · Manutenção Preventiva'
+  abertura:'Abertura de O.S.', planejamento:'Planejamento de O.S.',
+  solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
+  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'Inspeção', preventiva:'Preventiva'
 };
 
 function buildNav() {
   const nav = document.getElementById('sb-nav');
   const ok  = ROLES[CU.tipo]?.menus || [];
   nav.innerHTML = '';
-  NAV.forEach(n => {
-    if (n.group) {
-      const subs = (n.children || []).filter(c => ok.includes(c.id));
-      if (!subs.length) return;
-      const wrap = document.createElement('div');
-      wrap.className = 'nv-grp';
-      wrap.id = 'grp-' + n.id;
-      const head = document.createElement('div');
-      head.className = 'nv-item';
-      head.setAttribute('data-label', n.lbl);
-      head.onclick = () => wrap.classList.toggle('open');
-      head.innerHTML = `<div class="nv-ic">${n.ic}</div><div class="nv-lbl sc">${n.lbl}</div><span class="nv-chev">▶</span>`;
-      const sub = document.createElement('div');
-      sub.className = 'nv-sub';
-      subs.forEach(c => {
-        const el = document.createElement('div');
-        el.className = 'nv-item';
-        el.setAttribute('data-page', c.id);
-        el.setAttribute('data-label', c.lbl);
-        el.onclick = (e) => { e.stopPropagation(); showPage(c.id); closeSB(); };
-        el.innerHTML = `<div class="nv-ic">${c.ic}</div><div class="nv-lbl sc">${c.lbl}</div>`;
-        sub.appendChild(el);
-      });
-      wrap.appendChild(head); wrap.appendChild(sub);
-      nav.appendChild(wrap);
-    } else if (ok.includes(n.id)) {
-      const el = document.createElement('div');
-      el.className = 'nv-item';
-      el.setAttribute('data-page', n.id);
-      el.setAttribute('data-label', n.lbl);
-      el.onclick = () => { showPage(n.id); closeSB(); };
-      el.innerHTML = `<div class="nv-ic">${n.ic}</div><div class="nv-lbl sc">${n.lbl}</div>`;
-      nav.appendChild(el);
-    }
+  NAV.filter(n => ok.includes(n.id)).forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'nv-item';
+    el.setAttribute('data-page', n.id);
+    el.setAttribute('data-label', n.lbl);
+    el.onclick = () => { showPage(n.id); closeSB(); };
+    el.innerHTML = `<div class="nv-ic">${n.ic}</div><div class="nv-lbl sc">${n.lbl}</div>`;
+    nav.appendChild(el);
   });
 }
 
@@ -1375,16 +1264,8 @@ function showPage(pid) {
   const pg = document.getElementById('pg-' + pid);
   if (pg) pg.classList.add('on');
   const ni = document.querySelector(`.nv-item[data-page="${pid}"]`);
-  if (ni) {
-    ni.classList.add('act');
-    // Mantém o grupo PCM aberto se a página atual estiver dentro dele
-    const grp = ni.closest('.nv-grp');
-    if (grp) grp.classList.add('open');
-  }
-  _curPage = pid;
+  if (ni) ni.classList.add('act');
   document.getElementById('tb-t').textContent = LBLS[pid] || '';
-  // Reinicia polling com intervalo adequado (15s no dashboard, 60s nas demais)
-  if (CU && CU.tipo !== 'producao') startPolling();
 
   if (pid === 'dashboard')     renderDash();
   if (pid === 'planejadas')    renderPlan();
@@ -1502,20 +1383,10 @@ function updStats() {
 }
 
 function prio(p) {
-  if (p === undefined || p === null || p === '') return '';
-  // Aceita tanto valores antigos (Alta/Média/Baixa) quanto novos (1/2/3/4)
-  const norm = {Alta:'2', 'Média':'3', Media:'3', Baixa:'4', '1':'1', '2':'2', '3':'3', '4':'4'};
-  const k = norm[String(p)] || String(p);
-  const lbl = {'1':'1 — Crítica','2':'2 — Alta','3':'3 — Normal','4':'4 — Baixa'}[k] || p;
-  const cls = {'1':'b-alt','2':'b-alt','3':'b-med','4':'b-bai'}[k] || '';
-  const dot = {'1':'d-a','2':'d-a','3':'d-m','4':'d-b'}[k] || '';
-  return `<span class="badge ${cls}"><span class="pdot ${dot}"></span>${lbl}</span>`;
-}
-// Normaliza valor de prioridade (compat). Retorna '1'..'4' ou '' .
-function prioNorm(p) {
-  if (p === undefined || p === null || p === '') return '';
-  const m = {Alta:'2','Média':'3',Media:'3',Baixa:'4','1':'1','2':'2','3':'3','4':'4'};
-  return m[String(p)] || '';
+  if (!p) return '';
+  const c = {Alta:'b-alt', Média:'b-med', Baixa:'b-bai'};
+  const d = {Alta:'d-a', Média:'d-m', Baixa:'d-b'};
+  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${p}</span>`;
 }
 function tipoBadge(t) {
   if (!t) return '';
@@ -1716,10 +1587,9 @@ function editarPlan(id) {
     <div class="fg"><label>Prazo Limite</label><input type="date" id="ep-prazo" value="${p.prazo||''}"></div>
     <div class="fg"><label>Prioridade</label>
       <select id="ep-prio">
-        <option value="1"${prioNorm(p.prioridade)==='1'?' selected':''}>🔴 1 — Crítica</option>
-        <option value="2"${prioNorm(p.prioridade)==='2'?' selected':''}>🟠 2 — Alta</option>
-        <option value="3"${prioNorm(p.prioridade)==='3'?' selected':''}>🟡 3 — Normal</option>
-        <option value="4"${prioNorm(p.prioridade)==='4'?' selected':''}>🟢 4 — Baixa</option>
+        <option value="Alta"${p.prioridade==='Alta'?' selected':''}>🟠 Alta</option>
+        <option value="Média"${p.prioridade==='Média'?' selected':''}>🟡 Média</option>
+        <option value="Baixa"${p.prioridade==='Baixa'?' selected':''}>🟢 Baixa</option>
       </select>
     </div>
     <div class="fg"><label>Descrição</label><textarea id="ep-desc">${p.desc||''}</textarea></div>`;
@@ -1807,7 +1677,6 @@ async function salvarOS() {
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in'), fim  = v('ab-fm'),
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
-        prev = v('ab-pv').trim(), foto = window._abFotoUrl || '',
         parada = v('ab-parada');
   if (!sala||!maq||!tipo||!pr||!manut||!data) {
     showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er'); return;
@@ -1820,13 +1689,12 @@ async function salvarOS() {
   }
   const numero = genOS(), agora = new Date().toISOString();
   const os = { id: Date.now(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
-               durMin, paradaMin, prob, acao, acaoPrev:prev, fotoUrl:foto, criadoEm:agora, origem:'direta' };
+               durMin, paradaMin, prob, acao, criadoEm:agora, origem:'direta' };
   db.osC++; db.ordens.push(os); saveDB(); updStats();
   apiAppend('ordens', {
     OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
     Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
-    Acao_Preventiva:prev, Foto_URL:foto,
     Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
   });
   showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
@@ -1835,65 +1703,9 @@ async function salvarOS() {
 }
 
 function clearAb() {
-  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-pv','ab-parada'].forEach(id=>sv(id,''));
+  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-parada'].forEach(id=>sv(id,''));
   sv('ab-dt', today());
   if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
-  clearFoto();
-}
-
-// ── Upload de foto p/ Google Drive (pasta SIGMAN_Fotos) ──
-async function onFotoSelect(ev) {
-  const file = ev.target.files && ev.target.files[0];
-  if (!file) return;
-  const numero = genOSPreview();
-  const ext    = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const nome   = numero + '.' + ext;
-  const stEl   = document.getElementById('ab-foto-st');
-  const prevEl = document.getElementById('ab-foto-prev');
-  const imgEl  = document.getElementById('ab-foto-img');
-  // preview imediato
-  const reader = new FileReader();
-  reader.onload = e => {
-    imgEl.src = e.target.result;
-    prevEl.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-
-  if (!USE_API) { stEl.textContent = '⚠ Modo offline: foto não enviada ao Drive.'; return; }
-  stEl.textContent = '⏳ Enviando para o Drive...';
-  try {
-    const b64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-    const resp = await fetch(API_URL, {
-      method:'POST', mode:'cors', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({ action:'uploadFoto', os:numero, b64, mime:file.type, nome })
-    });
-    const j = await resp.json();
-    if (j && j.ok && j.url) {
-      window._abFotoUrl = j.url;
-      stEl.innerHTML = '✓ Salvo no Drive — <a href="'+j.url+'" target="_blank" style="color:var(--blu)">abrir</a>';
-    } else {
-      stEl.textContent = '✕ Falhou: ' + (j && j.error ? j.error : 'erro desconhecido');
-    }
-  } catch (e) {
-    stEl.textContent = '✕ Erro de rede: ' + e.message;
-  }
-}
-function clearFoto() {
-  const inp = document.getElementById('ab-foto-in');  if (inp) inp.value = '';
-  const pv  = document.getElementById('ab-foto-prev'); if (pv)  pv.style.display = 'none';
-  const st  = document.getElementById('ab-foto-st');   if (st)  st.textContent = '';
-  window._abFotoUrl = '';
-}
-// Pré-visualiza qual será o número da próxima OS (sem incrementar)
-function genOSPreview() {
-  const ano = new Date().getFullYear();
-  const seq = String((db.osC || 0) + 1).padStart(4, '0');
-  return `OS-${ano}-${seq}`;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2015,9 +1827,8 @@ function buildInsp() {
   const c = document.getElementById('insp-secs');
   if (c.dataset.built) return;
   c.dataset.built = '1';
-  // Todas as seções já abertas para clicar OK / NÃO OK direto (visual igual à inspeção de rota)
   c.innerHTML = INSP_TMPL.map(sec => `
-    <div class="insp-sec open">
+    <div class="insp-sec">
       <div class="insp-hd" onclick="this.parentElement.classList.toggle('open')">
         <div class="insp-ht">${sec.sala}</div>
         <span class="insp-chev">▶</span>
@@ -2186,14 +1997,12 @@ function renderAtivos() {
       <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
       ${bySala[sala].map((m,_i)=>{
         const gi=db.maquinas.indexOf(m);
-        const cn = critNorm(m.criticidade);
-        const critColor={'1':'var(--red)','2':'var(--org)','3':'var(--ylw)','4':'var(--grn)'}[cn]||'var(--txt3)';
-        const critLbl  ={'1':'1 — Crítica','2':'2 — Alta','3':'3 — Normal','4':'4 — Baixa'}[cn]||'—';
+        const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
             <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
             <div style="font-size:11px;color:var(--txt3)">
-              Criticidade: <span style="color:${critColor};font-weight:600">${critLbl}</span> |
+              Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
               Preventiva: ${m.periodicidade||'—'}
             </div>
           </div>
@@ -2209,23 +2018,16 @@ function renderAtivos() {
   renderCritChart();
 }
 
-// Normaliza valor de criticidade. Aceita Alta/Média/Baixa (legado) ou 1..4. Retorna '1'..'4' ou ''.
-function critNorm(c) {
-  if (c === undefined || c === null || c === '') return '';
-  const m = {Alta:'2','Média':'3',Media:'3',Baixa:'4','1':'1','2':'2','3':'3','4':'4'};
-  return m[String(c)] || '';
-}
 function renderCritChart() {
   const cont = document.getElementById('at-crit-chart');
   if (!cont) return;
-  const counts = {'1 — Crítica':0,'2 — Alta':0,'3 — Normal':0,'4 — Baixa':0,'Sem info':0};
-  const lblMap = {'1':'1 — Crítica','2':'2 — Alta','3':'3 — Normal','4':'4 — Baixa'};
+  const counts = {Alta:0, Média:0, Baixa:0, 'Sem info':0};
   db.maquinas.forEach(m => {
-    const k = lblMap[critNorm(m.criticidade)] || 'Sem info';
+    const k = m.criticidade && counts[m.criticidade] !== undefined ? m.criticidade : 'Sem info';
     counts[k]++;
   });
   const total = db.maquinas.length || 1;
-  const colors = {'1 — Crítica':'#C41230','2 — Alta':'#f59e0b','3 — Normal':'#fde047','4 — Baixa':'#1fd988','Sem info':'#6b7aa0'};
+  const colors = {Alta:'#C41230',Média:'#f59e0b',Baixa:'#1fd988','Sem info':'#6b7aa0'};
   cont.innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;gap:4px;height:36px;border-radius:8px;overflow:hidden;min-width:200px;flex:1">
@@ -2255,7 +2057,7 @@ function addSala() {
 
 function addMaq() {
   const sala=v('at-ms'), nome=v('at-mn').trim().toUpperCase(),
-        tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'3', per=v('at-mp')||'Mensal';
+        tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal';
   if(!sala||!nome){alert('Selecione sala e informe o nome.');return;}
   db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per});
   db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
@@ -2296,10 +2098,9 @@ function openEdit(type,idx) {
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
       <div class="fg"><label>Criticidade</label>
         <select id="me-crit">
-          <option value="1"${critNorm(m.criticidade)==='1'?' selected':''}>🔴 1 — Crítica</option>
-          <option value="2"${critNorm(m.criticidade)==='2'?' selected':''}>🟠 2 — Alta</option>
-          <option value="3"${critNorm(m.criticidade)==='3'?' selected':''}>🟡 3 — Normal</option>
-          <option value="4"${critNorm(m.criticidade)==='4'?' selected':''}>🟢 4 — Baixa</option>
+          <option${m.criticidade==='Alta'?' selected':''}>Alta</option>
+          <option${m.criticidade==='Média'?' selected':''}>Média</option>
+          <option${m.criticidade==='Baixa'?' selected':''}>Baixa</option>
         </select>
       </div>
       <div class="fg"><label>Periodicidade Preventiva</label>
@@ -2511,7 +2312,6 @@ function imprimirInspecao(tipo) {
   const titulo = tipo==='rota' ? 'INSPEÇÃO DE ROTA' : 'INSPEÇÃO MECÂNICA E ELÉTRICA';
   const items  = tipo==='rota' ? INSP_ROTA_ITEMS : INSP_MAQ_ITEMS;
   const maqList= tipo==='maquina' ? [...db.maquinas].filter(m=>!v('insp-tmpl-sala')||m.sala===v('insp-tmpl-sala')).sort((a,b)=>a.nome.localeCompare(b.nome)) : [];
-  const logoSrc = (document.getElementById('sb-logo')||{}).src || '';
 
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -2522,8 +2322,6 @@ function imprimirInspecao(tipo) {
     h1{font-size:16px;text-align:center;margin-bottom:4px;color:#C41230}
     h2{font-size:13px;margin:12px 0 4px}
     .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
-    .brand{display:flex;align-items:center;gap:10px}
-    .brand img{height:42px;width:auto;mix-blend-mode:multiply}
     .empresa{font-size:14px;font-weight:bold}
     .info-row{display:flex;gap:20px;margin-bottom:8px;flex-wrap:wrap}
     .info-box{border:1px solid #ccc;border-radius:4px;padding:6px 10px;min-width:150px}
@@ -2537,10 +2335,7 @@ function imprimirInspecao(tipo) {
     @media print{body{padding:10mm}}
   </style></head><body>
   <div class="header">
-    <div class="brand">
-      ${logoSrc?`<img src="${logoSrc}" alt="Muffato">`:''}
-      <div><div class="empresa">MUFFATO FOODS</div><div>Gestão de Manutenção — PCM</div></div>
-    </div>
+    <div><div class="empresa">MUFFATO FOODS</div><div>Gestão de Manutenção — PCM</div></div>
     <div><h1>${titulo}</h1></div>
     <div style="text-align:right;font-size:10px">Doc: SIGMAN<br>Rev: 01</div>
   </div>
@@ -2671,7 +2466,6 @@ async function salvarPreventiva() {
 function imprimirPreventiva() {
   const maqVal=v('prev-maq').split('|');
   const data=v('prev-dt')||today(),manut=v('prev-mn')||'_______________',per=v('prev-periodo')||'Mensal';
-  const logoSrc = (document.getElementById('sb-logo')||{}).src || '';
   const win=window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
   <title>ORDEM DE MANUTENÇÃO PREVENTIVA</title>
@@ -2679,9 +2473,7 @@ function imprimirPreventiva() {
     *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
     h1{font-size:15px;text-align:center;color:#C41230;margin-bottom:4px}
     h2{font-size:12px;margin:10px 0 4px;background:#f0f0f0;padding:4px 8px;border-left:3px solid #C41230}
-    .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:10px}
-    .brand{display:flex;align-items:center;gap:10px}
-    .brand img{height:42px;width:auto;mix-blend-mode:multiply}
+    .header{display:flex;justify-content:space-between;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:10px}
     .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
     .info-box{border:1px solid #ccc;border-radius:3px;padding:5px 8px}
     .info-label{font-size:9px;color:#666;text-transform:uppercase}
@@ -2694,10 +2486,7 @@ function imprimirPreventiva() {
     @media print{body{padding:10mm}}
   </style></head><body>
   <div class="header">
-    <div class="brand">
-      ${logoSrc?`<img src="${logoSrc}" alt="Muffato">`:''}
-      <div><b>MUFFATO FOODS</b><br>Gestão de Manutenção — PCM</div>
-    </div>
+    <div><b>MUFFATO FOODS</b><br>Gestão de Manutenção — PCM</div>
     <div><h1>ORDEM DE MANUTENÇÃO PREVENTIVA</h1></div>
     <div style="text-align:right;font-size:10px">Doc: SIGMAN-PREV<br>Rev: 01</div>
   </div>
