@@ -1120,25 +1120,6 @@ async function doLogin() {
   const senha = v('l-p').trim();
   if (!login || !senha) { lAlert('Preencha usuário e senha.'); return; }
 
-  // Tenta no Sheets primeiro (com hash)
-  if (USE_API) {
-    const r = await apiGet({ action: 'login', login, senha });
-    if (r && r.ok) {
-      CU = r.user;
-      CU.senha = senha; // mantém para revalidação local
-      localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
-      // Atualiza lista local
-      const idx = db.users.findIndex(u => u.login === login);
-      if (idx >= 0) db.users[idx] = { ...db.users[idx], ...CU };
-      else db.users.push(CU);
-      saveDB();
-      enterApp();
-      return;
-    }
-    if (r && !r.ok && r.error === 'Senha incorreta') { lAlert('Senha incorreta.'); return; }
-    // Se Sheets offline, tenta localmente
-  }
-
   // Login local (fallback ou offline)
   const user = db.users.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
