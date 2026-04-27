@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>SIGMAN · Muffato Foods</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --red:#C41230;--red-d:#8a0c22;--red-l:#e8192f;
@@ -32,7 +31,7 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .sc{font-variant:small-caps;font-weight:700;letter-spacing:.04em}
 
 /* ── LOGIN ── */
-#login-screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);overflow:hidden;z-index:9000}
+#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
 #login-screen::before{content:'';position:absolute;top:-30%;left:-20%;width:70vw;height:70vw;background:radial-gradient(circle,rgba(196,18,48,.1) 0%,transparent 65%);pointer-events:none}
 #login-screen::after{content:'';position:absolute;bottom:-20%;right:-10%;width:50vw;height:50vw;background:radial-gradient(circle,rgba(184,151,42,.07) 0%,transparent 65%);pointer-events:none}
 .lbox{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;margin:20px;box-shadow:var(--shad);position:relative;z-index:1}
@@ -269,6 +268,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bord2);border-radius:3px}
+
+/* ── BADGE INSPEÇÃO ── */
+.b-ins{background:rgba(64,150,255,.14);color:#5aa8ff}
+/* ── OEE METER ── */
+.oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
+.oee-fill{height:100%;border-radius:4px;transition:width .5s}
 </style>
 </head>
 <body>
@@ -292,6 +297,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 </div>
 <style>
   @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── BADGE INSPEÇÃO ── */
+.b-ins{background:rgba(64,150,255,.14);color:#5aa8ff}
+/* ── OEE METER ── */
+.oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
+.oee-fill{height:100%;border-radius:4px;transition:width .5s}
 </style>
 
 <!-- ══ LOGIN ══ -->
@@ -307,8 +318,25 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="fg"><label>Usuário</label><input type="text" id="l-u" placeholder="Login" autocomplete="username"></div>
    <div class="fg"><label>Senha</label><input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password"></div>
    <button class="btn btn-p btn-fl" onclick="doLogin()" style="margin-top:4px">Entrar</button>
-   <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--txt3);font-family:var(--fw);letter-spacing:.5px">
-    Cadastro de usuários é feito pelo administrador
+   <div id="l-admin-lnk" style="text-align:center;margin-top:12px;display:none">
+    <button class="btn btn-gh btn-sm" onclick="showReg()">+ Cadastrar Usuário</button>
+   </div>
+  </div>
+  <div id="lf-reg" style="display:none">
+   <div class="ltitle">Novo Usuário</div>
+   <div class="fg"><label>Nome Completo</label><input type="text" id="r-nome" placeholder="Nome"></div>
+   <div class="fg"><label>Login</label><input type="text" id="r-user" placeholder="Login de acesso"></div>
+   <div class="fg"><label>Senha</label><input type="password" id="r-pass" placeholder="Senha"></div>
+   <div class="fg"><label>Tipo de Acesso</label>
+    <select id="r-tipo">
+     <option value="administracao">Administração</option>
+     <option value="manutencao">Manutenção</option>
+     <option value="producao">Produção</option>
+    </select>
+   </div>
+   <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-gh btn-fl" onclick="backLogin()">Voltar</button>
+    <button class="btn btn-p btn-fl" onclick="doReg()">Cadastrar</button>
    </div>
   </div>
  </div>
@@ -386,14 +414,18 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="pg" id="pg-executadas">
     <div class="ph">
      <div class="pt"><small>Histórico</small>O.S. Executadas</div>
-     <button class="btn btn-gh btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+     <button class="btn btn-gh btn-sm" onclick="exportCSV()">⬇ Exportar com Filtros</button>
     </div>
     <div class="fr">
      <input type="text" id="fe-tx" placeholder="🔍 Buscar..." oninput="renderExec()">
-     <select id="fe-tp" onchange="renderExec()"><option value="">Todos os Tipos</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select>
+     <select id="fe-tp" onchange="renderExec()">
+      <option value="">Todos os Tipos</option>
+      <option>Corretiva</option><option>Inspeção</option><option>Melhoria</option>
+      <option>Preditiva</option><option>Preventiva</option>
+     </select>
      <select id="fe-sl" onchange="renderExec()"><option value="">Todas as Salas</option></select>
-     <input type="date" id="fe-d1" onchange="renderExec()" title="De">
-     <input type="date" id="fe-d2" onchange="renderExec()" title="Até">
+     <input type="date" id="fe-dt-ini" title="Data inicial" onchange="renderExec()">
+     <input type="date" id="fe-dt-fim" title="Data final" onchange="renderExec()">
     </div>
     <div class="tw"><table><thead><tr>
      <th>OS #</th><th>Data</th><th>Sala</th><th>Máquina</th><th>Tipo</th><th>Prioridade</th><th>Manutentor</th><th>Tempo</th><th>Ações</th>
@@ -410,7 +442,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="ab-sl" onchange="fMaq('ab')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="ab-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Ação</label><select id="ab-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Manutentor Responsável</label><input type="text" id="ab-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -420,6 +452,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Data</label><input type="date" id="ab-dt"></div>
       <div class="fg"><label>Hora Início</label><input type="time" id="ab-in"></div>
       <div class="fg"><label>Hora Fim</label><input type="time" id="ab-fm"></div>
+      <div class="fg"><label>Tempo de Parada (min)</label><input type="number" id="ab-parada" placeholder="0" min="0"></div>
      </div>
     </div>
     <div class="card">
@@ -443,8 +476,9 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="pl-sl" onchange="fMaq('pl')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="pl-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
+      <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="8" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
      </div>
      <div class="fa">
@@ -464,7 +498,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="sol-sl" onchange="fMaq('sol')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="sol-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Alta">🔴 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
      </div>
      <div class="fa">
@@ -490,6 +524,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="fg-row">
       <div class="fg"><label>Data</label><input type="date" id="insp-dt"></div>
       <div class="fg"><label>Turno</label><select id="insp-tn"><option>1º Turno</option><option>2º Turno</option><option>3º Turno</option></select></div>
+      <div class="fg"><label>Horas do Turno</label><input type="number" id="insp-horas" value="8" min="1" max="24"></div>
       <div class="fg"><label>Manutentor</label><input type="text" id="insp-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -518,68 +553,99 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <div class="fg"><label>Sala</label><select id="at-ms"><option value="">Selecione...</option></select></div>
        <div class="fg"><label>Nome da Máquina</label><input type="text" id="at-mn" placeholder="Ex: Cubadora"></div>
        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
-       <div class="fg-row">
-        <div class="fg"><label>Criticidade</label>
-         <select id="at-mc"><option value="A">A — Crítica</option><option value="B" selected>B — Importante</option><option value="C">C — Auxiliar</option></select>
-        </div>
-        <div class="fg"><label>Periodicidade Preventiva (dias)</label><input type="number" id="at-mp" placeholder="Ex: 30" min="1"></div>
+       <div class="fg"><label>Criticidade</label>
+        <select id="at-mc">
+         <option value="Alta">Alta</option>
+         <option value="Média" selected>Média</option>
+         <option value="Baixa">Baixa</option>
+        </select>
+       </div>
+       <div class="fg"><label>Periodicidade Preventiva</label>
+        <select id="at-mp">
+         <option>Diária</option><option>Semanal</option>
+         <option selected>Mensal</option><option>Trimestral</option>
+         <option>Semestral</option><option>Anual</option>
+        </select>
        </div>
        <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
       </div>
       <div class="card"><div class="card-t">Máquinas Cadastradas</div><div id="at-ml"></div></div>
      </div>
     </div>
-    <div class="card"><div class="card-t">Distribuição por Criticidade</div><div style="position:relative;height:240px"><canvas id="chart-crit"></canvas></div></div>
    </div>
 
-   <!-- USUÁRIOS (admin) -->
+
+   <!-- PÁGINA: USUÁRIOS (admin only) -->
    <div class="pg" id="pg-usuarios">
-    <div class="ph">
-     <div class="pt"><small>Cadastro</small>Usuários do Sistema</div>
-     <button class="btn btn-p btn-sm" onclick="showRegModal()">+ Novo Usuário</button>
+    <div class="ph"><div class="pt"><small>Administração</small>Gestão de Usuários</div></div>
+    <div class="alert" id="al-usr"></div>
+    <div class="card">
+     <div class="card-t" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>
+      <button class="btn btn-sm btn-p" onclick="showRegModal()">+ Novo Usuário</button>
+     </div>
+     <div id="pg-ul"></div>
     </div>
-    <div class="card"><div id="at-ul"></div></div>
    </div>
 
-   <!-- TEMPLATES DE INSPEÇÃO (admin) -->
-   <div class="pg" id="pg-tplinsp">
+   <!-- PÁGINA: INSPEÇÃO (templates - admin only) -->
+   <div class="pg" id="pg-inspecao-tmpl">
     <div class="ph">
-     <div class="pt"><small>Configuração</small>Templates de Inspeção</div>
+     <div class="pt"><small>PCM · Qualidade</small>Templates de Inspeção</div>
      <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select id="tpli-sel" onchange="loadTplInspecao()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:8px 10px;font-family:var(--fb);font-size:13px">
-       <option value="rota">Inspeção de Rota</option>
-       <option value="mecanica_eletrica">Mecânica e Elétrica</option>
-      </select>
-      <button class="btn btn-p btn-sm" onclick="salvarTplInspecao()">💾 Salvar Template</button>
+      <button class="btn btn-sm btn-gh" id="btn-insp-rota-print" onclick="imprimirInspecao('rota')">🖨️ Imprimir Rota</button>
+      <button class="btn btn-sm btn-gh" id="btn-insp-maq-print" onclick="imprimirInspecao('maquina')">🖨️ Imprimir Mecânica/Elétrica</button>
      </div>
     </div>
-    <div class="alert" id="al-tpli"></div>
     <div class="card">
-     <div class="card-t" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Itens deste template</span>
-      <button class="btn btn-sm btn-gh" onclick="addTplInspRow()">+ Adicionar Item</button>
+     <div class="card-t">Selecionar Template</div>
+     <div class="fg-row">
+      <div class="fg"><label>Tipo de Inspeção</label>
+       <select id="insp-tmpl-tipo" onchange="renderInspTmpl()">
+        <option value="rota">Inspeção de Rota</option>
+        <option value="maquina">Inspeção Mecânica / Elétrica</option>
+       </select>
+      </div>
+      <div class="fg"><label>Sala (filtro)</label>
+       <select id="insp-tmpl-sala" onchange="renderInspTmpl()">
+        <option value="">Todas as Salas</option>
+       </select>
+      </div>
+      <div class="fg"><label>Data</label><input type="date" id="insp-tmpl-dt"></div>
+      <div class="fg"><label>Manutentor</label><input type="text" id="insp-tmpl-mn" placeholder="Nome"></div>
      </div>
-     <div class="tw"><table><thead><tr>
-      <th>#</th><th>Sala</th><th>Equipamento</th><th>Sub-item</th><th>Periodicidade</th><th>Ações</th>
-     </tr></thead><tbody id="tb-tpli"></tbody></table></div>
+    </div>
+    <div id="insp-tmpl-body"></div>
+    <div class="fa">
+     <button class="btn btn-p" onclick="salvarInspTmpl()">💾 Salvar Inspeção</button>
     </div>
    </div>
 
-   <!-- TEMPLATES DE PREVENTIVA (admin) -->
-   <div class="pg" id="pg-tplprev">
+   <!-- PÁGINA: PREVENTIVA (template - admin only) -->
+   <div class="pg" id="pg-preventiva">
     <div class="ph">
-     <div class="pt"><small>Configuração</small>Template de Preventiva</div>
-     <button class="btn btn-p btn-sm" onclick="salvarTplPreventiva()">💾 Salvar Template</button>
+     <div class="pt"><small>PCM · Manutenção</small>Ordem de Manutenção Preventiva</div>
+     <button class="btn btn-sm btn-gh" onclick="imprimirPreventiva()">🖨️ Imprimir Ordem</button>
     </div>
-    <div class="alert" id="al-tplp"></div>
     <div class="card">
-     <div class="card-t" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Tarefas Preventivas — Mecânica/Elétrica</span>
-      <button class="btn btn-sm btn-gh" onclick="addTplPrevRow()">+ Adicionar Tarefa</button>
+     <div class="card-t">Dados da Preventiva</div>
+     <div class="fg-row">
+      <div class="fg"><label>Máquina / Ativo</label>
+       <select id="prev-maq" onchange="carregarTarefasPreventiva()"><option value="">Selecione...</option></select>
+      </div>
+      <div class="fg"><label>Data Execução</label><input type="date" id="prev-dt"></div>
+      <div class="fg"><label>Manutentor</label><input type="text" id="prev-mn" placeholder="Nome"></div>
+      <div class="fg"><label>Periodicidade</label>
+       <select id="prev-periodo">
+        <option>Diária</option><option>Semanal</option><option>Mensal</option>
+        <option>Trimestral</option><option>Semestral</option><option>Anual</option>
+       </select>
+      </div>
      </div>
-     <div class="tw"><table><thead><tr>
-      <th>Sala</th><th>Equipamento</th><th>Tarefa</th><th>Periodicidade</th><th>Tempo (min)</th><th>Crit.</th><th>Ações</th>
-     </tr></thead><tbody id="tb-tplp"></tbody></table></div>
+    </div>
+    <div id="prev-body"></div>
+    <div class="fa">
+     <button class="btn btn-p" onclick="salvarPreventiva()">💾 Salvar Preventiva</button>
     </div>
    </div>
 
@@ -607,6 +673,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
   <div class="fg"><label>Data</label><input type="date" id="mc-dt"></div>
   <div class="fg"><label>Hora Início</label><input type="time" id="mc-in"></div>
   <div class="fg"><label>Hora Fim</label><input type="time" id="mc-fm"></div>
+  <div class="fg"><label>Tempo de Parada (min)</label><input type="number" id="mc-parada" placeholder="0" min="0"></div>
   <div class="fg fg-full"><label>Serviço Executado</label><textarea id="mc-ds" placeholder="Descreva o que foi feito..."></textarea></div>
  </div>
  <div class="fa">
@@ -618,35 +685,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 <!-- MODAL RELATÓRIO -->
 <div class="mb" id="m-rel"><div class="modal" style="max-width:640px">
  <div class="mhd"><div class="mtit">Relatório de Inspeção</div><button class="mcl" onclick="closeM('m-rel')">×</button></div>
- <div id="m-rel-nav" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:8px;background:var(--surf2);border-radius:var(--rs)">
-  <button class="btn btn-sm btn-gh" onclick="navRel(-1)">← Anterior</button>
-  <span id="m-rel-pos" style="font-family:var(--fm);font-size:12px;color:var(--txt2)"></span>
-  <button class="btn btn-sm btn-gh" onclick="navRel(1)">Próximo →</button>
- </div>
  <div class="insp-report" id="m-rel-b"></div>
  <button class="wa-cp" onclick="copyRel()">📋 Copiar para WhatsApp</button>
-</div></div>
-
-<!-- MODAL EDITAR OS EXECUTADA -->
-<div class="mb" id="m-os"><div class="modal" style="max-width:560px">
- <div class="mhd"><div class="mtit">Editar Ordem de Serviço</div><button class="mcl" onclick="closeM('m-os')">×</button></div>
- <input type="hidden" id="mo-id">
- <div class="fg-row">
-  <div class="fg"><label>Sala</label><select id="mo-sl" onchange="fMaqEdit()"></select></div>
-  <div class="fg"><label>Máquina</label><select id="mo-mq"></select></div>
-  <div class="fg"><label>Tipo</label><select id="mo-tp"><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-  <div class="fg"><label>Prioridade</label><select id="mo-pr"><option value="Alta">Alta</option><option value="Média">Média</option><option value="Baixa">Baixa</option></select></div>
-  <div class="fg"><label>Manutentor</label><input type="text" id="mo-mn"></div>
-  <div class="fg"><label>Data</label><input type="date" id="mo-dt"></div>
-  <div class="fg"><label>Hora Início</label><input type="time" id="mo-in"></div>
-  <div class="fg"><label>Hora Fim</label><input type="time" id="mo-fm"></div>
-  <div class="fg fg-full"><label>Problema</label><textarea id="mo-pb"></textarea></div>
-  <div class="fg fg-full"><label>Ação Executada</label><textarea id="mo-ac"></textarea></div>
- </div>
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('m-os')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarEditOS()">Salvar</button>
- </div>
 </div></div>
 
 <!-- MODAL EDITAR -->
@@ -680,58 +720,53 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
  </div>
 </div></div>
 
+
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  SIGMAN — JavaScript Principal                                   ║
-// ║  Muffato Foods                                                   ║
+// ║  SIGMAN Enterprise — JavaScript v4                               ║
+// ║  Muffato Foods · PCM · OEE · TPM                                ║
 // ╠══════════════════════════════════════════════════════════════════╣
-// ║  CONFIGURAÇÃO RÁPIDA (as únicas linhas que você precisa mudar)   ║
+// ║  CONFIGURAÇÃO — altere apenas estas linhas                       ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-// URL do seu Google Apps Script (backend/API)
-const API_URL = 'https://script.google.com/macros/s/AKfycbxQ-okD4Ya5AAwlnnTJiW24B3_OD67N8BXMdB23ubLA68j0srmZA-Kw48BqDqqkWLv8Ng/exec';
-
-// true  = dados salvos no Google Sheets (produção, online)
-// false = dados salvos só no navegador deste computador (offline/teste)
-const USE_API = true;
+const API_URL    = 'https://script.google.com/macros/s/AKfycbxQ-okD4Ya5AAwlnnTJiW24B3_OD67N8BXMdB23ubLA68j0srmZA-Kw48BqDqqkWLv8Ng/exec';
+const USE_API    = true;   // false = modo offline (só localStorage)
+const POLL_MS    = 60000;  // Atualização automática a cada 60 segundos
 
 // ══════════════════════════════════════════════════════════════════════
-// TEMPLATE DE INSPEÇÃO DIÁRIA
-// Cada objeto = uma sala com seus equipamentos
-// Para adicionar sala: { sala: 'Nome', equips: [{ id:'id_unico', nome:'Nome', subs:[] }] }
-// Para adicionar sub-item (ex: ULMA): coloque dentro do array subs
+// TEMPLATE DE INSPEÇÃO DIÁRIA (Equipamentos por Sala)
 // ══════════════════════════════════════════════════════════════════════
 const INSP_TMPL = [
-  {"sala":"UTILIDADES",           "equips":[{"id":"DISJUNTORES","nome":"DISJUNTORES CCM","subs":[]}]},
-  {"sala":"PIZZA",                "equips":[{"id":"PIZZA_LINHA","nome":"LINHA DE PRODUÇÃO","subs":[]}]},
-  {"sala":"LÁCTEOS",              "equips":[
+  {"sala":"UTILIDADES",             "equips":[{"id":"DISJUNTORES","nome":"DISJUNTORES CCM","subs":[]}]},
+  {"sala":"PIZZA",                  "equips":[{"id":"PIZZA_LINHA","nome":"LINHA DE PRODUÇÃO","subs":[]}]},
+  {"sala":"LÁCTEOS",                "equips":[
     {"id":"LACTEOS_W905","nome":"WEBER 905","subs":[]},
     {"id":"LACTEOS_ULMA","nome":"ULMA","subs":[
       {"id":"LACTEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"LACTEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"CÁRNEOS",              "equips":[
+  {"sala":"CÁRNEOS",                "equips":[
     {"id":"CARNEOS_W405","nome":"WEBER 405","subs":[]},
     {"id":"CARNEOS_ULMA","nome":"ULMA","subs":[
       {"id":"CARNEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"CARNEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"DEFUMADO",             "equips":[
+  {"sala":"DEFUMADO",               "equips":[
     {"id":"DEFUM_ULMA","nome":"ULMA","subs":[
       {"id":"DEFUM_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"DEFUM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"BACALHAU",             "equips":[
+  {"sala":"BACALHAU",               "equips":[
     {"id":"BAC_SERRA","nome":"SERRA FITA","subs":[]},
     {"id":"BAC_ULMA","nome":"ULMA","subs":[
       {"id":"BAC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"BAC_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"LINGUIÇA",             "equips":[
+  {"sala":"LINGUIÇA",               "equips":[
     {"id":"LING_ELEV","nome":"ELEVADOR","subs":[]},
     {"id":"LING_HAND","nome":"HANDTMANN","subs":[]},
     {"id":"LING_ULMA","nome":"ULMA","subs":[
@@ -739,15 +774,15 @@ const INSP_TMPL = [
       {"id":"LING_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"SALMOURA",             "equips":[
+  {"sala":"SALMOURA",               "equips":[
     {"id":"SALM_BAL","nome":"BALANÇA","subs":[]},
     {"id":"SALM_EKO","nome":"EKOMEX","subs":[]},
     {"id":"SALM_MAX","nome":"MAXMAC","subs":[]},
     {"id":"SALM_TAM","nome":"TAMBLER","subs":[]},
-    {"id":"SALM_INJ","nome":"Injetora","subs":[]},
-    {"id":"SALM_SAL","nome":"Salmoura","subs":[]}
+    {"id":"SALM_INJ","nome":"INJETORA","subs":[]},
+    {"id":"SALM_SAL","nome":"SALMOURA","subs":[]}
   ]},
-  {"sala":"TEMPERADOS",           "equips":[
+  {"sala":"TEMPERADOS",             "equips":[
     {"id":"TEMP_DVAC","nome":"DUPLA VAC","subs":[]},
     {"id":"TEMP_TAM","nome":"TAMBLER","subs":[]},
     {"id":"TEMP_ULMA","nome":"ULMA","subs":[
@@ -755,15 +790,15 @@ const INSP_TMPL = [
       {"id":"TEMP_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"PORCIONAMENTO",        "equips":[
+  {"sala":"PORCIONAMENTO",          "equips":[
     {"id":"PORC_FAT","nome":"FATIADORA","subs":[]},
     {"id":"PORC_ULMA","nome":"ULMA","subs":[
       {"id":"PORC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"PORC_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"CORREDOR PORCIONAMENTO","equips":[{"id":"CORR_BAL","nome":"BALANÇA","subs":[]}]},
-  {"sala":"CARNE MOÍDA",          "equips":[
+  {"sala":"CORREDOR PORCIONAMENTO", "equips":[{"id":"CORR_BAL","nome":"BALANÇA","subs":[]}]},
+  {"sala":"CARNE MOÍDA",            "equips":[
     {"id":"CM_MOE","nome":"MOEDOR","subs":[]},
     {"id":"CM_HAND","nome":"HANDTMANN","subs":[]},
     {"id":"CM_GMD","nome":"GMD 99-2","subs":[]},
@@ -774,7 +809,7 @@ const INSP_TMPL = [
       {"id":"CM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"DESOSSA",              "equips":[
+  {"sala":"DESOSSA",                "equips":[
     {"id":"DES_SERRA3","nome":"SERRA FITA ESTEIRA 3","subs":[]},
     {"id":"DES_SERRACIRC","nome":"SERRA CIRCULAR","subs":[]},
     {"id":"DES_ESFOL","nome":"ESFOLIADEIRA ESTEIRA 1","subs":[]},
@@ -787,506 +822,432 @@ const INSP_TMPL = [
 ];
 
 // ══════════════════════════════════════════════════════════════════════
-// BANCO DE DADOS LOCAL (cache em memória)
-// Esses dados são carregados do Google Sheets na inicialização.
-// Se USE_API=false, ficam salvos só no navegador (localStorage).
+// BANCO DE DADOS LOCAL (cache em memória + localStorage)
 // ══════════════════════════════════════════════════════════════════════
 let db = {
-  // Salas cadastradas (lista de strings)
-  salas: [],
-
-  // Máquinas cadastradas (cada item: { nome, sala, tag })
-  maquinas: [
+  salas:        ['CARNE MOÍDA','LÁCTEOS','EMBUTIDOS','FATIADOS','UTILIDADES','PIZZA','CÁRNEOS','DEFUMADO','BACALHAU','LINGUIÇA','SALMOURA','TEMPERADOS','PORCIONAMENTO','CORREDOR PORCIONAMENTO','DESOSSA'],
+  maquinas:     [
+    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'Alta',  periodicidade:'Mensal'},
+    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'Alta',  periodicidade:'Semanal'},
+    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'Média', periodicidade:'Mensal'},
+    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'Média', periodicidade:'Mensal'},
+    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'Alta',  periodicidade:'Trimestral'},
+    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'Alta',  periodicidade:'Trimestral'}
   ],
-
-  // Ordens de serviço executadas
-  ordens: [],
-
-  // Ordens de serviço planejadas
-  planejadas: [],
-
-  // Solicitações abertas pela produção
+  ordens:       [],
+  planejadas:   [],
   solicitacoes: [],
-
-  // Inspeções diárias salvas
-  inspecoes: [],
-
-  // Templates de inspeção (admin) — carregados do Sheets
-  // Cada item: { id, nome, tipo:'rota'|'mecanica_eletrica', ordem, sala, equip, sub, periodicidade }
-  tplInspecao: [],
-
-  // Templates de preventiva (admin)
-  // Cada item: { id, nome, sala, equip, tarefa, periodicidade, tempo, criticidade }
-  tplPreventiva: [],
-
-  // Usuários do sistema (login, senha, nome, tipo)
-  users: [
+  inspecoes:    [],
+  usuarios:     [
     {login:'admin', senha:'admin123', nome:'Administrador',   tipo:'administracao'},
-    {login:'amauri', senha:'admin123', nome:'Amauri Primel',   tipo:'administracao'},
-    {login:'marcia', senha:'admin123', nome:'Marcia Souza',   tipo:'administracao'},
-    {login:'leonardo', senha:'admin123', nome:'Leonardo Dias',   tipo:'administracao'},
-    {login:'larissa', senha:'admin123', nome:'Larissa Melo',   tipo:'administracao'},
-    {login:'adilson', senha:'manut123', nome:'Adilson Pereira', tipo:'manutencao'},
-    {login:'carlos', senha:'manut123', nome:'Carlos da Cruz', tipo:'manutencao'},
-    {login:'danilo', senha:'manut123', nome:'Danilo Mariano', tipo:'manutencao'},
-    {login:'joao', senha:'manut123', nome:'Joâo Pereira', tipo:'manutencao'},
-    {login:'paulo', senha:'manut123', nome:'Paulo do Carmo', tipo:'manutencao'},
-    {login:'tiago', senha:'manut123', nome:'Tiago Britici', tipo:'manutencao'},
-    {login:'producao',  senha:'prod123',  nome:'Produção',   tipo:'producao'}
+    {login:'manut', senha:'manut123', nome:'Manutenção Demo', tipo:'manutencao'},
+    {login:'prod',  senha:'prod123',  nome:'Produção Demo',   tipo:'producao'}
   ],
-
-  // Contadores de numeração automática
-  osC:1, plC:1, solC:1
+  configuracoes: {
+    horas_turno_1: 8, horas_turno_2: 8, horas_turno_3: 8,
+    meta_disponibilidade: 85, meta_performance: 90, meta_qualidade: 99
+  },
+  osC:1, plC:1, solC:1, inspC:1
 };
 
 // ══════════════════════════════════════════════════════════════════════
-// API — comunicação com Google Sheets via Apps Script
-// ══════════════════════════════════════════════════════════════════════
-
-// Lê todos os dados do Sheets e carrega em db
-async function apiLoadAll() {
-  if (!USE_API) return; // offline: não faz nada, usa localStorage
-  try {
-    const res  = await fetch(API_URL + '?action=readAll');
-    const json = await res.json();
-    if (!json.ok) { console.warn('API readAll:', json.error); return; }
-
-    const d = json.data;
-
-    // Ordens executadas
-    if (d.ordens && d.ordens.length) {
-      db.ordens = d.ordens.map(r => ({
-        id:         Number(String(r.OS_Numero).replace('OS-','')) || Date.now(),
-        numero:     r.OS_Numero,
-        sala:       r.Sala,
-        maq:        r.Maquina,
-        tipo:       r.Tipo,
-        prioridade: r.Prioridade,
-        manut:      r.Manutentor,
-        data:       normDate(r.Data),
-        ini:        normTime(r.Hora_Inicio),
-        fim:        normTime(r.Hora_Fim),
-        prob:       r.Problema,
-        acao:       r.Acao_Executada,
-        origem:     r.Origem,
-        origemNum:  r.OS_Origem_Ref,
-        criadoEm:   r.Criado_Em
-      }));
-      // Atualiza contador
-      const maxOS = Math.max(...db.ordens.map(o => Number(o.numero.replace('OS-',''))||0), 0);
-      db.osC = maxOS + 1;
-    }
-
-    // OS Planejadas
-    if (d.planejadas && d.planejadas.length) {
-      db.planejadas = d.planejadas.map(r => ({
-        id:         Number(String(r.PL_Numero).replace('PL-','')) || Date.now(),
-        numero:     r.PL_Numero,
-        sala:       r.Sala,
-        maq:        r.Maquina,
-        tipo:       r.Tipo,
-        prioridade: r.Prioridade,
-        prazo:      normDate(r.Prazo_Limite),
-        desc:       r.Descricao_Planejada,
-        status:     r.Status || 'Pendente',
-        manut:      r.Manutentor_Exec,
-        dtExec:     normDate(r.Data_Execucao),
-        ini:        normTime(r.Hora_Inicio),
-        fim:        normTime(r.Hora_Fim),
-        desc2:      r.Servico_Executado,
-        criadoEm:   r.Criado_Em,
-        concluidoEm:r.Concluido_Em
-      }));
-      const maxPL = Math.max(...db.planejadas.map(p => Number(p.numero.replace('PL-',''))||0), 0);
-      db.plC = maxPL + 1;
-    }
-
-    // Solicitações
-    if (d.solicitacoes && d.solicitacoes.length) {
-      db.solicitacoes = d.solicitacoes.map(r => ({
-        id:         Number(String(r.SOL_Numero).replace('SOL-','')) || Date.now(),
-        numero:     r.SOL_Numero,
-        sala:       r.Sala,
-        maq:        r.Maquina,
-        tipo:       r.Tipo,
-        prioridade: r.Prioridade,
-        desc:       r.Descricao,
-        status:     r.Status || 'Não Executada',
-        solicitante:r.Solicitante,
-        manut:      r.Manutentor_Exec,
-        dtExec:     normDate(r.Data_Execucao),
-        desc2:      r.Servico_Executado,
-        criadoEm:   r.Criado_Em,
-        concluidoEm:r.Concluido_Em
-      }));
-      const maxSOL = Math.max(...db.solicitacoes.map(s => Number(s.numero.replace('SOL-',''))||0), 0);
-      db.solC = maxSOL + 1;
-    }
-
-    // Usuários: merge entre os do Sheets e os locais (para preservar senhas)
-    // Senhas NÃO são salvas no Sheets — ficam só no localStorage
-    {
-      const local = JSON.parse(localStorage.getItem('sigman_users') || '[]');
-      if (d.usuarios && d.usuarios.length) {
-        // Tem usuários no Sheets → usa como base, pega senhas do local
-        const sheetsUsers = d.usuarios
-          .filter(r => r.Login && r.Ativo !== 'nao')
-          .map(r => {
-            const loc = local.find(u => u.login === r.Login);
-            return {
-              login: r.Login,
-              senha: loc ? loc.senha : 'mudar123',
-              nome:  r.Nome,
-              tipo:  r.Tipo_Acesso
-            };
-          });
-        // Mantém usuários locais que não estão no Sheets ainda
-        local.forEach(lu => {
-          if (!sheetsUsers.find(u => u.login === lu.login)) {
-            sheetsUsers.push(lu);
-          }
-        });
-        db.users = sheetsUsers;
-      } else if (local.length) {
-        // Sheets vazio mas tem usuários locais → usa os locais
-        db.users = local;
-      }
-      // Se ambos vazios → mantém os padrões do db (admin/manut/prod)
-    }
-
-    // Inspeções
-    if (d.inspecoes && d.inspecoes.length) {
-      // Agrupa linhas por Data+Turno+Manutentor
-      const map = {};
-      d.inspecoes.forEach(r => {
-        const key = r.Data + '|' + r.Turno + '|' + r.Manutentor;
-        if (!map[key]) map[key] = { data: r.Data, turno: r.Turno, manut: r.Manutentor, id: Date.now(), itens: [] };
-        map[key].itens.push({
-          sala:      r.Sala,
-          equipNome: r.Equipamento,
-          subItem:   r.Sub_Item,
-          status:    r.Status,
-          hora:      r.Hora,
-          obs:       r.Observacoes
-        });
-      });
-      db.inspecoes = Object.values(map);
-    }
-
-    // Salas (nova aba)
-    if (d.salas && d.salas.length) {
-      db.salas = d.salas
-        .filter(r => r.Ativo !== 'nao' && r.Nome)
-        .map(r => String(r.Nome).trim())
-        .filter(Boolean);
-    }
-
-    // Máquinas (nova aba) — com criticidade e periodicidade
-    if (d.maquinas && d.maquinas.length) {
-      db.maquinas = d.maquinas
-        .filter(r => r.Ativo !== 'nao' && r.Nome)
-        .map(r => ({
-          nome: String(r.Nome).trim(),
-          sala: String(r.Sala||'').trim(),
-          tag:  r.Tag || '',
-          criticidade: r.Criticidade || 'B',
-          periodicidade: r.Periodicidade_Dias || ''
-        }));
-    }
-
-    // Fallback — aba antiga "Ativos" (migração suave)
-    if ((!db.salas || !db.salas.length) && d.ativos && d.ativos.length) {
-      const sheetsSalas = d.ativos
-        .filter(r => r.Tipo === 'sala' && r.Ativo !== 'nao')
-        .map(r => (r.Sala || r.Nome || '').toString().trim())
-        .filter(Boolean);
-      sheetsSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
-    }
-    if ((!db.maquinas || !db.maquinas.length) && d.ativos && d.ativos.length) {
-      d.ativos
-        .filter(r => r.Tipo === 'maquina' && r.Ativo !== 'nao')
-        .forEach(r => db.maquinas.push({
-          nome: (r.Nome||'').toString().trim(),
-          sala: (r.Sala||'').toString().trim(),
-          tag:  r.Tag||'',
-          criticidade: 'B', periodicidade: ''
-        }));
-    }
-
-    // Ordena alfabeticamente
-    db.salas.sort((a,b)=>a.localeCompare(b,'pt-BR'));
-    db.maquinas.sort((a,b)=>a.sala.localeCompare(b.sala,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'));
-
-    // Templates de Inspeção
-    if (d.tplInspecao && d.tplInspecao.length) {
-      db.tplInspecao = d.tplInspecao.map(r => ({
-        id:    r.Template_ID || 'ROTA-01',
-        nome:  r.Nome_Template || '',
-        tipo:  r.Tipo || 'rota',
-        ordem: Number(r.Ordem)||0,
-        sala:  r.Sala||'', equip: r.Equipamento||'', sub: r.Sub_Item||'',
-        periodicidade: r.Periodicidade||''
-      }));
-    }
-
-    // Templates de Preventiva
-    if (d.tplPreventiva && d.tplPreventiva.length) {
-      db.tplPreventiva = d.tplPreventiva.map(r => ({
-        id:    r.Template_ID || 'PREV-01',
-        nome:  r.Nome_Template || '',
-        sala:  r.Sala||'', equip: r.Equipamento||'',
-        tarefa: r.Tarefa||'',
-        periodicidade: r.Periodicidade||'',
-        tempo: r.Tempo_Estimado_Min||'',
-        criticidade: r.Criticidade||'B'
-      }));
-    }
-
-    console.log('✅ Dados carregados do Google Sheets');
-  } catch(e) {
-    console.warn('Erro ao carregar do Sheets, usando dados locais:', e.message);
-  }
-}
-
-// Envia uma nova linha para o Sheets
-async function apiAppend(sheet, row) {
-  if (!USE_API) return; // offline: não envia
-  try {
-    console.log('[SIGMAN] Enviando para Sheets:', sheet, row);
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      // Apps Script precisa de text/plain para evitar preflight CORS
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'append', sheet, row })
-    });
-    const json = await res.json();
-    if (json.ok) {
-      console.log('[SIGMAN] ✅ Gravado com sucesso em:', sheet);
-    } else {
-      console.error('[SIGMAN] ❌ Erro ao gravar em', sheet, ':', json.error);
-    }
-    return json;
-  } catch(e) {
-    console.error('[SIGMAN] ❌ Falha na requisição para o Sheets:', e.message);
-    console.error('[SIGMAN] Verifique se a API_URL está correta e se o Apps Script está publicado como "Qualquer pessoa"');
-  }
-}
-
-// Atualiza uma linha existente no Sheets
-async function apiUpdate(sheet, id, idCol, row) {
-  if (!USE_API) return;
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'update', sheet, id, idCol, row })
-    });
-    const json = await res.json();
-    if (!json.ok) console.error('[SIGMAN] ❌ Erro ao atualizar em', sheet, ':', json.error);
-    return json;
-  } catch(e) {
-    console.error('[SIGMAN] ❌ Falha ao atualizar no Sheets:', e.message);
-  }
-}
-
-// Marca um registro como inativo no Sheets (soft delete — não apaga a linha)
-async function apiDelete(sheet, id, idCol) {
-  if (!USE_API) return;
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'delete', sheet, id, idCol })
-    });
-    const json = await res.json();
-    if (!json.ok) console.error('[SIGMAN] ❌ Erro ao deletar em', sheet, ':', json.error);
-    return json;
-  } catch(e) {
-    console.error('[SIGMAN] ❌ Falha ao deletar no Sheets:', e.message);
-  }
-}
-
-// Substitui TODAS as linhas de uma aba (usado para templates editáveis)
-async function apiReplaceAll(sheet, rows) {
-  if (!USE_API) return;
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'replaceAll', sheet, rows })
-    });
-    const json = await res.json();
-    if (!json.ok) console.error('[SIGMAN] ❌ Erro replaceAll', sheet, json.error);
-    return json;
-  } catch(e) {
-    console.error('[SIGMAN] ❌ Falha replaceAll:', e.message);
-  }
-}
-
-// ── POLLING (atualização automática a cada 60s) ─────────────────────────
-let _lastTs = 0;
-let _pollTimer = null;
-async function startPolling() {
-  if (!USE_API || _pollTimer) return;
-  _pollTimer = setInterval(async () => {
-    if (document.hidden) return; // pausa quando aba inativa (economiza quota)
-    try {
-      const res  = await fetch(API_URL + '?action=lastUpdate');
-      const json = await res.json();
-      if (json.ok && json.ts && json.ts > _lastTs) {
-        _lastTs = json.ts;
-        await apiLoadAll();
-        // Re-renderiza página atual
-        const ni = document.querySelector('.nv-item.act');
-        if (ni) {
-          const pid = ni.getAttribute('data-page');
-          if (pid) showPage(pid);
-        }
-        updStats();
-        console.log('[SIGMAN] 🔄 Dados atualizados automaticamente');
-      }
-    } catch(e) { /* silencioso */ }
-  }, 60000);
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// BANCO LOCAL (localStorage) — fallback quando USE_API=false
-// ══════════════════════════════════════════════════════════════════════
-function saveDB() {
-  try {
-    localStorage.setItem('sigman_v3', JSON.stringify(db));
-    // Salva usuários SEMPRE no localStorage (senhas não vão ao Sheets)
-    localStorage.setItem('sigman_users', JSON.stringify(db.users));
-  } catch(e) {}
-}
-
-function loadDB() {
-  const r = localStorage.getItem('sigman_v3');
-  if (r) {
-    try { const d = JSON.parse(r); Object.assign(db, d); } catch(e) {}
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// AUTENTICAÇÃO E NÍVEIS DE ACESSO
-// Para mudar o que cada nível vê, edite o array 'menus' de cada tipo
+// CONTROLE DE ACESSO (menus por nível)
 // ══════════════════════════════════════════════════════════════════════
 const ROLES = {
-  // Administração: vê tudo (inclui páginas de cadastro)
   administracao: {
     label: 'Administração',
-    menus: ['dashboard','planejadas','executadas','abertura','planejamento','solicitacao','inspecao','ativos','usuarios','tplinsp','tplprev']
+    menus: ['dashboard','planejadas','executadas','abertura','planejamento',
+            'solicitacao','inspecao','ativos','usuarios','inspecao-tmpl','preventiva']
   },
-  // Manutenção: operacional
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','inspecao']
+    menus: ['dashboard','planejadas','executadas','abertura','solicitacao','inspecao']
   },
-  // Produção: só abre solicitações
   producao: {
     label: 'Produção',
     menus: ['solicitacao']
   }
 };
 
-let CU = null; // Usuário logado no momento (Current User)
+let CU = null; // usuário logado
+let _pollTimer = null; // timer de atualização automática
 
-// Faz o login
-function doLogin() {
-  const usuario = v('l-u');
-  const senha   = v('l-p');
-  const user    = db.users.find(x => x.login === usuario && x.senha === senha);
+// ══════════════════════════════════════════════════════════════════════
+// API — comunicação com Google Sheets
+// ══════════════════════════════════════════════════════════════════════
+async function apiGet(params) {
+  if (!USE_API) return null;
+  try {
+    const q   = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const res = await fetch(API_URL + '?' + q);
+    return await res.json();
+  } catch(e) {
+    console.warn('[API GET]', e.message); return null;
+  }
+}
+
+async function apiPost(body) {
+  if (!USE_API) return null;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (!json.ok) console.error('[API POST] Erro:', json.error);
+    return json;
+  } catch(e) {
+    console.error('[API POST]', e.message); return null;
+  }
+}
+
+// Envia nova linha para o Sheets
+function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row }); }
+
+// Atualiza linha existente
+function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row }); }
+
+// Remove linha
+function apiDelete(sheet, id, idCol) { return apiPost({ action:'delete', sheet, id, idCol }); }
+
+// ── Normalização de valores vindos do Sheets ─────────────────────────────
+function normDate(v) {
+  if (!v) return '';
+  if (typeof v === 'number') {
+    const d = new Date((v - 25569) * 86400000);
+    return isNaN(d) ? '' : d.toISOString().slice(0,10);
+  }
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  return s.slice(0,10);
+}
+
+function normTime(v) {
+  if (!v) return '';
+  if (typeof v === 'number') {
+    const frac = v % 1;
+    const min  = Math.round(frac * 1440);
+    return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0');
+  }
+  const s = String(v);
+  if (s.includes('T')) return s.split('T')[1].slice(0,5);
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
+  return '';
+}
+
+function normStr(v) { return v === null || v === undefined ? '' : String(v); }
+
+// ── Carrega todos os dados do Sheets ────────────────────────────────────
+async function apiLoadAll(silent = false) {
+  if (!USE_API) return;
+  const json = await apiGet({ action: 'readAll' });
+  if (!json || !json.ok) {
+    if (!silent) console.warn('[SIGMAN] Sheets indisponível, usando cache local');
+    return;
+  }
+  const d = json.data;
+
+  // Ordens Executadas
+  if (d.ordens && d.ordens.length) {
+    db.ordens = d.ordens.map(r => ({
+      id:          Date.now() + Math.random(),
+      numero:      normStr(r.OS_Numero),
+      sala:        normStr(r.Sala),
+      maq:         normStr(r.Maquina),
+      tipo:        normStr(r.Tipo),
+      prioridade:  normStr(r.Prioridade),
+      manut:       normStr(r.Manutentor),
+      data:        normDate(r.Data),
+      ini:         normTime(r.Hora_Inicio),
+      fim:         normTime(r.Hora_Fim),
+      durMin:      Number(r.Duracao_Min) || 0,
+      paradaMin:   Number(r.Tempo_Parada_Min) || 0,
+      prob:        normStr(r.Problema),
+      acao:        normStr(r.Acao_Executada),
+      origem:      normStr(r.Origem),
+      origemNum:   normStr(r.OS_Origem_Ref),
+      criadoEm:    normStr(r.Criado_Em)
+    }));
+    const max = Math.max(...db.ordens.map(o => parseInt(o.numero.replace(/\D/g,''))||0), 0);
+    db.osC = max + 1;
+  }
+
+  // OS Planejadas
+  if (d.planejadas && d.planejadas.length) {
+    db.planejadas = d.planejadas.map(r => ({
+      id:         Date.now() + Math.random(),
+      numero:     normStr(r.PL_Numero),
+      sala:       normStr(r.Sala),
+      maq:        normStr(r.Maquina),
+      tipo:       normStr(r.Tipo),
+      prioridade: normStr(r.Prioridade),
+      prazo:      normDate(r.Prazo_Limite),
+      horasTurno: Number(r.Horas_Turno) || 8,
+      desc:       normStr(r.Descricao_Planejada),
+      status:     normStr(r.Status) || 'Pendente',
+      manut:      normStr(r.Manutentor_Exec),
+      dtExec:     normDate(r.Data_Execucao),
+      ini:        normTime(r.Hora_Inicio),
+      fim:        normTime(r.Hora_Fim),
+      durMin:     Number(r.Duracao_Min) || 0,
+      desc2:      normStr(r.Servico_Executado),
+      criadoEm:   normStr(r.Criado_Em)
+    }));
+    const max = Math.max(...db.planejadas.map(p => parseInt(p.numero.replace(/\D/g,''))||0), 0);
+    db.plC = max + 1;
+  }
+
+  // Solicitações
+  if (d.solicitacoes && d.solicitacoes.length) {
+    db.solicitacoes = d.solicitacoes.map(r => ({
+      id:         Date.now() + Math.random(),
+      numero:     normStr(r.SOL_Numero),
+      sala:       normStr(r.Sala),
+      maq:        normStr(r.Maquina),
+      tipo:       normStr(r.Tipo),
+      prioridade: normStr(r.Prioridade),
+      desc:       normStr(r.Descricao),
+      status:     normStr(r.Status) || 'Não Executada',
+      solicitante:normStr(r.Solicitante),
+      manut:      normStr(r.Manutentor_Exec),
+      dtExec:     normDate(r.Data_Execucao),
+      desc2:      normStr(r.Servico_Executado),
+      criadoEm:   normStr(r.Criado_Em)
+    }));
+    const max = Math.max(...db.solicitacoes.map(s => parseInt(s.numero.replace(/\D/g,''))||0), 0);
+    db.solC = max + 1;
+  }
+
+  // Inspeções Diárias
+  if (d.inspecoes && d.inspecoes.length) {
+    const map = {};
+    d.inspecoes.forEach(r => {
+      const key = normDate(r.Data) + '|' + normStr(r.Turno) + '|' + normStr(r.Manutentor);
+      if (!map[key]) map[key] = {
+        id:     normStr(r.ID_Inspecao) || key,
+        data:   normDate(r.Data),
+        turno:  normStr(r.Turno),
+        horasTurno: Number(r.Horas_Turno) || 8,
+        manut:  normStr(r.Manutentor),
+        itens:  []
+      };
+      map[key].itens.push({
+        sala:   normStr(r.Sala),
+        equip:  normStr(r.Equipamento),
+        sub:    normStr(r.Sub_Item),
+        status: normStr(r.Status),
+        hora:   normTime(r.Hora),
+        obs:    normStr(r.Observacoes)
+      });
+    });
+    db.inspecoes = Object.values(map);
+  }
+
+  // Usuários — merge: Sheets tem nome/tipo, localStorage tem senhas
+  const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
+  if (d.usuarios && d.usuarios.length) {
+    db.users = d.usuarios
+      .filter(r => r.Login && r.Ativo !== 'nao')
+      .map(r => {
+        const loc = localUsers.find(u => u.login === r.Login);
+        return { login: r.Login, nome: r.Nome, tipo: r.Tipo_Acesso, senha: loc ? loc.senha : 'mudar123' };
+      });
+    // Adiciona usuários locais que ainda não foram ao Sheets
+    localUsers.forEach(lu => {
+      if (!db.users.find(u => u.login === lu.login)) db.users.push(lu);
+    });
+  } else if (localUsers.length) {
+    db.users = localUsers;
+  }
+
+  // Ativos (Salas e Máquinas separados)
+  if (d.salas && d.salas.length) {
+    const shSalas = d.salas.filter(r => r.Ativo !== 'nao').map(r => normStr(r.Nome)).filter(Boolean);
+    shSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
+    db.salas.sort();
+  }
+  if (d.maquinas && d.maquinas.length) {
+    d.maquinas.filter(r => r.Ativo !== 'nao').forEach(r => {
+      const m = { nome: normStr(r.Nome), sala: normStr(r.Sala), tag: normStr(r.Tag),
+                  criticidade: normStr(r.Criticidade) || 'Média',
+                  periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal' };
+      if (!db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala)) db.maquinas.push(m);
+    });
+    db.maquinas.sort((a,b) => (a.sala+a.nome).localeCompare(b.sala+b.nome));
+  }
+
+  // Configurações
+  if (d.configuracoes && d.configuracoes.length) {
+    d.configuracoes.forEach(r => {
+      if (r.Chave) db.configuracoes[r.Chave] = isNaN(r.Valor) ? r.Valor : Number(r.Valor);
+    });
+  }
+
+  saveDB();
+  if (!silent) console.log('[SIGMAN] ✅ Dados carregados do Sheets');
+}
+
+// ── localStorage ───────────────────────────────────────────────────────
+function saveDB() {
+  try {
+    localStorage.setItem('sigman_v4', JSON.stringify({
+      salas: db.salas, maquinas: db.maquinas,
+      ordens: db.ordens, planejadas: db.planejadas,
+      solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,
+      osC: db.osC, plC: db.plC, solC: db.solC, inspC: db.inspC
+    }));
+    localStorage.setItem('sigman_users', JSON.stringify(db.users));
+  } catch(e) {}
+}
+
+function loadDB() {
+  try {
+    const r = localStorage.getItem('sigman_v4');
+    if (r) Object.assign(db, JSON.parse(r));
+    const u = localStorage.getItem('sigman_users');
+    if (u) db.users = JSON.parse(u);
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// AUTENTICAÇÃO
+// ══════════════════════════════════════════════════════════════════════
+async function doLogin() {
+  const login = v('l-u').trim();
+  const senha = v('l-p').trim();
+  if (!login || !senha) { lAlert('Preencha usuário e senha.'); return; }
+
+  // Tenta no Sheets primeiro (com hash)
+  if (USE_API) {
+    const r = await apiGet({ action: 'login', login, senha });
+    if (r && r.ok) {
+      CU = r.user;
+      CU.senha = senha; // mantém para revalidação local
+      localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
+      // Atualiza lista local
+      const idx = db.users.findIndex(u => u.login === login);
+      if (idx >= 0) db.users[idx] = { ...db.users[idx], ...CU };
+      else db.users.push(CU);
+      saveDB();
+      enterApp();
+      return;
+    }
+    if (r && !r.ok && r.error === 'Senha incorreta') { lAlert('Senha incorreta.'); return; }
+    // Se Sheets offline, tenta localmente
+  }
+
+  // Login local (fallback ou offline)
+  const user = db.users.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
-  // Salva sessão — contém login+senha para revalidar ao recarregar
-  localStorage.setItem('sigman_sess', JSON.stringify({ login: user.login, senha: user.senha }));
+  localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
   enterApp();
 }
 
-// Tenta login automático (sessão salva no navegador)
 function tryAuto() {
-  const r = localStorage.getItem('sigman_sess');
-  if (!r) return false;
-  const s = JSON.parse(r);
-  const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
-  if (!u) { localStorage.removeItem('sigman_sess'); return false; }
-  CU = u;
-  return true;
+  const raw = localStorage.getItem('sigman_sess');
+  if (!raw) return false;
+  try {
+    const s = JSON.parse(raw);
+    const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
+    if (u) { CU = u; return true; }
+  } catch(e) {}
+  localStorage.removeItem('sigman_sess');
+  return false;
 }
 
-// Faz logout
 function doLogout() {
+  clearInterval(_pollTimer);
   localStorage.removeItem('sigman_sess');
   CU = null;
-  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   document.getElementById('app').classList.remove('on');
+  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  sv('l-u',''); sv('l-p','');
+  document.getElementById('l-admin-lnk').style.display = 'none';
+  document.getElementById('lf-login').style.display = 'block';
+  document.getElementById('lf-reg').style.display = 'none';
 }
 
-// Mostra alerta na tela de login
-function lAlert(msg, type='err') {
+function showReg()     { document.getElementById('lf-login').style.display='none';  document.getElementById('lf-reg').style.display='block'; }
+function backLogin()   { document.getElementById('lf-reg').style.display='none';    document.getElementById('lf-login').style.display='block'; }
+function lAlert(m,t='err') {
   const el = document.getElementById('l-alert');
-  el.textContent = msg;
-  el.className = 'lalert ' + type + ' show';
-  setTimeout(() => el.classList.remove('show'), 3500);
+  el.textContent = m; el.className = 'lalert '+t+' show';
+  setTimeout(()=>el.classList.remove('show'), 3500);
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// INICIALIZAÇÃO DO APP APÓS LOGIN
+// ENTRAR NO APP
 // ══════════════════════════════════════════════════════════════════════
 function enterApp() {
   document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display   = 'none';
   document.getElementById('app').classList.add('on');
 
-  // Mostra nome e iniciais do usuário no sidebar
-  const iniciais = CU.nome.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
-  document.getElementById('u-av').textContent = iniciais;
+  const ini = CU.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('u-av').textContent = ini;
   document.getElementById('u-nm').textContent = CU.nome;
-  document.getElementById('u-rl').textContent = ROLES[CU.tipo].label;
-
-  // Controla visibilidade de elementos por nível de acesso
+  document.getElementById('u-rl').textContent = ROLES[CU.tipo]?.label || CU.tipo;
   document.getElementById('tb-stat').style.display = CU.tipo !== 'producao' ? 'flex' : 'none';
 
-  // Monta menu lateral e abre primeira página
   buildNav();
   populateAll();
   showPage(ROLES[CU.tipo].menus[0]);
   updStats();
-  startPolling();
 
-  // Pré-preenche campo manutentor com nome do usuário logado
+  // Pré-preenche manutentor
   if (CU.tipo !== 'producao') {
     sv('ab-mn', CU.nome);
     sv('insp-mn', CU.nome);
+    sv('insp-tmpl-mn', CU.nome);
+    sv('prev-mn', CU.nome);
+    sv('mc-mn', CU.nome);
+  }
+
+  // Inicia polling de atualização automática (só admin e manut)
+  if (CU.tipo !== 'producao') {
+    _pollTimer = setInterval(async () => {
+      await apiLoadAll(true); // silencioso
+      // Atualiza página atual em background
+      const act = document.querySelector('.nv-item.act');
+      if (act) showPage(act.getAttribute('data-page'));
+      updStats();
+    }, POLL_MS);
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MENU LATERAL (SIDEBAR)
-// Para adicionar um menu novo: adicione um item em NAV e em ROLES.menus
+// SIDEBAR / NAVEGAÇÃO
 // ══════════════════════════════════════════════════════════════════════
 const NAV = [
-  { id:'dashboard',    ic:'📊', lbl:'Dashboard'          },
-  { id:'planejadas',   ic:'📅', lbl:'O.S. Planejadas'    },
-  { id:'executadas',   ic:'✅', lbl:'O.S. Executadas'    },
-  { id:'abertura',     ic:'🔧', lbl:'Abertura de O.S.'   },
-  { id:'planejamento', ic:'📋', lbl:'Planejamento de O.S.'},
-  { id:'solicitacao',  ic:'📣', lbl:'Solicitação de O.S.' },
-  { id:'inspecao',     ic:'🔍', lbl:'Inspeção Diária'    },
-  { id:'ativos',       ic:'🏭', lbl:'Ativos'             },
-  { id:'usuarios',     ic:'👥', lbl:'Usuários'           },
-  { id:'tplinsp',      ic:'📝', lbl:'Templates Inspeção' },
-  { id:'tplprev',      ic:'⚙️', lbl:'Templates Preventiva'},
+  { id:'dashboard',      ic:'📊', lbl:'Dashboard'             },
+  { id:'planejadas',     ic:'📅', lbl:'O.S. Planejadas'       },
+  { id:'executadas',     ic:'✅', lbl:'O.S. Executadas'       },
+  { id:'abertura',       ic:'🔧', lbl:'Abertura de O.S.'      },
+  { id:'planejamento',   ic:'📋', lbl:'Planejamento de O.S.'  },
+  { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.'   },
+  { id:'inspecao',       ic:'🔍', lbl:'Inspeção Diária'       },
+  { id:'ativos',         ic:'🏭', lbl:'Ativos'                },
+  { id:'usuarios',       ic:'👥', lbl:'Usuários'              },
+  { id:'inspecao-tmpl',  ic:'📄', lbl:'Inspeção'              },
+  { id:'preventiva',     ic:'🔩', lbl:'Preventiva'            },
 ];
 
-// Monta os itens do menu com base no nível de acesso
+const LBLS = {
+  dashboard:'Dashboard', planejadas:'O.S. Planejadas', executadas:'O.S. Executadas',
+  abertura:'Abertura de O.S.', planejamento:'Planejamento de O.S.',
+  solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
+  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'Inspeção', preventiva:'Preventiva'
+};
+
 function buildNav() {
   const nav = document.getElementById('sb-nav');
-  const allowed = ROLES[CU.tipo].menus;
+  const ok  = ROLES[CU.tipo]?.menus || [];
   nav.innerHTML = '';
-  NAV.filter(n => allowed.includes(n.id)).forEach(n => {
+  NAV.filter(n => ok.includes(n.id)).forEach(n => {
     const el = document.createElement('div');
     el.className = 'nv-item';
     el.setAttribute('data-page', n.id);
@@ -1297,22 +1258,6 @@ function buildNav() {
   });
 }
 
-// Nome de cada página (aparece na topbar)
-const LBLS = {
-  dashboard:    'Dashboard',
-  planejadas:   'O.S. Planejadas',
-  executadas:   'O.S. Executadas',
-  abertura:     'Abertura de O.S.',
-  planejamento: 'Planejamento de O.S.',
-  solicitacao:  'Solicitação de O.S.',
-  inspecao:     'Inspeção Diária',
-  ativos:       'Ativos',
-  usuarios:     'Usuários',
-  tplinsp:      'Templates de Inspeção',
-  tplprev:      'Template de Preventiva'
-};
-
-// Navega para uma página
 function showPage(pid) {
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nv-item').forEach(n => n.classList.remove('act'));
@@ -1322,47 +1267,39 @@ function showPage(pid) {
   if (ni) ni.classList.add('act');
   document.getElementById('tb-t').textContent = LBLS[pid] || '';
 
-  // Renderiza o conteúdo da página ao abrir
-  if (pid === 'dashboard')   renderDash();
-  if (pid === 'planejadas')  renderPlan();
-  if (pid === 'executadas')  renderExec();
-  if (pid === 'solicitacao') renderSol();
-  if (pid === 'ativos')      renderAtivos();
-  if (pid === 'inspecao')    buildInsp();
-  if (pid === 'usuarios')    renderUsers();
-  if (pid === 'tplinsp')     loadTplInspecao();
-  if (pid === 'tplprev')     renderTplPreventiva();
+  if (pid === 'dashboard')     renderDash();
+  if (pid === 'planejadas')    renderPlan();
+  if (pid === 'executadas')    renderExec();
+  if (pid === 'solicitacao')   renderSol();
+  if (pid === 'ativos')        renderAtivos();
+  if (pid === 'usuarios')      renderUsuarios();
+  if (pid === 'inspecao')      buildInsp();
+  if (pid === 'inspecao-tmpl') initInspTmpl();
+  if (pid === 'preventiva')    initPreventiva();
   if (pid === 'abertura') {
-    populateSalas('ab');
-    sv('ab-dt', today());
+    populateSalas('ab'); sv('ab-dt', today());
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
   }
+  if (pid === 'planejamento') { populateSalas('pl'); }
 }
 
-// Abre/fecha sidebar (mobile: desliza; desktop: colapsa)
 function toggleSB() {
   const sb = document.getElementById('sb');
   if (window.innerWidth <= 768) {
     sb.classList.toggle('mob');
     document.getElementById('sb-ov').style.display = sb.classList.contains('mob') ? 'block' : 'none';
-  } else {
-    sb.classList.toggle('col');
-  }
+  } else { sb.classList.toggle('col'); }
 }
 function closeSB() {
   document.getElementById('sb').classList.remove('mob');
   document.getElementById('sb-ov').style.display = 'none';
 }
-
-// ══════════════════════════════════════════════════════════════════════
-// TEMA CLARO / ESCURO
-// ══════════════════════════════════════════════════════════════════════
 function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.getElementById('th-btn').textContent = isDark ? '☀️' : '🌙';
-  localStorage.setItem('sigman_theme', isDark ? 'light' : 'dark');
+  const h = document.documentElement;
+  const d = h.getAttribute('data-theme') === 'dark';
+  h.setAttribute('data-theme', d ? 'light' : 'dark');
+  document.getElementById('th-btn').textContent = d ? '☀️' : '🌙';
+  localStorage.setItem('sigman_theme', d ? 'light' : 'dark');
 }
 function loadTheme() {
   const t = localStorage.getItem('sigman_theme') || 'dark';
@@ -1372,26 +1309,25 @@ function loadTheme() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// SELECTS — popula os dropdowns de Sala e Máquina
+// SELECTS — popula dropdowns
 // ══════════════════════════════════════════════════════════════════════
 function populateAll() {
   ['ab','pl','sol'].forEach(p => populateSalas(p));
   populateAtMaqSala();
   populateSalaFilter('fe-sl');
+  populateSalaFilter('insp-tmpl-sala');
 }
 
-// Preenche o select de salas para um formulário (prefixo ab, pl, sol...)
 function populateSalas(p) {
   const sel = document.getElementById(p + '-sl');
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Selecione...</option>';
-  db.salas.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
   sel.innerHTML += '<option value="__outros__">Outros (não listado)</option>';
   if (cur) sel.value = cur;
 }
 
-// Filtra as máquinas pela sala selecionada
 function fMaq(p) {
   const sala = v(p + '-sl');
   const sel  = document.getElementById(p + '-mq');
@@ -1400,9 +1336,9 @@ function fMaq(p) {
     sel.innerHTML += '<option value="__outros__">Outros (não listado)</option>';
     return;
   }
-  db.maquinas.filter(m => m.sala === sala).forEach(m => {
-    sel.innerHTML += `<option value="${m.nome}">${m.nome}${m.tag ? ' (' + m.tag + ')' : ''}</option>`;
-  });
+  [...db.maquinas].filter(m => m.sala === sala)
+    .sort((a,b) => a.nome.localeCompare(b.nome))
+    .forEach(m => { sel.innerHTML += `<option value="${m.nome}">${m.nome}${m.tag?' ('+m.tag+')':''}</option>`; });
   sel.innerHTML += '<option value="__outros__">Outros (não listado)</option>';
 }
 
@@ -1410,659 +1346,490 @@ function populateAtMaqSala() {
   const sel = document.getElementById('at-ms');
   if (!sel) return;
   sel.innerHTML = '<option value="">Selecione...</option>';
-  db.salas.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
 }
 
 function populateSalaFilter(id) {
   const sel = document.getElementById(id);
   if (!sel) return;
+  const cur = sel.value;
   sel.innerHTML = '<option value="">Todas as Salas</option>';
-  db.salas.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  if (cur) sel.value = cur;
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // UTILITÁRIOS
 // ══════════════════════════════════════════════════════════════════════
-// Lê valor de um input pelo id
-function v(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+const v   = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+const sv  = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+const today = () => new Date().toISOString().slice(0,10);
 
-// Define valor de um input pelo id
-function sv(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
-
-// Data de hoje no formato YYYY-MM-DD
-function today() { return new Date().toISOString().slice(0,10); }
-
-// Formata data de YYYY-MM-DD para DD/MM/YYYY
-// Aceita: '2026-04-21', '2026-04-21T00:00:00.000Z', objetos Date
 function fd(d) {
   if (!d) return '—';
-  const s = String(d).slice(0,10).trim();
-  // Formato ISO: 2026-04-21
-  const parts = s.split('-');
-  if (parts.length === 3 && parts[0].length === 4) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  return s || '—';
+  const s = String(d).slice(0,10);
+  const p = s.split('-');
+  return p.length === 3 && p[0].length === 4 ? `${p[2]}/${p[1]}/${p[0]}` : s;
 }
 
-// Normaliza uma data vinda do Google Sheets para YYYY-MM-DD
-// O Sheets pode enviar: '2026-04-21T00:00:00.000Z', Date object, ou número serial
-function normDate(v) {
-  if (!v) return '';
-  // Se é número (serial do Excel: dias desde 1899-12-30)
-  if (typeof v === 'number') {
-    // Converte serial para data: subtrai os dias do epoch do Excel
-    const ms = (v - 25569) * 86400 * 1000; // 25569 = diferença entre 1899-12-30 e 1970-01-01
-    const d  = new Date(ms);
-    if (!isNaN(d)) return d.toISOString().slice(0,10);
-    return '';
-  }
-  const s = String(v);
-  // Já está no formato YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // Formato ISO completo: 2026-04-21T...
-  if (s.length >= 10 && s[4] === '-') return s.slice(0,10);
-  return s;
-}
+function genOS()   { return 'OS-'  + String(db.osC).padStart(4,'0'); }
+function genPL()   { return 'PL-'  + String(db.plC).padStart(4,'0'); }
+function genSOL()  { return 'SOL-' + String(db.solC).padStart(4,'0'); }
+function genINSP() { return 'INS-' + String(db.inspC).padStart(4,'0'); }
 
-// Normaliza um horário vindo do Google Sheets para HH:MM
-// O Sheets pode enviar: '15:57', '15:57:28', número decimal (0.665 = 15:57), Date serial
-function normTime(v) {
-  if (!v) return '';
-  // Número decimal: fração do dia (ex: 0.6659722 = 15:58)
-  if (typeof v === 'number') {
-    // Se é um número grande (>1), pode ser serial de data+hora — pega só a parte fracionária
-    const frac = v % 1;
-    const totalMin = Math.round(frac * 24 * 60);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-  }
-  const s = String(v);
-  // Se é ISO com T (1899-12-30T15:57:28.000Z) — pega o horário
-  if (s.includes('T')) {
-    const timePart = s.split('T')[1] || '';
-    return timePart.slice(0,5); // HH:MM
-  }
-  // Se já é HH:MM ou HH:MM:SS
-  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
-  return '';
-}
-
-// Gera número de OS, PL ou SOL formatado
-function genOS()  { return 'OS-'  + String(db.osC).padStart(4,'0'); }
-function genPL()  { return 'PL-'  + String(db.plC).padStart(4,'0'); }
-function genSOL() { return 'SOL-' + String(db.solC).padStart(4,'0'); }
-
-// Atualiza contador no topbar
 function updStats() {
   const t = today();
   document.getElementById('th-hj').textContent = db.ordens.filter(o => o.data === t).length;
 }
 
-// Badge de prioridade colorido
 function prio(p) {
   if (!p) return '';
-  const cls = { Urgente:'b-urg', Alta:'b-alt', Média:'b-med', Baixa:'b-bai' };
-  const dot = { Urgente:'d-u',   Alta:'d-a',   Média:'d-m',   Baixa:'d-b' };
-  return `<span class="badge ${cls[p]||''}"><span class="pdot ${dot[p]||''}"></span>${p}</span>`;
+  const c = {Alta:'b-alt', Média:'b-med', Baixa:'b-bai'};
+  const d = {Alta:'d-a', Média:'d-m', Baixa:'d-b'};
+  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${p}</span>`;
 }
-
-// Badge de tipo de OS (Corretiva, Preventiva...)
 function tipoBadge(t) {
   if (!t) return '';
-  const cls = { Corretiva:'b-cor', Preventiva:'b-pre', Preditiva:'b-prd', Melhoria:'b-mel' };
-  return `<span class="badge ${cls[t]||''}">${t}</span>`;
+  const c = {Corretiva:'b-cor',Preventiva:'b-pre',Preditiva:'b-prd',Melhoria:'b-mel','Inspeção':'b-pre'};
+  return `<span class="badge ${c[t]||''}">${t}</span>`;
 }
-
-// Badge de status (Pendente, Concluída, Atrasada...)
 function stBadge(s) {
-  const cls = { Pendente:'b-pen', Concluída:'b-con', Atrasada:'b-atr', Executada:'b-exe', 'Não Executada':'b-nexe' };
-  return `<span class="badge ${cls[s]||''}">${s}</span>`;
+  const c = {Pendente:'b-pen',Concluída:'b-con',Atrasada:'b-atr',Executada:'b-exe','Não Executada':'b-nexe'};
+  return `<span class="badge ${c[s]||''}">${s}</span>`;
 }
-
-// Badge de tipo de usuário
 function roleBadge(t) {
-  const cls = { administracao:'b-adm', manutencao:'b-man', producao:'b-pro' };
-  const lbl = { administracao:'Administração', manutencao:'Manutenção', producao:'Produção' };
-  return `<span class="badge ${cls[t]||''}">${lbl[t]||t}</span>`;
+  const c = {administracao:'b-adm',manutencao:'b-man',producao:'b-pro'};
+  const l = {administracao:'Administração',manutencao:'Manutenção',producao:'Produção'};
+  return `<span class="badge ${c[t]||''}">${l[t]||t}</span>`;
 }
-
-// Exibe alerta dentro de um formulário
 function showAlert(id, msg, type='ok') {
   const el = document.getElementById(id);
   if (!el) return;
-  el.textContent = msg;
-  el.className = 'alert ' + type + ' on';
-  setTimeout(() => el.classList.remove('on'), 4000);
+  el.textContent = msg; el.className = 'alert '+type+' on';
+  setTimeout(()=>el.classList.remove('on'), 4000);
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ORDENS DE SERVIÇO — Registro direto (Abertura de OS)
-// ══════════════════════════════════════════════════════════════════════
-function salvarOS() {
-  // Coleta os campos do formulário
-  const sala = v('ab-sl'), maq  = v('ab-mq'), tipo = v('ab-tp'),
-        pr   = v('ab-pr'), manut= v('ab-mn').trim(), data = v('ab-dt'),
-        ini  = v('ab-in'), fim  = v('ab-fm'),
-        prob = v('ab-pb').trim(), acao = v('ab-ac').trim();
-
-  // Validação dos campos obrigatórios
-  if (!sala || !maq || !tipo || !pr || !manut || !data) {
-    showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er');
-    return;
-  }
-
-  // Calcula duração em minutos
-  let durMin = '';
-  if (ini && fim) {
-    const [h1,m1] = ini.split(':').map(Number);
-    const [h2,m2] = fim.split(':').map(Number);
-    durMin = (h2*60+m2) - (h1*60+m1);
-  }
-
-  const numero = genOS();
-  const agora  = new Date().toISOString();
-
-  // Objeto da OS (memória local)
-  const os = {
-    id: Date.now(), numero, sala, maq, tipo, prioridade: pr,
-    manut, data, ini, fim, prob, acao, criadoEm: agora, origem: 'direta'
-  };
-
-  db.osC++;
-  db.ordens.push(os);
-  saveDB();
-  updStats();
-
-  // Salva no Google Sheets (linha da aba Ordens_Executadas)
-  apiAppend('ordens', {
-    OS_Numero: numero, Data: data, Sala: sala, Maquina: maq,
-    Tipo: tipo, Prioridade: pr, Manutentor: manut,
-    Hora_Inicio: ini, Hora_Fim: fim, Duracao_Min: durMin,
-    Problema: prob, Acao_Executada: acao,
-    Origem: 'direta', OS_Origem_Ref: '', Criado_Em: agora
-  });
-
-  showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
-  clearAb();
-  setTimeout(() => showPage('dashboard'), 900);
-}
-
-// Limpa o formulário de abertura de OS
-function clearAb() {
-  ['ab-sl','ab-mq','ab-tp','ab-pr'].forEach(id => sv(id,''));
-  ['ab-in','ab-fm','ab-pb','ab-ac'].forEach(id => sv(id,''));
-  sv('ab-dt', today());
-  if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
-  else sv('ab-mn','');
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// OS PLANEJADAS — Criação e gestão
-// ══════════════════════════════════════════════════════════════════════
-function salvarPlan() {
-  const sala = v('pl-sl'), maq = v('pl-mq'), tipo = v('pl-tp'),
-        pr   = v('pl-pr'), prazo = v('pl-pz'), desc = v('pl-ds').trim();
-
-  if (!sala || !maq || !tipo || !pr || !prazo) {
-    showAlert('al-pl','Preencha todos os campos obrigatórios.','er');
-    return;
-  }
-
-  const numero = genPL();
-  const agora  = new Date().toISOString();
-
-  db.planejadas.push({
-    id: Date.now(), numero, sala, maq, tipo, prioridade: pr,
-    prazo, desc, status: 'Pendente', criadoEm: agora,
-    manut:null, desc2:null, ini:null, fim:null, dtExec:null
-  });
-  db.plC++;
-  saveDB();
-
-  // Grava no Sheets
-  apiAppend('planejadas', {
-    PL_Numero: numero, Sala: sala, Maquina: maq, Tipo: tipo,
-    Prioridade: pr, Prazo_Limite: prazo, Descricao_Planejada: desc,
-    Status: 'Pendente', Manutentor_Exec:'', Data_Execucao:'',
-    Hora_Inicio:'', Hora_Fim:'', Servico_Executado:'',
-    Criado_Em: agora, Concluido_Em:''
-  });
-
-  showAlert('al-pl','O.S. Planejada criada!','ok');
-  clearPl();
-  setTimeout(() => showPage('dashboard'), 900);
-}
-
-function clearPl() {
-  ['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id => sv(id,''));
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// SOLICITAÇÕES DA PRODUÇÃO
-// ══════════════════════════════════════════════════════════════════════
-function salvarSol() {
-  const sala = v('sol-sl'), maq = v('sol-mq'), tipo = v('sol-tp'),
-        pr   = v('sol-pr'), desc = v('sol-ds').trim();
-
-  if (!sala || !maq || !tipo || !pr || !desc) {
-    showAlert('al-sol','Preencha todos os campos.','er');
-    return;
-  }
-
-  const numero = genSOL();
-  const agora  = new Date().toISOString();
-
-  db.solicitacoes.push({
-    id: Date.now(), numero, sala, maq, tipo, prioridade: pr,
-    desc, status: 'Não Executada', solicitante: CU.nome, criadoEm: agora
-  });
-  db.solC++;
-  saveDB();
-
-  // Grava no Sheets
-  apiAppend('solicitacoes', {
-    SOL_Numero: numero, Sala: sala, Maquina: maq, Tipo: tipo,
-    Prioridade: pr, Descricao: desc, Status: 'Não Executada',
-    Solicitante: CU.nome, Manutentor_Exec:'', Data_Execucao:'',
-    Servico_Executado:'', Criado_Em: agora, Concluido_Em:''
-  });
-
-  showAlert('al-sol','Solicitação enviada!','ok');
-  clearSol();
-  renderSol();
-  // Redireciona para o Dashboard após salvar
-  setTimeout(() => showPage('dashboard'), 800);
-}
-
-function clearSol() {
-  ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id => sv(id,''));
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// CONCLUIR OS (planejada ou solicitação)
-// ══════════════════════════════════════════════════════════════════════
-let _cid = null; // id do item sendo concluído
-let _ctp = null; // tipo: 'plan' ou 'sol'
-
-function abrirConcluir(id, tipo) {
-  _cid = id; _ctp = tipo;
-  const item = tipo === 'plan'
-    ? db.planejadas.find(x => x.id === id)
-    : db.solicitacoes.find(x => x.id === id);
-
-  // Preenche o modal com os dados do item
-  document.getElementById('mc-inf').innerHTML = `
-    <div style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:12px">
-      <div class="osdisp">${item.numero}</div>
-      <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
-      <div style="font-size:12px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
-      ${item.desc ? `<div style="font-size:12px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>` : ''}
-    </div>`;
-
-  sv('mc-dt', today());
-  sv('mc-mn', CU ? CU.nome : '');
-  ['mc-in','mc-fm','mc-ds'].forEach(id => sv(id,''));
-  openM('m-con');
-}
-
-function concluir() {
-  const manut = v('mc-mn').trim();
-  const data  = v('mc-dt');
-  const ini   = v('mc-in');
-  const fim   = v('mc-fm');
-  const desc  = v('mc-ds').trim();
-  if (!manut || !desc) { alert('Preencha manutentor e descrição do serviço.'); return; }
-
-  const item = _ctp === 'plan'
-    ? db.planejadas.find(x => x.id === _cid)
-    : db.solicitacoes.find(x => x.id === _cid);
-
-  const agora = new Date().toISOString();
-
-  // Atualiza status do item original
-  Object.assign(item, { status:'Concluída', concluidoEm: agora, manut, ini, fim, dtExec: data, desc2: desc });
-
-  // Cria OS executada no histórico
-  const numero = genOS();
-  const os = {
-    id: Date.now(), numero, sala: item.sala, maq: item.maq, tipo: item.tipo,
-    prioridade: item.prioridade, manut, data: data || today(),
-    ini, fim, prob: item.desc || '', acao: desc,
-    criadoEm: agora, origem: _ctp, origemNum: item.numero
-  };
-  db.osC++;
-  db.ordens.push(os);
-  saveDB();
-
-  // Atualiza no Sheets
-  if (_ctp === 'plan') {
-    apiUpdate('planejadas', item.numero, 'PL_Numero', {
-      Status: 'Concluída', Manutentor_Exec: manut, Data_Execucao: data,
-      Hora_Inicio: ini, Hora_Fim: fim, Servico_Executado: desc, Concluido_Em: agora
-    });
-  } else {
-    apiUpdate('solicitacoes', item.numero, 'SOL_Numero', {
-      Status: 'Concluída', Manutentor_Exec: manut, Data_Execucao: data,
-      Servico_Executado: desc, Concluido_Em: agora
-    });
-  }
-
-  // Salva OS executada no Sheets
-  let durMin = '';
-  if (ini && fim) {
-    const [h1,m1] = ini.split(':').map(Number);
-    const [h2,m2] = fim.split(':').map(Number);
-    durMin = (h2*60+m2) - (h1*60+m1);
-  }
-  apiAppend('ordens', {
-    OS_Numero: numero, Data: data||today(), Sala: item.sala, Maquina: item.maq,
-    Tipo: item.tipo, Prioridade: item.prioridade, Manutentor: manut,
-    Hora_Inicio: ini, Hora_Fim: fim, Duracao_Min: durMin,
-    Problema: item.desc||'', Acao_Executada: desc,
-    Origem: _ctp, OS_Origem_Ref: item.numero, Criado_Em: agora
-  });
-
-  closeM('m-con');
-  updStats();
-  // Após concluir, vai para o dashboard
-  showPage('dashboard');
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// DASHBOARD
+// DASHBOARD — OEE + TPM
 // ══════════════════════════════════════════════════════════════════════
 function renderDash() {
   updStats();
   const t   = today();
-  const tot = db.ordens.length;
-  const hj  = db.ordens.filter(o => o.data === t).length;
-  const cor = db.ordens.filter(o => o.tipo === 'Corretiva').length;
-  const ab  = db.planejadas.filter(p => p.status !== 'Concluída').length;
-  const sp  = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
+  const mes = t.slice(0,7); // YYYY-MM
 
-  // ── Indicadores TPM/OEE (somente corretivas para MTTR/MTBF) ──────────
-  const corOrd = db.ordens.filter(o => o.tipo === 'Corretiva' && o.ini && o.fim);
-  let tParada = 0;
-  corOrd.forEach(o => {
-    const [h1,m1] = o.ini.split(':').map(Number);
-    const [h2,m2] = o.fim.split(':').map(Number);
-    const d = (h2*60+m2) - (h1*60+m1);
-    if (d > 0) tParada += d;
-  });
-  const mttr = corOrd.length ? Math.round(tParada / corOrd.length) : 0;
-  // MTBF: assume 30 dias × 8h = 14400 min de operação como base simplificada
-  const minOp = 30 * 8 * 60;
-  const mtbf = corOrd.length ? Math.round((minOp - tParada) / corOrd.length) : minOp;
-  // Disponibilidade
-  const disp = minOp > 0 ? Math.max(0, Math.round(((minOp - tParada) / minOp) * 1000) / 10) : 100;
-  // Compliance preventivas (executadas/planejadas)
-  const planTot  = db.planejadas.length;
-  const planExec = db.planejadas.filter(p => p.status === 'Concluída').length;
-  const compl = planTot > 0 ? Math.round((planExec / planTot) * 100) : 0;
+  // Dados do mês atual
+  const ordMes   = db.ordens.filter(o => o.data && o.data.startsWith(mes));
+  const cor30    = db.ordens.filter(o => o.tipo === 'Corretiva').length;
+  const prev30   = db.ordens.filter(o => o.tipo === 'Preventiva').length;
+  const total30  = db.ordens.length;
+  const hj       = db.ordens.filter(o => o.data === t).length;
+  const plOpen   = db.planejadas.filter(p => p.status !== 'Concluída').length;
+  const plAtras  = db.planejadas.filter(p => p.status === 'Atrasada').length;
+  const solPend  = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
 
-  // Cartões operacionais
+  // OEE simplificado (por turno de 8h = 480min disponíveis/dia)
+  const horasTurno = db.configuracoes.horas_turno_1 || 8;
+  const diasMes   = new Set(ordMes.map(o => o.data)).size || 1;
+  const minDisp   = diasMes * horasTurno * 60;
+  const minParada = ordMes.reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
+  const disponib  = Math.min(100, Math.max(0, Math.round((1 - minParada/minDisp) * 100)));
+  const metaDisp  = db.configuracoes.meta_disponibilidade || 85;
+  const corColor  = disponib >= metaDisp ? 'var(--grn)' : disponib >= metaDisp-10 ? 'var(--org)' : 'var(--red)';
+
+  // MTTR
+  const ordComTempo = db.ordens.filter(o => o.durMin > 0);
+  const mttr = ordComTempo.length ? Math.round(ordComTempo.reduce((s,o)=>s+o.durMin,0)/ordComTempo.length) : 0;
+
+  // % Preventiva
+  const pctPrev = total30 ? Math.round(prev30/total30*100) : 0;
+  const backlog  = plOpen;
+
+  // Cards de KPI
   document.getElementById('d-stats').innerHTML = `
-    <div class="sc-card c-go"><div class="sc-lbl">OS Hoje</div><div class="sc-val">${hj}</div></div>
-    <div class="sc-card c-g"><div class="sc-lbl">Total Executadas</div><div class="sc-val">${tot}</div></div>
-    <div class="sc-card c-r"><div class="sc-lbl">Corretivas</div><div class="sc-val">${cor}</div></div>
-    <div class="sc-card c-b"><div class="sc-lbl">Planejadas Abertas</div><div class="sc-val">${ab}</div></div>
-    <div class="sc-card c-o"><div class="sc-lbl">Solicitações Pend.</div><div class="sc-val">${sp}</div></div>
-    <div class="sc-card c-b"><div class="sc-lbl">MTTR (min)</div><div class="sc-val">${mttr}</div></div>
-    <div class="sc-card c-g"><div class="sc-lbl">MTBF (min)</div><div class="sc-val">${mtbf}</div></div>
-    <div class="sc-card c-go"><div class="sc-lbl">Disponibilidade</div><div class="sc-val">${disp}%</div></div>
-    <div class="sc-card c-o"><div class="sc-lbl">Compliance Prev.</div><div class="sc-val">${compl}%</div></div>`;
+    <div class="sc-card" style="color:${corColor}">
+      <div class="sc-lbl">Disponibilidade (mês)</div>
+      <div class="sc-val">${disponib}%</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta: ${metaDisp}%</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5"></div>
+    </div>
+    <div class="sc-card c-go">
+      <div class="sc-lbl">OS Hoje</div>
+      <div class="sc-val">${hj}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Total mês: ${ordMes.length}</div>
+    </div>
+    <div class="sc-card c-r">
+      <div class="sc-lbl">Corretivas (total)</div>
+      <div class="sc-val">${cor30}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total30 ? Math.round(cor30/total30*100) : 0}% do total</div>
+    </div>
+    <div class="sc-card c-g">
+      <div class="sc-lbl">% Preventiva (total)</div>
+      <div class="sc-val">${pctPrev}%</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta PCM: ≥ 60%</div>
+    </div>
+    <div class="sc-card c-b">
+      <div class="sc-lbl">MTTR (min)</div>
+      <div class="sc-val">${mttr}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Tempo médio de reparo</div>
+    </div>
+    <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}">
+      <div class="sc-lbl">Backlog OS</div>
+      <div class="sc-val">${backlog}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${plAtras} atrasadas</div>
+    </div>
+    <div class="sc-card c-o">
+      <div class="sc-lbl">Solicitações Pend.</div>
+      <div class="sc-val">${solPend}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Da produção</div>
+    </div>`;
 
-  // Últimas 5 OS executadas
+  // Últimas 5 OS
   const rec = [...db.ordens].reverse().slice(0,5);
   document.getElementById('d-rec').innerHTML = rec.length === 0
     ? '<div class="empty"><div class="ei">📋</div><p>Nenhuma O.S. ainda.</p></div>'
     : rec.map(o => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
-          <div>
-            <span class="osn">${o.numero}</span>
-            <div style="font-size:13px;font-weight:500;margin-top:2px">${o.sala} · ${o.maq}</div>
-            <div style="font-size:11px;color:var(--txt3)">${o.manut} · ${fd(o.data)}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            ${tipoBadge(o.tipo)}${prio(o.prioridade)}
-          </div>
-        </div>`).join('');
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
+        <div>
+          <span class="osn">${o.numero}</span>
+          <div style="font-size:13px;font-weight:500;margin-top:2px">${o.sala} · ${o.maq}</div>
+          <div style="font-size:11px;color:var(--txt3)">${o.manut} · ${fd(o.data)}${o.ini?' · '+o.ini+'-'+o.fim:''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${tipoBadge(o.tipo)}${prio(o.prioridade)}
+          ${o.durMin ? `<span style="font-size:10px;color:var(--txt3)">${o.durMin}min</span>` : ''}
+        </div>
+      </div>`).join('');
 
-  // OS planejadas abertas
+  // Planejadas abertas
   const plA = [...db.planejadas].filter(p => p.status !== 'Concluída').slice(0,5);
   document.getElementById('d-plan').innerHTML = plA.length === 0
     ? '<div class="empty"><div class="ei">📅</div><p>Sem O.S. planejadas abertas.</p></div>'
     : plA.map(p => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
-          <div>
-            <span class="osn">${p.numero}</span>
-            <div style="font-size:13px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
-            <div style="font-size:11px;color:var(--txt3)">Prazo: ${fd(p.prazo)}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            ${prio(p.prioridade)}${stBadge(p.status)}
-          </div>
-        </div>`).join('');
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
+        <div>
+          <span class="osn">${p.numero}</span>
+          <div style="font-size:13px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
+          <div style="font-size:11px;color:var(--txt3)">Prazo: ${fd(p.prazo)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${prio(p.prioridade)}${stBadge(p.status)}
+        </div>
+      </div>`).join('');
 
-  // Solicitações pendentes da produção
+  // Solicitações pendentes
   const spL = db.solicitacoes.filter(s => s.status === 'Não Executada').slice(0,5);
   document.getElementById('d-sol').innerHTML = spL.length === 0
     ? '<div class="empty"><div class="ei">📣</div><p>Sem solicitações pendentes.</p></div>'
     : spL.map(s => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
-          <div>
-            <span class="osn">${s.numero}</span>
-            <div style="font-size:13px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
-            <div style="font-size:11px;color:var(--txt3)">${s.solicitante} · ${fd(s.criadoEm.slice(0,10))}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            ${prio(s.prioridade)}
-            ${CU && CU.tipo !== 'producao'
-              ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${s.id},'sol')">✓ Executar</button>`
-              : stBadge(s.status)}
-          </div>
-        </div>`).join('');
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
+        <div>
+          <span class="osn">${s.numero}</span>
+          <div style="font-size:13px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
+          <div style="font-size:11px;color:var(--txt3)">${s.solicitante} · ${fd(s.criadoEm.slice(0,10))}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${prio(s.prioridade)}
+          ${CU && CU.tipo !== 'producao'
+            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${JSON.stringify(s.id).replace(/"/g,"'")},'sol')">✓ Executar</button>`
+            : stBadge(s.status)}
+        </div>
+      </div>`).join('');
 
-  // Preview da última inspeção (preferindo a do dia atual)
-  const insHoje = db.inspecoes.filter(i => i.data === t)
-                    .sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
-  const lastInsp = insHoje[0]
-    || [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
+  // Preview última inspeção
+  const lastInsp = [...db.inspecoes].sort((a,b) => (b.data||'').localeCompare(a.data||''))[0];
   document.getElementById('d-insp').innerHTML = lastInsp
-    ? `<div style="font-size:12px;font-family:var(--fm);color:var(--txt3)">${lastInsp.data} · ${lastInsp.turno} · ${lastInsp.manut}${lastInsp.data===t?' · <span style="color:var(--green);font-weight:600">HOJE</span>':''}</div>
-       <div class="wa-prev" style="margin-top:8px;max-height:200px;overflow:auto">${gerarTextoRel(lastInsp)}</div>`
-    : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada.</p></div>';
+    ? `<div style="font-size:12px;font-family:var(--fm);color:var(--txt3);margin-bottom:8px">
+         ${fd(lastInsp.data)} · ${lastInsp.turno} · ${lastInsp.manut}
+         <button class="btn btn-sm btn-gh" style="margin-left:10px" onclick="verRelatorio()">Ver</button>
+       </div>
+       <div class="wa-prev" style="max-height:180px;overflow:auto;font-size:11px">${gerarTextoRel(lastInsp)}</div>`
+    : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada ainda.</p></div>';
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// O.S. PLANEJADAS — tabela com filtro
+// O.S. PLANEJADAS
 // ══════════════════════════════════════════════════════════════════════
 function renderPlan() {
-  const t = today();
-  // Atualiza status para "Atrasada" se passou do prazo
-  db.planejadas.forEach(p => {
-    if (p.status === 'Pendente' && p.prazo < t) p.status = 'Atrasada';
-  });
+  const t  = today();
+  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) p.status = 'Atrasada'; });
   saveDB();
-
   const st = v('fp-st');
   let data = [...db.planejadas].reverse();
   if (st) data = data.filter(p => p.status === st);
-
   const tb = document.getElementById('tb-plan');
-  if (!data.length) {
-    tb.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="ei">📅</div><p>Nenhuma O.S. planejada.</p></div></td></tr>`;
-    return;
-  }
+  if (!data.length) { tb.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="ei">📅</div><p>Nenhuma O.S. planejada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(p => `<tr>
     <td><span class="osn">${p.numero}</span></td>
-    <td>${p.sala}</td>
-    <td>${p.maq}</td>
-    <td>${tipoBadge(p.tipo)}</td>
-    <td>${prio(p.prioridade)}</td>
+    <td>${p.sala}</td><td>${p.maq}</td>
+    <td>${tipoBadge(p.tipo)}</td><td>${prio(p.prioridade)}</td>
     <td style="font-family:var(--fm);font-size:11px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
     <td>${stBadge(p.status)}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-      ${p.status !== 'Concluída' ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${p.id},'plan')">Concluir</button>` : ''}
-      <button class="btn btn-sm btn-gh" onclick="verDet(${p.id},'pl')">Ver</button>
-      ${p.status === 'Concluída' && CU && CU.tipo === 'administracao' ? (() => {
-        const osExec = db.ordens.find(o => o.origem === 'plan' && o.origemNum === p.numero);
-        return osExec ? `<button class="btn btn-sm btn-p" onclick="abrirEditOS(${osExec.id})">✎ OS</button>` : '';
-      })() : ''}
-      <button class="btn btn-d" onclick="delPlan(${p.id})">✕</button>
+      ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.id}','plan')">Concluir</button>`:''}
+      <button class="btn btn-sm btn-gh" onclick="editarPlan('${p.id}')">✎ Editar</button>
+      <button class="btn btn-sm btn-gh" onclick="verDet('${p.id}','pl')">Ver</button>
+      <button class="btn btn-d" onclick="delPlan('${p.id}')">✕</button>
     </div></td>
   </tr>`).join('');
 }
+
+function editarPlan(id) {
+  const p = db.planejadas.find(x => String(x.id) === String(id));
+  if (!p) return;
+  document.getElementById('me-t').textContent = 'Editar O.S. Planejada — ' + p.numero;
+  document.getElementById('me-b').innerHTML = `
+    <div class="fg"><label>Status</label>
+      <select id="ep-status">
+        <option${p.status==='Pendente'?' selected':''}>Pendente</option>
+        <option${p.status==='Concluída'?' selected':''}>Concluída</option>
+      </select>
+    </div>
+    <div class="fg"><label>Prazo Limite</label><input type="date" id="ep-prazo" value="${p.prazo||''}"></div>
+    <div class="fg"><label>Prioridade</label>
+      <select id="ep-prio">
+        <option value="Alta"${p.prioridade==='Alta'?' selected':''}>🟠 Alta</option>
+        <option value="Média"${p.prioridade==='Média'?' selected':''}>🟡 Média</option>
+        <option value="Baixa"${p.prioridade==='Baixa'?' selected':''}>🟢 Baixa</option>
+      </select>
+    </div>
+    <div class="fg"><label>Descrição</label><textarea id="ep-desc">${p.desc||''}</textarea></div>`;
+  _editType = 'plan'; _editIdx = id;
+  openM('m-edit');
+}
+
 function delPlan(id) {
   if (!confirm('Excluir esta O.S. planejada?')) return;
-  const pl = db.planejadas.find(p => p.id === id);
-  db.planejadas = db.planejadas.filter(p => p.id !== id);
-  saveDB();
-  renderPlan();
+  const pl = db.planejadas.find(p => String(p.id) === String(id));
+  db.planejadas = db.planejadas.filter(p => String(p.id) !== String(id));
+  saveDB(); renderPlan();
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// O.S. EXECUTADAS — tabela com filtros e export CSV
+// O.S. EXECUTADAS
 // ══════════════════════════════════════════════════════════════════════
-function _filtrarExec() {
+function renderExec() {
   populateSalaFilter('fe-sl');
-  const tx = v('fe-tx').toLowerCase();
-  const tp = v('fe-tp');
-  const sl = v('fe-sl');
-  const d1 = v('fe-d1');
-  const d2 = v('fe-d2');
-  let data = [...db.ordens].reverse();
-  if (tx) data = data.filter(o => [o.numero,o.sala,o.maq,o.manut,o.tipo].some(x => x && x.toLowerCase().includes(tx)));
+  const tx  = v('fe-tx').toLowerCase();
+  const tp  = v('fe-tp');
+  const sl  = v('fe-sl');
+  const dtI = v('fe-dt-ini');
+  const dtF = v('fe-dt-fim');
+  let data = [...db.ordens].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if (tx) data = data.filter(o => [o.numero,o.sala,o.maq,o.manut,o.tipo].some(x=>x&&x.toLowerCase().includes(tx)));
   if (tp) data = data.filter(o => o.tipo === tp);
   if (sl) data = data.filter(o => o.sala === sl);
-  if (d1) data = data.filter(o => o.data >= d1);
-  if (d2) data = data.filter(o => o.data <= d2);
-  return data;
-}
-function renderExec() {
-  const data = _filtrarExec();
+  if (dtI) data = data.filter(o => o.data >= dtI);
+  if (dtF) data = data.filter(o => o.data <= dtF);
   const tb = document.getElementById('tb-exec');
-  if (!data.length) {
-    tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`;
-    return;
-  }
-  const isAdm = CU && CU.tipo === 'administracao';
+  if (!data.length) { tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(o => `<tr>
     <td><span class="osn">${o.numero}</span></td>
     <td style="font-size:12px">${fd(o.data)}</td>
-    <td>${o.sala}</td>
-    <td>${o.maq}</td>
-    <td>${tipoBadge(o.tipo)}</td>
-    <td>${prio(o.prioridade)}</td>
+    <td>${o.sala}</td><td>${o.maq}</td>
+    <td>${tipoBadge(o.tipo)}</td><td>${prio(o.prioridade)}</td>
     <td style="font-size:12px">${o.manut}</td>
-    <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim ? o.ini+' – '+o.fim : '—'}</td>
-    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-gh" onclick="verDet(${o.id},'os')">Ver</button>
-      ${isAdm ? `<button class="btn btn-sm btn-p" onclick="abrirEditOS(${o.id})">✎</button>` : ''}
-      <button class="btn btn-d" onclick="delOS(${o.id})">✕</button>
+    <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn btn-sm btn-gh" onclick="verDet('${o.id}','os')">Ver</button>
+      <button class="btn btn-d" onclick="delOS('${o.id}')">✕</button>
     </div></td>
   </tr>`).join('');
 }
+
 function delOS(id) {
   if (!confirm('Excluir esta O.S.?')) return;
-  const os = db.ordens.find(o => o.id === id);
-  db.ordens = db.ordens.filter(o => o.id !== id);
-  saveDB();
-  renderExec();
-  updStats();
+  const os = db.ordens.find(o => String(o.id) === String(id));
+  db.ordens = db.ordens.filter(o => String(o.id) !== String(id));
+  saveDB(); renderExec(); updStats();
   if (os) apiDelete('ordens', os.numero, 'OS_Numero');
 }
 
-// Exporta as OS filtradas para CSV (compatível com Power BI e Excel)
 function exportCSV() {
-  const data = _filtrarExec();
-  if (!data.length) { alert('Sem dados para exportar (verifique os filtros).'); return; }
-  const headers = ['OS_Numero','Data','Sala','Maquina','Tipo','Prioridade','Manutentor','Hora_Inicio','Hora_Fim','Problema','Acao_Executada','Origem'];
-  const rows    = data.map(o => [
+  const tp  = v('fe-tp');
+  const sl  = v('fe-sl');
+  const dtI = v('fe-dt-ini');
+  const dtF = v('fe-dt-fim');
+  let data = [...db.ordens];
+  if (tp) data = data.filter(o => o.tipo === tp);
+  if (sl) data = data.filter(o => o.sala === sl);
+  if (dtI) data = data.filter(o => o.data >= dtI);
+  if (dtF) data = data.filter(o => o.data <= dtF);
+  if (!data.length) { alert('Sem dados para exportar com os filtros selecionados.'); return; }
+  const h = ['OS_Numero','Data','Sala','Maquina','Tipo','Prioridade','Manutentor','Hora_Inicio','Hora_Fim','Duracao_Min','Tempo_Parada_Min','Problema','Acao_Executada','Origem'];
+  const rows = data.map(o => [
     o.numero, o.data, o.sala, o.maq, o.tipo, o.prioridade||'', o.manut,
-    o.ini||'', o.fim||'',
-    (o.prob||'').replace(/,/g,'|'),
-    (o.acao||'').replace(/,/g,'|'),
-    o.origem
+    o.ini||'', o.fim||'', o.durMin||'', o.paradaMin||'',
+    (o.prob||'').replace(/,/g,'|'), (o.acao||'').replace(/,/g,'|'), o.origem
   ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const csv = [h,...rows].map(r=>r.join(',')).join('\n');
   const a   = document.createElement('a');
-  a.href    = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `SIGMAN_${today()}.csv`;
+  a.href    = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = `SIGMAN_OS_${today()}${tp?'_'+tp:''}${sl?'_'+sl:''}.csv`;
   a.click();
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// ABERTURA DE O.S.
+// ══════════════════════════════════════════════════════════════════════
+async function salvarOS() {
+  const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
+        pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
+        ini  = v('ab-in'), fim  = v('ab-fm'),
+        prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
+        parada = v('ab-parada');
+  if (!sala||!maq||!tipo||!pr||!manut||!data) {
+    showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er'); return;
+  }
+  let durMin = 0, paradaMin = parseInt(parada)||0;
+  if (ini && fim) {
+    const [h1,m1]=ini.split(':').map(Number), [h2,m2]=fim.split(':').map(Number);
+    durMin = Math.max(0, (h2*60+m2)-(h1*60+m1));
+    if (!paradaMin) paradaMin = durMin;
+  }
+  const numero = genOS(), agora = new Date().toISOString();
+  const os = { id: Date.now(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
+               durMin, paradaMin, prob, acao, criadoEm:agora, origem:'direta' };
+  db.osC++; db.ordens.push(os); saveDB(); updStats();
+  apiAppend('ordens', {
+    OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
+    Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
+    Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
+    Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
+  });
+  showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
+  clearAb();
+  setTimeout(()=>showPage('dashboard'), 900);
+}
+
+function clearAb() {
+  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-parada'].forEach(id=>sv(id,''));
+  sv('ab-dt', today());
+  if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PLANEJAMENTO DE O.S.
+// ══════════════════════════════════════════════════════════════════════
+async function salvarPlan() {
+  const sala=v('pl-sl'),maq=v('pl-mq'),tipo=v('pl-tp'),
+        pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
+        horas=parseInt(v('pl-horas'))||8;
+  if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
+  const numero=genPL(), agora=new Date().toISOString();
+  db.planejadas.push({id:Date.now(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
+    status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
+  db.plC++; saveDB();
+  apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+    Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
+    Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
+    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+  showAlert('al-pl','O.S. Planejada criada!','ok');
+  clearPl();
+  setTimeout(()=>showPage('dashboard'),900);
+}
+function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
+
+// ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
 // ══════════════════════════════════════════════════════════════════════
+async function salvarSol() {
+  const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
+        pr=v('sol-pr'),desc=v('sol-ds').trim();
+  if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
+  const numero=genSOL(),agora=new Date().toISOString();
+  db.solicitacoes.push({id:Date.now(),numero,sala,maq,tipo,prioridade:pr,desc,
+    status:'Não Executada',solicitante:CU.nome,criadoEm:agora});
+  db.solC++;saveDB();
+  apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
+    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+  showAlert('al-sol','Solicitação enviada!','ok');
+  clearSol();renderSol();
+  setTimeout(()=>showPage('dashboard'),900);
+}
+function clearSol(){['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));}
+
 function renderSol() {
   let list = [...db.solicitacoes].reverse();
-  // Produção só vê as suas próprias solicitações
-  if (CU && CU.tipo === 'producao') list = list.filter(s => s.solicitante === CU.nome);
-
+  if (CU && CU.tipo==='producao') list = list.filter(s=>s.solicitante===CU.nome);
   const c = document.getElementById('sol-lista');
-  if (!list.length) {
-    c.innerHTML = '<div class="empty"><div class="ei">📣</div><p>Nenhuma solicitação.</p></div>';
-    return;
-  }
-  c.innerHTML = list.map(s => `
+  if (!list.length){c.innerHTML='<div class="empty"><div class="ei">📣</div><p>Nenhuma solicitação.</p></div>';return;}
+  c.innerHTML = list.map(s=>`
     <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bord);gap:10px">
       <div>
         <span class="osn">${s.numero}</span>
         <div style="font-size:13px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
-        <div style="font-size:11px;color:var(--txt3)">${fd(s.criadoEm.slice(0,10))} · ${s.solicitante}</div>
+        <div style="font-size:11px;color:var(--txt3)">${fd((s.criadoEm||'').slice(0,10))} · ${s.solicitante}</div>
         <div style="font-size:12px;color:var(--txt2);margin-top:3px">${s.desc}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         ${prio(s.prioridade)}${stBadge(s.status)}
-        ${CU && CU.tipo !== 'producao' && s.status === 'Não Executada'
-          ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${s.id},'sol')">✓ Executar</button>`
-          : ''}
+        ${CU&&CU.tipo!=='producao'&&s.status==='Não Executada'
+          ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.id}','sol')">✓ Executar</button>`:''}
       </div>
     </div>`).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// CONCLUIR OS (planejada ou solicitação)
+// ══════════════════════════════════════════════════════════════════════
+let _cid=null, _ctp=null;
+
+function abrirConcluir(id, tipo) {
+  _cid=id; _ctp=tipo;
+  const item = tipo==='plan'
+    ? db.planejadas.find(x=>String(x.id)===String(id))
+    : db.solicitacoes.find(x=>String(x.id)===String(id));
+  if (!item) return;
+  document.getElementById('mc-inf').innerHTML = `
+    <div style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:12px">
+      <div class="osdisp">${item.numero}</div>
+      <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
+      <div style="font-size:12px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
+      ${item.desc?`<div style="font-size:12px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
+    </div>`;
+  sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
+  ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(id=>sv(id,''));
+  openM('m-con');
+}
+
+async function concluir() {
+  const manut=v('mc-mn').trim(), data=v('mc-dt'), ini=v('mc-in'),
+        fim=v('mc-fm'), desc=v('mc-ds').trim(), parada=parseInt(v('mc-parada'))||0;
+  if (!manut||!desc){alert('Preencha manutentor e descrição.');return;}
+  const item = _ctp==='plan'
+    ? db.planejadas.find(x=>String(x.id)===String(_cid))
+    : db.solicitacoes.find(x=>String(x.id)===String(_cid));
+  if (!item) return;
+  const agora=new Date().toISOString();
+  let durMin=0,paradaMin=parada;
+  if(ini&&fim){const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);durMin=Math.max(0,(h2*60+m2)-(h1*60+m1));if(!paradaMin)paradaMin=durMin;}
+  Object.assign(item,{status:'Concluída',concluidoEm:agora,manut,ini,fim,dtExec:data,desc2:desc,durMin});
+  const numero=genOS();
+  const os={id:Date.now(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
+    manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,
+    criadoEm:agora,origem:_ctp,origemNum:item.numero};
+  db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
+  if(_ctp==='plan')renderPlan();else renderSol();updStats();
+  if(_ctp==='plan'){apiUpdate('planejadas',item.numero,'PL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,Servico_Executado:desc,Concluido_Em:agora});}
+  else{apiUpdate('solicitacoes',item.numero,'SOL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Servico_Executado:desc,Concluido_Em:agora});}
+  apiAppend('ordens',{OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
+    Prioridade:item.prioridade,Manutentor:manut,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,
+    Tempo_Parada_Min:paradaMin,Problema:item.desc||'',Acao_Executada:desc,Origem:_ctp,
+    OS_Origem_Ref:item.numero,Criado_Em:agora});
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // INSPEÇÃO DIÁRIA
 // ══════════════════════════════════════════════════════════════════════
-// Monta a estrutura {sala, equips:[{nome,subs:[]}]} a partir de db.tplInspecao
-// (filtrando por tipo escolhido — padrão: 'rota')
-function _tplInspParaEstrutura(tipo) {
-  tipo = tipo || 'rota';
-  const itens = db.tplInspecao.filter(t => t.tipo === tipo);
-  if (!itens.length) return INSP_TMPL; // fallback ao template hardcoded
-  // Agrupa por sala → equipamento → sub-itens
-  const bySala = {};
-  itens.sort((a,b) => (a.ordem||0) - (b.ordem||0));
-  itens.forEach(it => {
-    if (!bySala[it.sala]) bySala[it.sala] = {};
-    if (!bySala[it.sala][it.equip]) bySala[it.sala][it.equip] = [];
-    if (it.sub) bySala[it.sala][it.equip].push(it.sub);
-  });
-  const out = [];
-  Object.keys(bySala).forEach(sala => {
-    const equips = [];
-    Object.keys(bySala[sala]).forEach(eqNome => {
-      const subsNomes = bySala[sala][eqNome];
-      const eqId = (sala + '_' + eqNome).replace(/[^A-Za-z0-9]/g,'_').toLowerCase();
-      const subs = subsNomes.map((s,i) => ({ id: eqId+'_s'+i, nome: s }));
-      equips.push({ id: eqId, nome: eqNome, subs });
-    });
-    out.push({ sala, equips });
-  });
-  return out;
-}
-let _inspEstrutura = null;
 function buildInsp() {
   const c = document.getElementById('insp-secs');
-  // Reconstrói sempre — template pode ter mudado via polling
-  _inspEstrutura = _tplInspParaEstrutura('rota');
-  c.innerHTML = _inspEstrutura.map(sec => `
-    <div class="insp-sec" id="isec-${sec.sala.replace(/\s/g,'_')}">
-      <div class="insp-hd" onclick="toggleSec(this)">
+  if (c.dataset.built) return;
+  c.dataset.built = '1';
+  c.innerHTML = INSP_TMPL.map(sec => `
+    <div class="insp-sec">
+      <div class="insp-hd" onclick="this.parentElement.classList.toggle('open')">
         <div class="insp-ht">${sec.sala}</div>
         <span class="insp-chev">▶</span>
       </div>
@@ -2072,7 +1839,6 @@ function buildInsp() {
     </div>`).join('');
 }
 
-// Renderiza uma linha de equipamento (com sub-itens se houver)
 function renderEquip(eq) {
   let html = `
     <div class="insp-row" id="row-${eq.id}">
@@ -2081,10 +1847,9 @@ function renderEquip(eq) {
         <button class="iok"  onclick="setStatus('${eq.id}','ok',this)">OK</button>
         <button class="inok" onclick="setStatus('${eq.id}','nok',this)">NÃO OK</button>
       </div>
-      <div class="itime"><input type="time" id="t-${eq.id}" placeholder="--:--"></div>
+      <div class="itime"><input type="time" id="t-${eq.id}"></div>
       <div class="iobs"><input type="text" id="o-${eq.id}" placeholder="Observações..."></div>
     </div>`;
-
   if (eq.subs && eq.subs.length) {
     html += `<div class="insp-sub-lbl">${eq.nome} — Sub-itens</div><div class="insp-sub">`;
     html += eq.subs.map(s => `
@@ -2094,7 +1859,7 @@ function renderEquip(eq) {
           <button class="iok"  onclick="setStatus('${s.id}','ok',this)">OK</button>
           <button class="inok" onclick="setStatus('${s.id}','nok',this)">NÃO OK</button>
         </div>
-        <div class="itime"><input type="time" id="t-${s.id}" placeholder="--:--"></div>
+        <div class="itime"><input type="time" id="t-${s.id}"></div>
         <div class="iobs"><input type="text" id="o-${s.id}" placeholder="Observações..."></div>
       </div>`).join('');
     html += '</div>';
@@ -2102,261 +1867,289 @@ function renderEquip(eq) {
   return html;
 }
 
-// Abre/fecha seção da inspeção
-function toggleSec(hd) { hd.parentElement.classList.toggle('open'); }
-
-// Define status OK ou NÃO OK de um equipamento e registra horário automático
-function setStatus(id, st, btn) {
-  const row = document.getElementById('row-' + id);
-  row.querySelectorAll('.iok,.inok').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  row.dataset.status = st;
-  if (st === 'ok') {
-    const ti = document.getElementById('t-' + id);
-    if (ti && !ti.value) {
-      const now = new Date();
-      ti.value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    }
+function setStatus(id,st,btn) {
+  const row = document.getElementById('row-'+id);
+  row.querySelectorAll('.iok,.inok').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); row.dataset.status = st;
+  if (st==='ok') {
+    const ti = document.getElementById('t-'+id);
+    if (ti&&!ti.value){const now=new Date();ti.value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');}
   }
 }
 
-// Coleta todos os dados preenchidos na tela de inspeção
 function collectInsp() {
-  const data = [];
-  const tmpl = _inspEstrutura || INSP_TMPL;
-  tmpl.forEach(sec => {
-    const equips = [];
-    sec.equips.forEach(eq => {
-      const row = document.getElementById('row-' + eq.id);
-      if (!row) return;
-      const subs = (eq.subs||[]).map(s => {
-        const sr = document.getElementById('row-' + s.id);
-        if (!sr) return null;
-        return { id: s.id, nome: s.nome, status: sr.dataset.status||'', hora: v('t-'+s.id), obs: v('o-'+s.id) };
-      }).filter(Boolean);
-      equips.push({ id: eq.id, nome: eq.nome, status: row.dataset.status||'', hora: v('t-'+eq.id), obs: v('o-'+eq.id), subs });
+  const data=[];
+  INSP_TMPL.forEach(sec=>{
+    const equips=[];
+    sec.equips.forEach(eq=>{
+      const row=document.getElementById('row-'+eq.id);if(!row)return;
+      const subs=(eq.subs||[]).map(s=>{const sr=document.getElementById('row-'+s.id);if(!sr)return null;return{id:s.id,nome:s.nome,status:sr.dataset.status||'',hora:v('t-'+s.id),obs:v('o-'+s.id)};}).filter(Boolean);
+      equips.push({id:eq.id,nome:eq.nome,status:row.dataset.status||'',hora:v('t-'+eq.id),obs:v('o-'+eq.id),subs});
     });
-    data.push({ sala: sec.sala, equips });
+    data.push({sala:sec.sala,equips});
   });
   return data;
 }
 
-// Salva a inspeção no banco e no Sheets
-function salvarInsp() {
-  const data  = v('insp-dt');
-  const turno = v('insp-tn');
-  const manut = v('insp-mn').trim();
-  if (!data || !manut) { showAlert('al-insp','Informe data e manutentor.','er'); return; }
-
-  const itens = collectInsp();
-  const agora = new Date().toISOString();
-  const insp  = { id: Date.now(), data, turno, manut, itens, criadoEm: agora };
-  db.inspecoes.push(insp);
-  saveDB();
-
-  // Salva cada linha no Sheets (uma linha por equipamento/sub-item)
-  itens.forEach(sec => {
-    sec.equips.forEach(eq => {
-      if (!eq.status) return; // Só salva equipamentos que foram marcados
-      apiAppend('inspecoes', {
-        Data: data, Turno: turno, Manutentor: manut,
-        Sala: sec.sala, Equipamento: eq.nome, Sub_Item: '',
-        Status: eq.status, Hora: eq.hora, Observacoes: eq.obs, Criado_Em: agora
-      });
-      (eq.subs||[]).forEach(s => {
-        if (!s.status) return;
-        apiAppend('inspecoes', {
-          Data: data, Turno: turno, Manutentor: manut,
-          Sala: sec.sala, Equipamento: eq.nome, Sub_Item: s.nome,
-          Status: s.status, Hora: s.hora, Observacoes: s.obs, Criado_Em: agora
-        });
+async function salvarInsp() {
+  const data=v('insp-dt'),turno=v('insp-tn'),manut=v('insp-mn').trim(),
+        horas=parseInt(v('insp-horas'))||8;
+  if(!data||!manut){showAlert('al-insp','Informe data e manutentor.','er');return;}
+  const itens=collectInsp();
+  const id=genINSP(),agora=new Date().toISOString();
+  db.inspecoes.push({id,data,turno,horasTurno:horas,manut,itens,criadoEm:agora});
+  db.inspC++;saveDB();
+  itens.forEach(sec=>{
+    sec.equips.forEach(eq=>{
+      if(!eq.status)return;
+      apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
+        Sala:sec.sala,Equipamento:eq.nome,Sub_Item:'',Status:eq.status,Hora:eq.hora,Observacoes:eq.obs,Criado_Em:agora});
+      (eq.subs||[]).forEach(s=>{if(!s.status)return;
+        apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
+          Sala:sec.sala,Equipamento:eq.nome,Sub_Item:s.nome,Status:s.status,Hora:s.hora,Observacoes:s.obs,Criado_Em:agora});
       });
     });
   });
-
-  showAlert('al-insp','Inspeção salva com sucesso!','ok');
-  // Após salvar, redireciona ao dashboard
-  setTimeout(() => showPage('dashboard'), 900);
+  showAlert('al-insp','Inspeção salva!','ok');
+  setTimeout(()=>showPage('dashboard'),900);
 }
 
-// Gera o texto do relatório no formato WhatsApp
 function gerarTextoRel(insp) {
-  if (!insp) return '';
-  let txt = `*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
-  insp.itens.forEach(sec => {
-    txt += `● Sala: ${sec.sala}\n`;
-    sec.equips.forEach(eq => {
-      if (!eq.status) return;
-      const lbl = eq.status === 'ok' ? 'ok' : 'Não vai rodar';
-      txt += `${eq.nome} / ${lbl}${eq.hora ? ' ' + eq.hora + 'h' : ''}${eq.obs ? ' – ' + eq.obs : ''}\n`;
-      (eq.subs||[]).forEach(s => {
-        if (!s.status) return;
-        const sl = s.status === 'ok' ? 'ok' : 'Não vai rodar';
-        txt += `  ${s.nome} / ${sl}${s.hora ? ' ' + s.hora + 'h' : ''}${s.obs ? ' – ' + s.obs : ''}\n`;
-      });
+  if(!insp)return'';
+  let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
+  insp.itens.forEach(sec=>{
+    txt+=`● Sala: ${sec.sala}\n`;
+    sec.equips.forEach(eq=>{
+      if(!eq.status)return;
+      txt+=`${eq.nome} / ${eq.status==='ok'?'ok':'Não vai rodar'}${eq.hora?' '+eq.hora+'h':''}${eq.obs?' – '+eq.obs:''}\n`;
+      (eq.subs||[]).forEach(s=>{if(!s.status)return;txt+=`  ${s.nome} / ${s.status==='ok'?'ok':'Não vai rodar'}${s.hora?' '+s.hora+'h':''}${s.obs?' – '+s.obs:''}\n`;});
     });
-    txt += '\n';
+    txt+='\n';
   });
   return txt;
 }
 
-// Abre modal com relatório da inspeção para copiar para o WhatsApp
 function gerarRel() {
-  const lastInsp = [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
-  const pgAtiva  = document.getElementById('pg-inspecao').classList.contains('on');
-  let txt = '';
-  if (pgAtiva) {
-    // Gera a partir do que está na tela agora (ainda não salvo)
-    const itens = collectInsp();
-    txt = gerarTextoRel({ data: v('insp-dt'), turno: v('insp-tn'), manut: v('insp-mn'), itens });
-  } else if (lastInsp) {
-    txt = gerarTextoRel(lastInsp);
-  } else {
-    alert('Nenhuma inspeção encontrada.'); return;
-  }
-  document.getElementById('m-rel-b').textContent = txt;
+  const pgAtiva=document.getElementById('pg-inspecao').classList.contains('on');
+  let txt='';
+  if(pgAtiva){const itens=collectInsp();txt=gerarTextoRel({data:v('insp-dt'),turno:v('insp-tn'),manut:v('insp-mn'),itens});}
+  else{const last=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];if(last)txt=gerarTextoRel(last);}
+  if(!txt){alert('Nenhuma inspeção.');return;}
+  document.getElementById('m-rel-b').textContent=txt;openM('m-rel');
+}
+
+// Histórico de inspeções (lista para navegar 1 a 1)
+let _inspIdx = 0;
+function verRelatorio() {
+  const sorted=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(!sorted.length){alert('Nenhuma inspeção registrada.');return;}
+  _inspIdx=0;
+  mostrarInspRel(sorted,_inspIdx);
+}
+function mostrarInspRel(sorted,idx) {
+  const insp=sorted[idx];
+  const nav=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx-1})" ${idx===0?'disabled':''}>◀ Anterior</button>
+    <span style="font-size:12px;color:var(--txt3)">${idx+1} de ${sorted.length}</span>
+    <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx+1})" ${idx===sorted.length-1?'disabled':''}>Próxima ▶</button>
+  </div>`;
+  document.getElementById('m-rel-b').innerHTML='';
+  const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:var(--fm);font-size:11px;color:var(--txt2);line-height:1.9';
+  pre.textContent=gerarTextoRel(insp);
+  document.getElementById('m-rel-b').innerHTML=nav;
+  document.getElementById('m-rel-b').appendChild(pre);
   openM('m-rel');
 }
-
-function verRelatorio() {
-  // Abre histórico navegável (mais recente primeiro)
-  abrirHistoricoRel();
+function navInspRel(idx){
+  const sorted=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(idx<0||idx>=sorted.length)return;
+  _inspIdx=idx;mostrarInspRel(sorted,idx);
 }
-
-function copyRel() {
-  navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent)
-    .then(() => alert('Copiado para a área de transferência!'));
-}
+function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent||'').then(()=>alert('Copiado!'));}
 
 // ══════════════════════════════════════════════════════════════════════
-// VER DETALHE DE UMA OS (modal)
+// ATIVOS
 // ══════════════════════════════════════════════════════════════════════
-function verDet(id, tipo) {
-  const item = tipo === 'os'
-    ? db.ordens.find(o => o.id === id)
-    : db.planejadas.find(p => p.id === id);
-
-  document.getElementById('md-n').textContent = item.numero;
-  document.getElementById('md-t').textContent = `${item.sala} · ${item.maq}`;
-
-  let rows = `
-    <div class="dr"><span class="dl">Sala</span><span class="dv">${item.sala}</span></div>
-    <div class="dr"><span class="dl">Máquina</span><span class="dv">${item.maq}</span></div>
-    <div class="dr"><span class="dl">Tipo</span><span class="dv">${tipoBadge(item.tipo)}</span></div>
-    <div class="dr"><span class="dl">Prioridade</span><span class="dv">${prio(item.prioridade)}</span></div>`;
-
-  const waEl  = document.getElementById('md-wa');
-  const waBtn = document.getElementById('md-wa-btn');
-
-  if (tipo === 'os') {
-    rows += `
-      <div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>
-      <div class="dr"><span class="dl">Data</span><span class="dv">${fd(item.data)}</span></div>
-      <div class="dr"><span class="dl">Horário</span><span class="dv">${item.ini||'—'} – ${item.fim||'—'}</span></div>
-      <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
-      <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
-      ${item.origem !== 'direta' ? `<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>` : ''}`;
-    // Texto para WhatsApp
-    const wa = `*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'}\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
-    waEl.textContent = wa;
-    waEl.style.display = 'block';
-    waBtn.style.display = 'inline-block';
-  } else {
-    rows += `
-      <div class="dr"><span class="dl">Prazo</span><span class="dv">${fd(item.prazo)}</span></div>
-      <div class="dr"><span class="dl">Status</span><span class="dv">${stBadge(item.status)}</span></div>
-      <div class="dr"><span class="dl">Serviço Planejado</span><span class="dv">${item.desc||'—'}</span></div>
-      ${item.manut ? `<div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>` : ''}
-      ${item.desc2 ? `<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>` : ''}`;
-    waEl.style.display = 'none';
-    waBtn.style.display = 'none';
-  }
-
-  document.getElementById('md-b').innerHTML = rows;
-  openM('m-det');
-}
-function copyWA() {
-  navigator.clipboard.writeText(document.getElementById('md-wa').textContent)
-    .then(() => alert('Copiado!'));
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// ATIVOS — Salas, Máquinas e Usuários
-// ══════════════════════════════════════════════════════════════════════
-let _editType = null;
-let _editIdx  = null;
+let _editType=null,_editIdx=null;
 
 function renderAtivos() {
-  // Garante ordem alfabética
-  db.salas.sort((a,b) => a.localeCompare(b,'pt-BR'));
-  db.maquinas.sort((a,b) => a.sala.localeCompare(b.sala,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'));
-
   populateAtMaqSala();
 
-  // Lista de salas com botões editar/excluir
-  document.getElementById('at-sl').innerHTML = db.salas.length === 0
+  // Salas em ordem alfabética
+  document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
-    : db.salas.map((s,i) => `
+    : [...db.salas].sort().map((s,i)=>`
         <div class="edit-row">
           <span style="font-size:13px;font-weight:500">${s}</span>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${i})">✎</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
             <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
           </div>
         </div>`).join('');
 
-  // Lista de máquinas (com criticidade colorida)
-  const critCor = { A: 'var(--red)', B: 'var(--orange)', C: 'var(--green)' };
-  document.getElementById('at-ml').innerHTML = db.maquinas.length === 0
-    ? '<div class="empty"><p>Nenhuma máquina.</p></div>'
-    : db.maquinas.map((m,i) => `
-        <div class="edit-row">
+  // Máquinas agrupadas por sala e em ordem alfabética
+  const bySala = {};
+  [...db.maquinas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
+    if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
+  });
+  document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
+      ${bySala[sala].map((m,_i)=>{
+        const gi=db.maquinas.indexOf(m);
+        const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
+        return `<div class="edit-row">
           <div>
-            <div style="font-size:13px;font-weight:500">
-              ${m.nome}
-              <span style="display:inline-block;background:${critCor[m.criticidade]||'var(--txt3)'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;font-family:var(--fm)">${m.criticidade||'B'}</span>
+            <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+            <div style="font-size:11px;color:var(--txt3)">
+              Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
+              Preventiva: ${m.periodicidade||'—'}
             </div>
-            <div style="font-size:11px;color:var(--txt3)">${m.sala}${m.tag?' · '+m.tag:''}${m.periodicidade?' · cada '+m.periodicidade+'d':''}</div>
           </div>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${i})">✎</button>
-            <button class="btn btn-d" onclick="delMaq(${i})">✕</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
+            <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('')}
+    </div>`).join('');
 
-  // Gráfico de Criticidade
-  setTimeout(renderChartCrit, 50);
+  // Gráfico de criticidade
+  renderCritChart();
 }
 
-let _chartCrit = null;
-function renderChartCrit() {
-  const cv = document.getElementById('chart-crit');
-  if (!cv || !window.Chart) return;
-  const ct = { A:0, B:0, C:0 };
-  db.maquinas.forEach(m => { ct[m.criticidade||'B']++; });
-  if (_chartCrit) _chartCrit.destroy();
-  _chartCrit = new Chart(cv.getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: ['A — Crítica', 'B — Importante', 'C — Auxiliar'],
-      datasets: [{
-        data: [ct.A, ct.B, ct.C],
-        backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--txt') } } }
-    }
+function renderCritChart() {
+  const cont = document.getElementById('at-crit-chart');
+  if (!cont) return;
+  const counts = {Alta:0, Média:0, Baixa:0, 'Sem info':0};
+  db.maquinas.forEach(m => {
+    const k = m.criticidade && counts[m.criticidade] !== undefined ? m.criticidade : 'Sem info';
+    counts[k]++;
   });
+  const total = db.maquinas.length || 1;
+  const colors = {Alta:'#C41230',Média:'#f59e0b',Baixa:'#1fd988','Sem info':'#6b7aa0'};
+  cont.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;gap:4px;height:36px;border-radius:8px;overflow:hidden;min-width:200px;flex:1">
+        ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
+          <div title="${k}: ${n}" style="background:${colors[k]};flex:${n};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">
+            ${Math.round(n/total*100)}%
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
+          <div style="display:flex;align-items:center;gap:5px;font-size:12px">
+            <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
+            <span>${k}: <strong>${n}</strong></span>
+          </div>`).join('')}
+      </div>
+    </div>`;
 }
 
-function renderUsers() {
-  const ul = document.getElementById('at-ul');
+function addSala() {
+  const n = v('at-sn').trim().toUpperCase();
+  if (!n) return;
+  if (db.salas.includes(n)) { alert('Sala já existe.'); return; }
+  db.salas.push(n); db.salas.sort(); saveDB();
+  sv('at-sn',''); populateAll(); renderAtivos();
+  apiAppend('salas', { ID_Sala: n.replace(/\s+/g,'_'), Nome: n, Descricao:'', Ativo:'sim', Criado_Em: new Date().toISOString() });
+}
+
+function addMaq() {
+  const sala=v('at-ms'), nome=v('at-mn').trim().toUpperCase(),
+        tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal';
+  if(!sala||!nome){alert('Selecione sala e informe o nome.');return;}
+  db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per});
+  db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
+  saveDB(); sv('at-mn',''); sv('at-mt',''); populateAll(); renderAtivos();
+  apiAppend('maquinas',{ID_Maquina:(sala+'_'+nome).replace(/\s+/g,'_'),Sala:sala,Nome:nome,Tag:tag,
+    Criticidade:crit,Periodicidade_Preventiva:per,Descricao:'',Ativo:'sim',Criado_Em:new Date().toISOString()});
+}
+
+function delSala(nome) {
+  if(!confirm(`Remover sala "${nome}" e suas máquinas?`))return;
+  db.salas=db.salas.filter(s=>s!==nome);
+  db.maquinas=db.maquinas.filter(m=>m.sala!==nome);
+  saveDB();populateAll();renderAtivos();
+  apiDelete('salas',nome,'Nome');
+}
+
+function delMaq(i) {
+  if(!confirm('Remover máquina?'))return;
+  const m=db.maquinas[i];
+  db.maquinas.splice(i,1);saveDB();populateAll();renderAtivos();
+  if(m)apiDelete('maquinas',m.nome,'Nome');
+}
+
+// Editar sala/máquina
+function openEdit(type,idx) {
+  _editType=type;_editIdx=idx;
+  if(type==='sala'){
+    document.getElementById('me-t').textContent='Editar Sala';
+    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
+  } else if(type==='maq') {
+    const m=db.maquinas[idx];
+    document.getElementById('me-t').textContent='Editar Máquina';
+    document.getElementById('me-b').innerHTML=`
+      <div class="fg"><label>Sala</label>
+        <select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
+      </div>
+      <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
+      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
+      <div class="fg"><label>Criticidade</label>
+        <select id="me-crit">
+          <option${m.criticidade==='Alta'?' selected':''}>Alta</option>
+          <option${m.criticidade==='Média'?' selected':''}>Média</option>
+          <option${m.criticidade==='Baixa'?' selected':''}>Baixa</option>
+        </select>
+      </div>
+      <div class="fg"><label>Periodicidade Preventiva</label>
+        <select id="me-per">
+          <option${m.periodicidade==='Diária'?' selected':''}>Diária</option>
+          <option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option>
+          <option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option>
+          <option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option>
+          <option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option>
+          <option${m.periodicidade==='Anual'?' selected':''}>Anual</option>
+        </select>
+      </div>`;
+  } else if(type==='plan') {
+    // editarPlan já preenche me-b antes de abrir
+  }
+  openM('m-edit');
+}
+
+function salvarEdit() {
+  if(_editType==='sala'){
+    const nv=v('me-v').trim().toUpperCase();if(!nv)return;
+    const old=db.salas[_editIdx];
+    db.salas[_editIdx]=nv;db.maquinas.forEach(m=>{if(m.sala===old)m.sala=nv;});
+    saveDB();populateAll();renderAtivos();closeM('m-edit');
+    apiUpdate('salas',old,'Nome',{Nome:nv});
+  } else if(_editType==='maq') {
+    const old=db.maquinas[_editIdx];
+    const nv={nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
+               criticidade:v('me-crit'),periodicidade:v('me-per')};
+    db.maquinas[_editIdx]=nv;
+    db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
+    saveDB();populateAll();renderAtivos();closeM('m-edit');
+    apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
+      Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade});
+  } else if(_editType==='plan') {
+    const p=db.planejadas.find(x=>String(x.id)===String(_editIdx));if(!p)return;
+    p.status=v('ep-status');p.prazo=v('ep-prazo');p.prioridade=v('ep-prio');p.desc=v('ep-desc');
+    saveDB();renderPlan();closeM('m-edit');
+    apiUpdate('planejadas',p.numero,'PL_Numero',{Status:p.status,Prazo_Limite:p.prazo,Prioridade:p.prioridade,Descricao_Planejada:p.desc});
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// USUÁRIOS (aba dedicada, só admin)
+// ══════════════════════════════════════════════════════════════════════
+function renderUsuarios() {
+  const ul = document.getElementById('pg-ul');
   if (!ul) return;
-  ul.innerHTML = db.users.map((u,i) => `
+  ul.innerHTML = db.users.map((u,i)=>`
     <div class="edit-row">
       <div>
         <div style="font-size:13px;font-weight:500">${u.nome}</div>
@@ -2365,430 +2158,471 @@ function renderUsers() {
       <div style="display:flex;align-items:center;gap:8px">
         ${roleBadge(u.tipo)}
         <button class="btn btn-edit btn-sm" onclick="openEditUser(${i})">✎</button>
-        ${i > 0 ? `<button class="btn btn-d" onclick="delUser(${i})">✕</button>` : ''}
+        ${i>0?`<button class="btn btn-d" onclick="delUser(${i})">✕</button>`:''}
       </div>
     </div>`).join('');
 }
 
-// Adiciona nova sala
-function addSala() {
-  const n = v('at-sn').trim();
-  if (!n) return;
-  if (db.salas.includes(n)) { alert('Sala já existe.'); return; }
-  db.salas.push(n);
-  saveDB();
-  sv('at-sn','');
-  populateAll();
-  renderAtivos();
-  // Grava no Sheets (aba Salas)
-  apiAppend('salas', { Nome:n, Ativo:'sim', Criado_Em: new Date().toISOString() });
-}
-
-// Adiciona nova máquina
-function addMaq() {
-  const sala = v('at-ms');
-  const nome = v('at-mn').trim();
-  const tag  = v('at-mt').trim();
-  const crit = v('at-mc') || 'B';
-  const per  = v('at-mp').trim();
-  if (!sala || !nome) { alert('Selecione sala e informe o nome.'); return; }
-  db.maquinas.push({ nome, sala, tag, criticidade:crit, periodicidade:per });
-  saveDB();
-  sv('at-mn',''); sv('at-mt',''); sv('at-mp','');
-  populateAll();
-  renderAtivos();
-  apiAppend('maquinas', {
-    Nome:nome, Sala:sala, Tag:tag, Criticidade:crit, Periodicidade_Dias:per,
-    Ativo:'sim', Criado_Em: new Date().toISOString()
-  });
-}
-
-function delSala(nome) {
-  if (!confirm(`Remover sala "${nome}" e suas máquinas?`)) return;
-  db.salas    = db.salas.filter(s => s !== nome);
-  db.maquinas = db.maquinas.filter(m => m.sala !== nome);
-  saveDB();
-  populateAll();
-  renderAtivos();
-  apiDelete('salas', nome, 'Nome');
-}
-
-function delMaq(i) {
-  if (!confirm('Remover máquina?')) return;
-  const maq = db.maquinas[i];
-  db.maquinas.splice(i,1);
-  saveDB();
-  populateAll();
-  renderAtivos();
-  if (maq) apiDelete('maquinas', maq.nome, 'Nome');
-}
-
-function delUser(i) {
-  if (!confirm('Remover usuário?')) return;
-  const usr = db.users[i];
-  db.users.splice(i,1);
-  saveDB();
-  renderUsers();
-  // Remove do Sheets (por login)
-  if (usr) apiDelete('usuarios', usr.login, 'Login');
-}
-
-// Modal de edição de sala/máquina
-function openEdit(type, idx) {
-  _editType = type; _editIdx = idx;
-  if (type === 'sala') {
-    document.getElementById('me-t').textContent = 'Editar Sala';
-    document.getElementById('me-b').innerHTML =
-      `<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
-  } else {
-    const m = db.maquinas[idx];
-    document.getElementById('me-t').textContent = 'Editar Máquina';
-    document.getElementById('me-b').innerHTML = `
-      <div class="fg"><label>Sala</label>
-        <select id="me-sl">${db.salas.map(s => `<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
-      </div>
-      <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
-      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
-      <div class="fg-row">
-        <div class="fg"><label>Criticidade</label>
-          <select id="me-cr">
-            <option value="A"${m.criticidade==='A'?' selected':''}>A — Crítica</option>
-            <option value="B"${(m.criticidade||'B')==='B'?' selected':''}>B — Importante</option>
-            <option value="C"${m.criticidade==='C'?' selected':''}>C — Auxiliar</option>
-          </select>
-        </div>
-        <div class="fg"><label>Periodicidade (dias)</label><input type="number" id="me-pe" value="${m.periodicidade||''}" min="1"></div>
-      </div>`;
-  }
-  openM('m-edit');
-}
-
-function salvarEdit() {
-  if (_editType === 'sala') {
-    const nv  = v('me-v').trim();
-    if (!nv) return;
-    const old = db.salas[_editIdx];
-    db.salas[_editIdx] = nv;
-    db.maquinas.forEach(m => { if (m.sala === old) m.sala = nv; });
-    saveDB();
-    populateAll();
-    renderAtivos();
-    closeM('m-edit');
-    // Atualiza no Sheets (renomeia)
-    apiUpdate('salas', old, 'Nome', { Nome: nv });
-    // E também ajusta máquinas que apontavam para esta sala
-    db.maquinas.filter(x => x.sala === nv).forEach(x =>
-      apiUpdate('maquinas', x.nome, 'Nome', { Sala: nv }));
-  } else {
-    const old = db.maquinas[_editIdx];
-    const nm = {
-      nome: v('me-nm').trim(),
-      sala: v('me-sl'),
-      tag:  v('me-tg').trim(),
-      criticidade: v('me-cr') || 'B',
-      periodicidade: v('me-pe').trim()
-    };
-    db.maquinas[_editIdx] = nm;
-    saveDB();
-    populateAll();
-    renderAtivos();
-    closeM('m-edit');
-    // Atualiza no Sheets (busca pelo nome antigo)
-    apiUpdate('maquinas', old.nome, 'Nome', {
-      Nome: nm.nome, Sala: nm.sala, Tag: nm.tag,
-      Criticidade: nm.criticidade, Periodicidade_Dias: nm.periodicidade
-    });
-  }
-}
-
-// Modal de novo/editar usuário (admin)
 function showRegModal() {
-  document.getElementById('mu-t').textContent = 'Novo Usuário';
-  ['mu-nome','mu-user','mu-pass'].forEach(id => sv(id,''));
-  sv('mu-tipo','administracao');
-  sv('mu-idx','');
-  document.getElementById('mu-alert').className = 'lalert';
+  document.getElementById('mu-t').textContent='Novo Usuário';
+  ['mu-nome','mu-user','mu-pass'].forEach(id=>sv(id,''));
+  sv('mu-tipo','manutencao');sv('mu-idx','');
+  document.getElementById('mu-alert').className='lalert';
   openM('m-usr');
 }
 
 function openEditUser(i) {
-  const u = db.users[i];
-  document.getElementById('mu-t').textContent = 'Editar Usuário';
-  sv('mu-nome', u.nome); sv('mu-user', u.login); sv('mu-pass', u.senha);
-  sv('mu-tipo', u.tipo); sv('mu-idx', i);
-  document.getElementById('mu-alert').className = 'lalert';
+  const u=db.users[i];
+  document.getElementById('mu-t').textContent='Editar Usuário';
+  sv('mu-nome',u.nome);sv('mu-user',u.login);sv('mu-pass',u.senha);
+  sv('mu-tipo',u.tipo);sv('mu-idx',i);
+  document.getElementById('mu-alert').className='lalert';
   openM('m-usr');
 }
 
 function salvarUsuario() {
-  const nome  = v('mu-nome').trim();
-  const login = v('mu-user').trim();
-  const senha = v('mu-pass').trim();
-  const tipo  = v('mu-tipo');
-  const idx   = v('mu-idx');
-  const al    = document.getElementById('mu-alert');
-
-  if (!nome || !login || !senha) {
-    al.textContent = 'Preencha todos os campos.';
-    al.className = 'lalert err show';
-    return;
-  }
-
-  if (idx === '') {
-    // Novo usuário
-    if (db.users.find(u => u.login === login)) {
-      al.textContent = 'Login já existe.';
-      al.className = 'lalert err show';
-      return;
-    }
-    db.users.push({ login, senha, nome, tipo });
-    // Salva no Sheets (sem a senha por segurança)
-    apiAppend('usuarios', { Login:login, Nome:nome, Tipo_Acesso:tipo, Ativo:'sim', Criado_Em: new Date().toISOString() });
+  const nome=v('mu-nome').trim(),login=v('mu-user').trim(),
+        senha=v('mu-pass').trim(),tipo=v('mu-tipo'),idx=v('mu-idx');
+  const al=document.getElementById('mu-alert');
+  if(!nome||!login||!senha){al.textContent='Preencha todos os campos.';al.className='lalert err show';return;}
+  if(idx===''){
+    if(db.users.find(u=>u.login===login)){al.textContent='Login já existe.';al.className='lalert err show';return;}
+    db.users.push({login,senha,nome,tipo});
+    apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha,Ativo:'sim',Criado_Em:new Date().toISOString()}});
   } else {
-    // Editar existente
-    db.users[parseInt(idx)] = { login, senha, nome, tipo };
-    apiUpdate('usuarios', login, 'Login', { Nome:nome, Tipo_Acesso:tipo });
+    db.users[parseInt(idx)]={login,senha,nome,tipo};
+    apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha}});
   }
-
-  // Sempre salva usuários com senhas no localStorage
-  saveDB();
-  renderUsers();
-  closeM('m-usr');
+  saveDB();renderUsuarios();closeM('m-usr');
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// MODAIS
-// ══════════════════════════════════════════════════════════════════════
-function openM(id)  { document.getElementById(id).classList.add('on'); }
-function closeM(id) { document.getElementById(id).classList.remove('on'); }
-
-// Fecha modal clicando fora dele
-document.querySelectorAll('.mb').forEach(b => b.addEventListener('click', e => {
-  if (e.target === b) b.classList.remove('on');
-}));
-
-// Enter na tela de login faz submit
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
-    doLogin();
-  }
-});
-
-// ══════════════════════════════════════════════════════════════════════
-// EDIÇÃO DE OS EXECUTADA (admin)
-// ══════════════════════════════════════════════════════════════════════
-function abrirEditOS(id) {
-  const o = db.ordens.find(x => x.id === id);
-  if (!o) return;
-  sv('mo-id', String(id));
-  // Salas
-  const sl = document.getElementById('mo-sl');
-  sl.innerHTML = db.salas.map(s => `<option${s===o.sala?' selected':''}>${s}</option>`).join('');
-  fMaqEdit();
-  document.getElementById('mo-mq').value = o.maq;
-  sv('mo-tp', o.tipo); sv('mo-pr', o.prioridade||'Média');
-  sv('mo-mn', o.manut); sv('mo-dt', o.data);
-  sv('mo-in', o.ini||''); sv('mo-fm', o.fim||'');
-  sv('mo-pb', o.prob||''); sv('mo-ac', o.acao||'');
-  openM('m-os');
-}
-function fMaqEdit() {
-  const sala = v('mo-sl');
-  const sel  = document.getElementById('mo-mq');
-  sel.innerHTML = db.maquinas.filter(m => m.sala === sala)
-    .map(m => `<option>${m.nome}</option>`).join('');
-}
-function salvarEditOS() {
-  const id = parseInt(v('mo-id'));
-  const o  = db.ordens.find(x => x.id === id);
-  if (!o) return;
-  Object.assign(o, {
-    sala: v('mo-sl'), maq: v('mo-mq'), tipo: v('mo-tp'),
-    prioridade: v('mo-pr'), manut: v('mo-mn'), data: v('mo-dt'),
-    ini: v('mo-in'), fim: v('mo-fm'),
-    prob: v('mo-pb'), acao: v('mo-ac')
-  });
-  saveDB();
-  let durMin = '';
-  if (o.ini && o.fim) {
-    const [h1,m1] = o.ini.split(':').map(Number);
-    const [h2,m2] = o.fim.split(':').map(Number);
-    durMin = (h2*60+m2) - (h1*60+m1);
-  }
-  apiUpdate('ordens', o.numero, 'OS_Numero', {
-    Data: o.data, Sala: o.sala, Maquina: o.maq, Tipo: o.tipo,
-    Prioridade: o.prioridade, Manutentor: o.manut,
-    Hora_Inicio: o.ini, Hora_Fim: o.fim, Duracao_Min: durMin,
-    Problema: o.prob, Acao_Executada: o.acao
-  });
-  closeM('m-os');
-  renderExec();
-  updStats();
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// NAVEGAÇÃO ENTRE RELATÓRIOS DE INSPEÇÃO
-// ══════════════════════════════════════════════════════════════════════
-let _relList = [];
-let _relIdx = 0;
-function abrirHistoricoRel() {
-  _relList = [...db.inspecoes].sort((a,b) => (b.criadoEm||b.data).localeCompare(a.criadoEm||a.data));
-  if (!_relList.length) { alert('Sem inspeções registradas.'); return; }
-  _relIdx = 0;
-  _mostrarRel();
-}
-function navRel(d) {
-  if (!_relList.length) return;
-  _relIdx = Math.max(0, Math.min(_relList.length - 1, _relIdx + d));
-  _mostrarRel();
-}
-function _mostrarRel() {
-  const insp = _relList[_relIdx];
-  document.getElementById('m-rel-b').textContent = gerarTextoRel(insp);
-  document.getElementById('m-rel-pos').textContent = `${_relIdx+1} / ${_relList.length} — ${insp.data} ${insp.turno}`;
-  document.getElementById('m-rel-nav').style.display = _relList.length > 1 ? 'flex' : 'none';
-  openM('m-rel');
+function delUser(i) {
+  if(!confirm('Remover usuário?'))return;
+  const u=db.users[i];db.users.splice(i,1);saveDB();renderUsuarios();
+  if(u)apiDelete('usuarios',u.login,'Login');
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // TEMPLATES DE INSPEÇÃO (admin)
 // ══════════════════════════════════════════════════════════════════════
-function loadTplInspecao() {
-  const tipo = v('tpli-sel') || 'rota';
-  const tb = document.getElementById('tb-tpli');
-  const itens = db.tplInspecao.filter(t => t.tipo === tipo)
-                  .sort((a,b) => (a.ordem||0) - (b.ordem||0));
-  if (!itens.length) {
-    tb.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="ei">📝</div><p>Sem itens. Clique "+ Adicionar Item".</p></div></td></tr>`;
-    return;
+// Estrutura PCM de inspeção de rota e mecânica/elétrica
+const INSP_ROTA_ITEMS = [
+  {sistema:'Elétrico',    itens:['Disjuntores e fusíveis','Quadros elétricos (CCM)','Iluminação','Tomadas e extensões','Cabos e calhas (integridade)']},
+  {sistema:'Utilidades',  itens:['Pressão do compressor','Temperatura do compressor','Nível de óleo compressor','Filtros de ar (estado)','Vazamentos de ar']},
+  {sistema:'Esteiras',    itens:['Tensão da correia/corrente','Alinhamento','Desgaste','Rolamentos (ruído/vibração)','Proteções mecânicas']},
+  {sistema:'Pneumático',  itens:['Pressão da linha','Filtros reguladores','Vazamentos','Cilindros (fixação/estado)']},
+  {sistema:'Segurança',   itens:['Botões de emergência','Proteções de máquinas','Sinalização de segurança','EPI disponíveis no posto']}
+];
+
+const INSP_MAQ_ITEMS = [
+  {sistema:'Mecânico',    itens:['Fixação e alinhamento geral','Correntes / correias / polias','Rolamentos (temperatura, vibração, ruído)','Vedações e gaxetas','Folgas e desgastes','Lubrificação (nível e estado)']},
+  {sistema:'Elétrico',    itens:['Motor (temperatura, vibração, ruído)','Cabos e conexões elétricas','Inversor de frequência','Sensores e fim-de-curso','Resistências e aquecedores']},
+  {sistema:'Pneumático',  itens:['Pressão de trabalho','Vazamentos na linha','Cilindros pneumáticos','Válvulas solenoides']},
+  {sistema:'Estrutural',  itens:['Estrutura e parafusos','Proteções e guardas','Limpeza geral','Identificação e etiquetas']},
+  {sistema:'Instrumentação',itens:['Sensores de temperatura','Sensores de pressão','Manômetros e vacuômetros','IHM e painel (display)']}
+];
+
+function initInspTmpl() {
+  populateSalas('insp-tmpl');
+  sv('insp-tmpl-sala','');
+  populateSalaFilter('insp-tmpl-sala');
+  sv('insp-tmpl-dt', today());
+  if(CU.tipo!=='producao') sv('insp-tmpl-mn', CU.nome);
+  renderInspTmpl();
+}
+
+function renderInspTmpl() {
+  const tipo = v('insp-tmpl-tipo');
+  const sala = v('insp-tmpl-sala');
+  const items = tipo === 'rota' ? INSP_ROTA_ITEMS : INSP_MAQ_ITEMS;
+
+  // Para inspeção de máquinas, lista as máquinas da sala selecionada
+  let maqSelect = '';
+  if (tipo === 'maquina') {
+    const maqsFiltradas = sala ? db.maquinas.filter(m=>m.sala===sala) : db.maquinas;
+    maqSelect = `<div class="card" style="margin-bottom:10px">
+      <div class="card-t">Máquina Inspecionada</div>
+      <div class="fg"><label>Selecione a Máquina</label>
+        <select id="insp-tmpl-maq">
+          <option value="">Selecione...</option>
+          ${maqsFiltradas.sort((a,b)=>a.nome.localeCompare(b.nome)).map(m=>`<option value="${m.sala}|${m.nome}|${m.tag}">${m.nome} (${m.sala})${m.tag?' – '+m.tag:''}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
   }
-  tb.innerHTML = itens.map((it, i) => `<tr data-ord="${it.ordem}">
-    <td style="font-family:var(--fm);font-size:11px">${i+1}</td>
-    <td><input type="text" value="${it.sala||''}" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.equip||''}" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.sub||''}" data-k="sub" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.periodicidade||'Diária'}" data-k="periodicidade" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>
-  </tr>`).join('');
+
+  const body = `${maqSelect}${items.map((grp,gi)=>`
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-t">${grp.sistema}</div>
+      ${grp.itens.map((item,ii)=>`
+        <div style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
+          <div style="font-size:13px">${item}</div>
+          <div style="display:flex;gap:5px">
+            <button class="iok"  onclick="setItmStatus('it-${gi}-${ii}','ok',this)">OK</button>
+            <button class="inok" onclick="setItmStatus('it-${gi}-${ii}','nok',this)">NOK</button>
+          </div>
+          <div><input type="text" id="itval-${gi}-${ii}" placeholder="Valor/Medição" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px 8px;width:90px;outline:none"></div>
+          <div><input type="text" id="itobs-${gi}-${ii}" placeholder="Observações / Ação necessária" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px 8px;width:100%;outline:none"></div>
+          <input type="hidden" id="itst-${gi}-${ii}" value="">
+        </div>`).join('')}
+    </div>`).join('')}`;
+
+  document.getElementById('insp-tmpl-body').innerHTML = body;
 }
-function addTplInspRow() {
-  const tb = document.getElementById('tb-tpli');
-  if (tb.querySelector('.empty')) tb.innerHTML = '';
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td style="font-family:var(--fm);font-size:11px">novo</td>
-    <td><input type="text" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" data-k="sub" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="Diária" data-k="periodicidade" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>`;
-  tb.appendChild(tr);
+
+function setItmStatus(id,st,btn) {
+  const row=btn.closest('div[style*="grid"]');
+  row.querySelectorAll('.iok,.inok').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const hid=document.getElementById(id.replace('it-','itst-'));
+  if(hid)hid.value=st;
 }
-async function salvarTplInspecao() {
-  const tipo = v('tpli-sel') || 'rota';
-  const nome = tipo === 'rota' ? 'Inspeção de Rota' : 'Mecânica e Elétrica';
-  const tplId = tipo === 'rota' ? 'INSP-ROTA-01' : 'INSP-ME-01';
-  const trs = document.querySelectorAll('#tb-tpli tr');
-  const novosItens = [];
-  trs.forEach((tr, i) => {
-    const ipts = tr.querySelectorAll('input[data-k]');
-    if (!ipts.length) return;
-    const obj = { tipo, ordem: i+1 };
-    ipts.forEach(ip => obj[ip.getAttribute('data-k')] = ip.value.trim());
-    if (obj.sala || obj.equip) novosItens.push(obj);
+
+async function salvarInspTmpl() {
+  const tipo=v('insp-tmpl-tipo'),data=v('insp-tmpl-dt'),manut=v('insp-tmpl-mn').trim();
+  if(!data||!manut){alert('Informe data e manutentor.');return;}
+  const items=tipo==='rota'?INSP_ROTA_ITEMS:INSP_MAQ_ITEMS;
+  const agora=new Date().toISOString();
+  let maqInfo={sala:'',nome:'',tag:''};
+  if(tipo==='maquina'){const mv=v('insp-tmpl-maq').split('|');maqInfo={sala:mv[0]||'',nome:mv[1]||'',tag:mv[2]||''};}
+  items.forEach((grp,gi)=>{
+    grp.itens.forEach((item,ii)=>{
+      const hid=document.getElementById('itst-'+gi+'-'+ii);
+      const st=hid?hid.value:'';
+      const val=v('itval-'+gi+'-'+ii);
+      const obs=v('itobs-'+gi+'-'+ii);
+      if(tipo==='rota'){
+        apiAppend('insp_rota',{ID:agora,Data:data,Turno:v('insp-tn')||'',Manutentor:manut,
+          Sala:maqInfo.sala||v('insp-tmpl-sala')||'',Ponto_Inspecao:grp.sistema,Item:item,
+          Status:st,Hora:'',Valor_Medido:val,Limite_Min:'',Limite_Max:'',
+          Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
+      } else {
+        apiAppend('insp_maquina',{ID:agora,Data:data,Maquina:maqInfo.nome,Tag:maqInfo.tag,
+          Manutentor:manut,Sistema:grp.sistema,Item_Verificado:item,Status:st,
+          Valor_Medido:val,Unidade:'',Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
+      }
+    });
   });
-  // Mantém os itens dos OUTROS tipos no banco
-  const outros = db.tplInspecao.filter(t => t.tipo !== tipo);
-  db.tplInspecao = [...outros, ...novosItens.map(it => ({ id: tplId, nome, ...it }))];
-  saveDB();
-  // Replace all no Sheets (envia todos os tipos)
-  const rows = db.tplInspecao.map(it => ({
-    Template_ID: it.id, Nome_Template: it.nome, Tipo: it.tipo,
-    Ordem: it.ordem, Sala: it.sala||'', Equipamento: it.equip||'',
-    Sub_Item: it.sub||'', Periodicidade: it.periodicidade||''
-  }));
-  await apiReplaceAll('tplInspecao', rows);
-  showAlert('al-tpli', 'Template salvo!', 'ok');
-  loadTplInspecao();
+  alert('Inspeção salva no banco de dados!');
+}
+
+function imprimirInspecao(tipo) {
+  const data=v('insp-tmpl-dt')||today(), manut=v('insp-tmpl-mn')||'_______________';
+  const sala=v('insp-tmpl-sala')||'Todas as Salas';
+  const titulo = tipo==='rota' ? 'INSPEÇÃO DE ROTA' : 'INSPEÇÃO MECÂNICA E ELÉTRICA';
+  const items  = tipo==='rota' ? INSP_ROTA_ITEMS : INSP_MAQ_ITEMS;
+  const maqList= tipo==='maquina' ? [...db.maquinas].filter(m=>!v('insp-tmpl-sala')||m.sala===v('insp-tmpl-sala')).sort((a,b)=>a.nome.localeCompare(b.nome)) : [];
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>${titulo}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
+    h1{font-size:16px;text-align:center;margin-bottom:4px;color:#C41230}
+    h2{font-size:13px;margin:12px 0 4px}
+    .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
+    .empresa{font-size:14px;font-weight:bold}
+    .info-row{display:flex;gap:20px;margin-bottom:8px;flex-wrap:wrap}
+    .info-box{border:1px solid #ccc;border-radius:4px;padding:6px 10px;min-width:150px}
+    .info-label{font-size:9px;color:#666;text-transform:uppercase}
+    .info-val{font-size:12px;font-weight:bold}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px}
+    th{background:#C41230;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    td{padding:6px 8px;border:1px solid #ddd;vertical-align:middle}
+    .st-box{width:16px;height:16px;border:1px solid #999;border-radius:3px;display:inline-block}
+    .assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:10px}
+    @media print{body{padding:10mm}}
+  </style></head><body>
+  <div class="header">
+    <div><div class="empresa">MUFFATO FOODS</div><div>Gestão de Manutenção — PCM</div></div>
+    <div><h1>${titulo}</h1></div>
+    <div style="text-align:right;font-size:10px">Doc: SIGMAN<br>Rev: 01</div>
+  </div>
+  <div class="info-row">
+    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(data)}</div></div>
+    <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${manut}</div></div>
+    <div class="info-box"><div class="info-label">Sala / Área</div><div class="info-val">${sala}</div></div>
+    ${tipo==='maquina'?`<div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${v('insp-tmpl-maq').split('|')[1]||'_______________'}</div></div>`:''}
+  </div>
+  ${items.map(grp=>`
+  <h2>● ${grp.sistema}</h2>
+  <table>
+    <tr><th style="width:40%">Item Verificado</th><th style="width:8%">OK</th><th style="width:8%">NOK</th><th style="width:20%">Valor / Medição</th><th>Observações / Ação</th></tr>
+    ${grp.itens.map(it=>`<tr>
+      <td>${it}</td>
+      <td style="text-align:center"><span class="st-box"></span></td>
+      <td style="text-align:center"><span class="st-box"></span></td>
+      <td></td><td></td>
+    </tr>`).join('')}
+  </table>`).join('')}
+  <div style="display:flex;justify-content:space-between;margin-top:20px">
+    <div><div class="assinatura">Assinatura do Manutentor</div></div>
+    <div><div class="assinatura">Visto do Supervisor</div></div>
+  </div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// TEMPLATE DE PREVENTIVA (admin)
+// PREVENTIVA (template - admin)
 // ══════════════════════════════════════════════════════════════════════
-function renderTplPreventiva() {
-  const tb = document.getElementById('tb-tplp');
-  if (!db.tplPreventiva.length) {
-    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="ei">⚙️</div><p>Sem tarefas. Clique "+ Adicionar Tarefa".</p></div></td></tr>`;
-    return;
-  }
-  tb.innerHTML = db.tplPreventiva.map(it => `<tr>
-    <td><input type="text" value="${it.sala||''}" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.equip||''}" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.tarefa||''}" data-k="tarefa" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="${it.periodicidade||'30d'}" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="number" value="${it.tempo||30}" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
-      <option value="A"${it.criticidade==='A'?' selected':''}>A</option>
-      <option value="B"${(it.criticidade||'B')==='B'?' selected':''}>B</option>
-      <option value="C"${it.criticidade==='C'?' selected':''}>C</option>
-    </select></td>
-    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>
-  </tr>`).join('');
-}
-function addTplPrevRow() {
-  const tb = document.getElementById('tb-tplp');
-  if (tb.querySelector('.empty')) tb.innerHTML = '';
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td><input type="text" data-k="sala" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" data-k="equip" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" data-k="tarefa" style="width:100%;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="text" value="30d" data-k="periodicidade" style="width:90px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><input type="number" value="30" data-k="tempo" min="1" style="width:70px;background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px"></td>
-    <td><select data-k="criticidade" style="background:var(--inp);border:1px solid var(--bord);color:var(--txt);padding:4px;border-radius:4px">
-      <option value="A">A</option><option value="B" selected>B</option><option value="C">C</option>
-    </select></td>
-    <td><button class="btn btn-d" onclick="this.closest('tr').remove()">✕</button></td>`;
-  tb.appendChild(tr);
-}
-async function salvarTplPreventiva() {
-  const trs = document.querySelectorAll('#tb-tplp tr');
-  const novos = [];
-  trs.forEach(tr => {
-    const ipts = tr.querySelectorAll('[data-k]');
-    if (!ipts.length) return;
-    const obj = { id:'PREV-01', nome:'Preventiva Mecânica/Elétrica' };
-    ipts.forEach(ip => obj[ip.getAttribute('data-k')] = ip.value.trim());
-    if (obj.sala || obj.equip || obj.tarefa) novos.push(obj);
+const PREV_TAREFAS = {
+  Mecânico: [
+    'Inspecionar e apertar parafusos e fixações gerais',
+    'Verificar desgaste e alinhamento de correias/correntes',
+    'Inspecionar e substituir rolamentos (se necessário)',
+    'Lubrificar pontos de lubrificação conforme plano',
+    'Verificar e substituir vedações/gaxetas/retentores',
+    'Limpar e inspecionar filtros',
+    'Verificar folgas e ajustar componentes mecânicos',
+    'Inspecionar acoplamentos e juntas',
+    'Testar dispositivos de segurança mecânicos'
+  ],
+  Elétrico: [
+    'Inspecionar e apertar conexões elétricas do quadro',
+    'Medir e registrar corrente do motor (nominal × real)',
+    'Verificar temperatura do motor e cabos',
+    'Inspecionar e substituir fusíveis (se necessário)',
+    'Verificar estado do inversor de frequência',
+    'Testar e ajustar relés e proteções termomagnéticas',
+    'Inspecionar sensores, fim-de-curso e botões de emergência',
+    'Verificar aterramento',
+    'Testar funcionamento da IHM/painel de controle'
+  ],
+  'Pneumático / Hidráulico': [
+    'Verificar e registrar pressão de trabalho',
+    'Identificar e eliminar vazamentos',
+    'Trocar elemento filtrante do filtro de linha',
+    'Drenar condensados do filtro',
+    'Inspecionar cilindros (vedação e fixação)',
+    'Verificar e ajustar reguladores de pressão',
+    'Inspecionar mangueiras e conexões'
+  ],
+  'Limpeza e Organização': [
+    'Limpeza externa completa da máquina',
+    'Limpeza interna (interior do quadro elétrico)',
+    'Remover acúmulo de produto/resíduo',
+    'Verificar estado das proteções e guardas',
+    'Conferir identificações e etiquetas da máquina'
+  ]
+};
+
+function initPreventiva() {
+  const sel = document.getElementById('prev-maq');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  [...db.maquinas].sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(m=>{
+    sel.innerHTML+=`<option value="${m.sala}|${m.nome}|${m.tag}|${m.periodicidade||'Mensal'}">${m.nome} (${m.sala})${m.tag?' – '+m.tag:''}</option>`;
   });
-  db.tplPreventiva = novos;
-  saveDB();
-  const rows = novos.map(it => ({
-    Template_ID: it.id, Nome_Template: it.nome,
-    Sala: it.sala||'', Equipamento: it.equip||'', Tarefa: it.tarefa||'',
-    Periodicidade: it.periodicidade||'', Tempo_Estimado_Min: it.tempo||'',
-    Criticidade: it.criticidade||'B'
-  }));
-  await apiReplaceAll('tplPreventiva', rows);
-  showAlert('al-tplp', 'Template salvo!', 'ok');
-  renderTplPreventiva();
+  sv('prev-dt',today());
+  if(CU.tipo!=='producao') sv('prev-mn',CU.nome);
+  carregarTarefasPreventiva();
+}
+
+function carregarTarefasPreventiva() {
+  const maqVal=v('prev-maq').split('|');
+  const per=maqVal[3]||v('prev-periodo')||'Mensal';
+  if(maqVal[3]) sv('prev-periodo',maqVal[3]);
+
+  const body = Object.entries(PREV_TAREFAS).map(([grp,tarefas],gi)=>`
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-t">${grp}</div>
+      ${tarefas.map((t,ti)=>`
+        <div style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
+          <div style="font-size:13px">${t}</div>
+          <div style="display:flex;gap:5px">
+            <button class="iok"  onclick="this.closest('div[style]').querySelector('.iok').classList.add('on');this.closest('div[style]').querySelector('.inok').classList.remove('on');this.closest('div[style]').querySelector('input[type=hidden]').value='ok'">OK</button>
+            <button class="inok" onclick="this.closest('div[style]').querySelector('.inok').classList.add('on');this.closest('div[style]').querySelector('.iok').classList.remove('on');this.closest('div[style]').querySelector('input[type=hidden]').value='nok'">NOK</button>
+          </div>
+          <div><input type="number" placeholder="min" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px;width:60px;outline:none" id="pvmin-${gi}-${ti}"></div>
+          <div><input type="text" placeholder="Materiais / Observações" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px 8px;width:100%;outline:none" id="pvobs-${gi}-${ti}"></div>
+          <input type="hidden" value="" id="pvst-${gi}-${ti}">
+        </div>`).join('')}
+    </div>`).join('');
+  document.getElementById('prev-body').innerHTML=body;
+}
+
+async function salvarPreventiva() {
+  const maqVal=v('prev-maq').split('|');
+  const data=v('prev-dt'),manut=v('prev-mn').trim(),per=v('prev-periodo');
+  if(!maqVal[1]||!data||!manut){alert('Selecione máquina, data e manutentor.');return;}
+  const agora=new Date().toISOString();
+  Object.entries(PREV_TAREFAS).forEach(([grp,tarefas],gi)=>{
+    tarefas.forEach((t,ti)=>{
+      const st=v('pvst-'+gi+'-'+ti);
+      if(!st)return;
+      apiAppend('preventiva',{
+        ID:agora,Data_Execucao:data,Maquina:maqVal[1],Tag:maqVal[2],
+        Manutentor:manut,Periodicidade:per,Tarefa:grp+' — '+t,
+        Status:st,Duracao_Min:v('pvmin-'+gi+'-'+ti)||0,
+        Materiais:v('pvobs-'+gi+'-'+ti),Observacoes:'',Criado_Em:agora
+      });
+    });
+  });
+  alert('Preventiva salva no banco de dados!');
+}
+
+function imprimirPreventiva() {
+  const maqVal=v('prev-maq').split('|');
+  const data=v('prev-dt')||today(),manut=v('prev-mn')||'_______________',per=v('prev-periodo')||'Mensal';
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>ORDEM DE MANUTENÇÃO PREVENTIVA</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
+    h1{font-size:15px;text-align:center;color:#C41230;margin-bottom:4px}
+    h2{font-size:12px;margin:10px 0 4px;background:#f0f0f0;padding:4px 8px;border-left:3px solid #C41230}
+    .header{display:flex;justify-content:space-between;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:10px}
+    .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+    .info-box{border:1px solid #ccc;border-radius:3px;padding:5px 8px}
+    .info-label{font-size:9px;color:#666;text-transform:uppercase}
+    .info-val{font-size:12px;font-weight:bold}
+    table{width:100%;border-collapse:collapse;margin-bottom:8px}
+    th{background:#C41230;color:#fff;padding:5px 7px;text-align:left;font-size:10px}
+    td{padding:5px 7px;border:1px solid #ddd}
+    .cb{width:14px;height:14px;border:1px solid #999;border-radius:2px;display:inline-block}
+    .assinatura{border-top:1px solid #000;width:180px;margin-top:30px;padding-top:4px;font-size:9px}
+    @media print{body{padding:10mm}}
+  </style></head><body>
+  <div class="header">
+    <div><b>MUFFATO FOODS</b><br>Gestão de Manutenção — PCM</div>
+    <div><h1>ORDEM DE MANUTENÇÃO PREVENTIVA</h1></div>
+    <div style="text-align:right;font-size:10px">Doc: SIGMAN-PREV<br>Rev: 01</div>
+  </div>
+  <div class="info-grid">
+    <div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${maqVal[1]||'___'}</div></div>
+    <div class="info-box"><div class="info-label">Tag</div><div class="info-val">${maqVal[2]||'___'}</div></div>
+    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(data)}</div></div>
+    <div class="info-box"><div class="info-label">Periodicidade</div><div class="info-val">${per}</div></div>
+    <div class="info-box" style="grid-column:span 2"><div class="info-label">Manutentor</div><div class="info-val">${manut}</div></div>
+    <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">___:___</div></div>
+    <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">___:___</div></div>
+  </div>
+  ${Object.entries(PREV_TAREFAS).map(([grp,tarefas])=>`
+  <h2>${grp}</h2>
+  <table>
+    <tr><th style="width:45%">Tarefa</th><th style="width:7%">OK</th><th style="width:7%">NOK</th><th style="width:18%">Duração (min)</th><th>Materiais / Observações</th></tr>
+    ${tarefas.map(t=>`<tr>
+      <td>${t}</td>
+      <td style="text-align:center"><span class="cb"></span></td>
+      <td style="text-align:center"><span class="cb"></span></td>
+      <td></td><td></td>
+    </tr>`).join('')}
+  </table>`).join('')}
+  <div style="display:flex;justify-content:space-between;margin-top:15px">
+    <div><div class="assinatura">Assinatura do Manutentor</div></div>
+    <div><div class="assinatura">Aprovação do Supervisor</div></div>
+    <div><div class="assinatura">Revisão Próxima</div></div>
+  </div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// INICIALIZAÇÃO — roda quando a página carrega
+// VER DETALHE (modal)
+// ══════════════════════════════════════════════════════════════════════
+function verDet(id,tipo) {
+  const item=tipo==='os'
+    ?db.ordens.find(o=>String(o.id)===String(id))
+    :db.planejadas.find(p=>String(p.id)===String(id));
+  if(!item)return;
+  document.getElementById('md-n').textContent=item.numero;
+  document.getElementById('md-t').textContent=`${item.sala} · ${item.maq}`;
+  let rows=`
+    <div class="dr"><span class="dl">Sala</span><span class="dv">${item.sala}</span></div>
+    <div class="dr"><span class="dl">Máquina</span><span class="dv">${item.maq}</span></div>
+    <div class="dr"><span class="dl">Tipo</span><span class="dv">${tipoBadge(item.tipo)}</span></div>
+    <div class="dr"><span class="dl">Prioridade</span><span class="dv">${prio(item.prioridade)}</span></div>`;
+  const waEl=document.getElementById('md-wa'),waBtn=document.getElementById('md-wa-btn');
+  if(tipo==='os'){
+    rows+=`
+      <div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>
+      <div class="dr"><span class="dl">Data</span><span class="dv">${fd(item.data)}</span></div>
+      <div class="dr"><span class="dl">Horário</span><span class="dv">${item.ini||'—'} – ${item.fim||'—'}${item.durMin?' ('+item.durMin+'min)':''}</span></div>
+      ${item.paradaMin?`<div class="dr"><span class="dl">Tempo de Parada</span><span class="dv">${item.paradaMin}min</span></div>`:''}
+      <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
+      <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
+      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
+    const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
+    waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
+  } else {
+    rows+=`
+      <div class="dr"><span class="dl">Prazo</span><span class="dv">${fd(item.prazo)}</span></div>
+      <div class="dr"><span class="dl">Status</span><span class="dv">${stBadge(item.status)}</span></div>
+      <div class="dr"><span class="dl">Serviço Planejado</span><span class="dv">${item.desc||'—'}</span></div>
+      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>`:''}
+      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}`;
+    waEl.style.display='none';waBtn.style.display='none';
+  }
+  document.getElementById('md-b').innerHTML=rows;openM('m-det');
+}
+function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>alert('Copiado!'));}
+
+// ══════════════════════════════════════════════════════════════════════
+// MODAIS
+// ══════════════════════════════════════════════════════════════════════
+function openM(id){document.getElementById(id).classList.add('on');}
+function closeM(id){document.getElementById(id).classList.remove('on');}
+document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',e=>{if(e.target===b)b.classList.remove('on');}));
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('login-screen').style.display!=='none'){
+    if(document.getElementById('lf-login').style.display!=='none')doLogin();
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// EXPORTAR DADOS DO HTML PARA O SHEETS (migração inicial)
+// ══════════════════════════════════════════════════════════════════════
+window.exportarParaSheets = async function() {
+  console.log('📤 Exportando dados do HTML para o Google Sheets...');
+  const r = await apiPost({
+    action: 'importarTodos',
+    payload: {
+      salas:    db.salas,
+      maquinas: db.maquinas,
+      usuarios: db.users
+    }
+  });
+  if (r && r.ok) {
+    console.log('✅ Exportação concluída:', r.log.join(', '));
+    alert('✅ Dados exportados!\n' + r.log.join('\n'));
+  } else {
+    console.error('❌ Erro na exportação:', r);
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// DIAGNÓSTICO (Console do navegador)
+// ══════════════════════════════════════════════════════════════════════
+window.testarAPI = async function() {
+  console.log('🔍 Testando API...\n  URL:', API_URL);
+  const r = await apiGet({action:'ping'});
+  if(r&&r.ok) console.log('✅ API online!', r);
+  else console.error('❌ API offline:', r);
+};
+window.testarGravacao = async function() {
+  console.log('🔍 Testando gravação...');
+  const r = await apiAppend('ordens',{
+    OS_Numero:'OS-TESTE',Data:today(),Sala:'TESTE',Maquina:'TESTE',
+    Tipo:'Corretiva',Prioridade:'Média',Manutentor:'Teste',
+    Hora_Inicio:'08:00',Hora_Fim:'08:05',Duracao_Min:5,Tempo_Parada_Min:5,
+    Problema:'Teste',Acao_Executada:'Teste',Origem:'teste',OS_Origem_Ref:'',Criado_Em:new Date().toISOString()
+  });
+  if(r&&r.ok) console.log('✅ Gravação OK! Verifique a aba Ordens_Executadas.');
+  else console.error('❌ Erro:', r);
+};
+window.verDB = function(){console.log('📊 DB:',db);};
+window.verSessao = function(){console.log('👤 Sessão:',localStorage.getItem('sigman_sess'));};
+
+// ══════════════════════════════════════════════════════════════════════
+// INICIALIZAÇÃO
 // ══════════════════════════════════════════════════════════════════════
 async function init() {
-  // O loading-screen já está visível (display:flex no HTML).
-  // Só revelamos o app ou o login DEPOIS de tudo pronto.
-
-  // 1. Tema
   loadTheme();
-
-  // 2. Dados locais (base rápida, evita tela em branco)
   loadDB();
 
-  // 3. Se há sessão guardada, tenta login rápido com dados locais
-  //    para evitar tela de login piscando
+  // Se tem sessão salva, entra direto com dados locais (rápido, sem esperar Sheets)
   const sess = localStorage.getItem('sigman_sess');
   if (sess) {
     try {
@@ -2796,105 +2630,32 @@ async function init() {
       const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
       if (u) {
         CU = u;
-        // Entra no app imediatamente com dados locais
-        enterApp();
-        // Depois atualiza os dados do Sheets em segundo plano
+        enterApp(); // entra imediatamente
+        // Atualiza Sheets em segundo plano
         if (USE_API) {
-          apiLoadAll().then(() => {
-            // Re-renderiza página atual com dados frescos do Sheets
-            const pid = document.querySelector('.nv-item.act');
-            if (pid) {
-              const page = pid.getAttribute('data-page');
-              if (page) showPage(page);
-            }
+          apiLoadAll(true).then(()=>{
             updStats();
-          }).catch(e => console.warn('[SIGMAN] Atualização em background falhou:', e.message));
+            const act=document.querySelector('.nv-item.act');
+            if(act)showPage(act.getAttribute('data-page'));
+          }).catch(()=>{});
         }
-        // Esconde o spinner
-        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('loading-screen').style.display='none';
         return;
       }
     } catch(e) {}
-    // Sessão inválida
     localStorage.removeItem('sigman_sess');
   }
 
-  // 4. Sem sessão válida local → carrega Sheets antes de mostrar login
-  //    (para ter lista de usuários atualizada ao fazer login)
+  // Sem sessão: carrega Sheets antes de mostrar login (para ter usuários atualizados)
   if (USE_API) {
-    try {
-      await apiLoadAll();
-    } catch(e) {
-      console.warn('[SIGMAN] Sheets indisponível, usando dados locais:', e.message);
-    }
+    try { await apiLoadAll(); } catch(e) {}
   }
 
-  // 5. Datas padrão
-  sv('ab-dt', today());
-  sv('mc-dt', today());
-  sv('insp-dt', today());
-
-  // 6. Esconde spinner, mostra login
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  sv('ab-dt',today()); sv('mc-dt',today()); sv('insp-dt',today());
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
 }
 
-
-// ══════════════════════════════════════════════════════════════════════
-// DIAGNÓSTICO — funções acessíveis pelo Console do navegador (F12)
-// Use: testarAPI()  para testar a conexão com o Sheets
-// Use: testarGravacao() para testar uma gravação real
-// ══════════════════════════════════════════════════════════════════════
-window.testarAPI = async function() {
-  console.log('🔍 Testando conexão com o Google Sheets...');
-  console.log('   URL:', API_URL);
-  try {
-    const res  = await fetch(API_URL + '?action=ping');
-    const json = await res.json();
-    if (json.ok) {
-      console.log('✅ API respondeu com sucesso!', json);
-    } else {
-      console.error('❌ API retornou erro:', json);
-    }
-  } catch(e) {
-    console.error('❌ Não foi possível acessar a API:', e.message);
-    console.error('   Possíveis causas:');
-    console.error('   1. URL do Apps Script incorreta');
-    console.error('   2. Apps Script não publicado como "Qualquer pessoa"');
-    console.error('   3. Bloqueio CORS — verifique se o Apps Script retorna ContentService.MimeType.JSON');
-  }
-};
-
-window.testarGravacao = async function() {
-  console.log('🔍 Testando gravação no Sheets (aba Ordens_Executadas)...');
-  const linha = {
-    OS_Numero: 'OS-TESTE',
-    Data: new Date().toISOString().slice(0,10),
-    Sala: 'TESTE', Maquina: 'TESTE', Tipo: 'Corretiva',
-    Prioridade: 'Baixa', Manutentor: 'Teste Automatico',
-    Hora_Inicio: '08:00', Hora_Fim: '08:05', Duracao_Min: 5,
-    Problema: 'Teste de gravacao', Acao_Executada: 'Teste de gravacao',
-    Origem: 'teste', OS_Origem_Ref: '', Criado_Em: new Date().toISOString()
-  };
-  const resultado = await apiAppend('ordens', linha);
-  if (resultado && resultado.ok) {
-    console.log('✅ Gravação OK! Verifique a aba Ordens_Executadas na planilha.');
-  } else {
-    console.error('❌ Falha na gravação:', resultado);
-  }
-};
-
-window.verEstadoAPI = function() {
-  console.log('📊 Estado atual do SIGMAN:');
-  console.log('   USE_API:', USE_API);
-  console.log('   API_URL:', API_URL);
-  console.log('   OS em memória:', db.ordens.length);
-  console.log('   Planejadas em memória:', db.planejadas.length);
-  console.log('   Solicitações em memória:', db.solicitacoes.length);
-  console.log('   Usuário logado:', CU ? CU.nome + ' (' + CU.tipo + ')' : 'nenhum');
-};
-
-// Inicia o app
 init();
 </script>
 </body>
