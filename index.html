@@ -583,45 +583,28 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    </div>
 
    <!-- ATIVOS -->
-   <div class="pg" id="pg-ativos">
-    <div class="ph"><div class="pt"><small>Cadastro</small>Ativos</div></div>
-    <div class="two-col">
-     <div>
-      <div class="card">
-       <div class="card-t">Nova Sala / Local</div>
-       <div class="fg"><label>Nome da Sala</label><input type="text" id="at-sn" placeholder="Ex: Carne Moída"></div>
-       <button class="btn btn-p btn-sm" onclick="addSala()">+ Adicionar</button>
-      </div>
-      <div class="card"><div class="card-t">Salas Cadastradas</div><div id="at-sl"></div></div>
-     </div>
-     <div>
-      <div class="card">
-       <div class="card-t">Nova Máquina / Ativo</div>
-       <div class="fg"><label>Sala</label><select id="at-ms"><option value="">Selecione...</option></select></div>
-       <div class="fg"><label>Nome da Máquina</label><input type="text" id="at-mn" placeholder="Ex: Cubadora"></div>
-       <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
-       <div class="fg"><label>Criticidade</label>
-        <select id="at-mc">
-         <option value="1">1 – Crítico</option>
-         <option value="2">2 – Alta</option>
-         <option value="3" selected>3 – Média</option>
-         <option value="4">4 – Baixa</option>
-        </select>
-       </div>
-       <div class="fg"><label>Periodicidade Preventiva</label>
-        <select id="at-mp">
-         <option>Diária</option><option>Semanal</option>
-         <option selected>Mensal</option><option>Trimestral</option>
-         <option>Semestral</option><option>Anual</option>
-        </select>
-       </div>
-       <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
-      </div>
-      <div class="card"><div class="card-t">Máquinas Cadastradas</div><div id="at-ml"></div></div>
-     </div>
-    </div>
+<div class="pg" id="pg-ativos">
+ <div class="ph"><div class="pt"><small>Cadastro</small>Ativos</div></div>
+ <div class="card">
+  <div class="card-t">Filtrar por Sala</div>
+  <div class="fg-row">
+   <div class="fg">
+    <label>Sala</label>
+    <select id="at-filtro-sala" onchange="renderAtivos()">
+     <option value="">Todas as Salas</option>
+    </select>
    </div>
-
+  </div>
+ </div>
+ <div class="card">
+  <div class="card-t">Máquinas / Ativos</div>
+  <div id="at-ml"></div>
+ </div>
+ <div class="card" style="margin-top:10px">
+  <div class="card-t">Distribuição por Criticidade</div>
+  <div id="at-crit-chart"></div>
+ </div>
+</div>
 
    <!-- PÁGINA: USUÁRIOS (admin only) -->
    <div class="pg" id="pg-usuarios">
@@ -629,8 +612,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
     <div class="alert" id="al-usr"></div>
     <div class="card">
      <div class="card-t" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>
-      <button class="btn btn-sm btn-p" onclick="showRegModal()">+ Novo Usuário</button>
+      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>      
      </div>
      <div id="pg-ul"></div>
     </div>
@@ -746,28 +728,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
   <button class="btn btn-p" onclick="salvarEdit()">Salvar</button>
  </div>
 </div></div>
-
-<!-- MODAL NOVO USUÁRIO (admin) -->
-<div class="mb" id="m-usr"><div class="modal" style="max-width:420px">
- <div class="mhd"><div class="mtit" id="mu-t">Novo Usuário</div><button class="mcl" onclick="closeM('m-usr')">×</button></div>
- <div class="lalert" id="mu-alert"></div>
- <div class="fg"><label>Nome Completo</label><input type="text" id="mu-nome" placeholder="Nome"></div>
- <div class="fg"><label>Login</label><input type="text" id="mu-user" placeholder="Login de acesso"></div>
- <div class="fg"><label>Senha</label><input type="password" id="mu-pass" placeholder="Senha"></div>
- <div class="fg"><label>Tipo de Acesso</label>
-  <select id="mu-tipo">
-   <option value="administracao">Administração</option>
-   <option value="manutencao">Manutenção</option>
-   <option value="producao">Produção</option>
-  </select>
- </div>
- <input type="hidden" id="mu-idx" value="">
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('m-usr')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarUsuario()">Salvar</button>
- </div>
-</div></div>
-
 
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -2192,46 +2152,49 @@ function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-
 let _editType=null,_editIdx=null;
 
 function renderAtivos() {
-  populateAtMaqSala();
+  // Popula o select de filtro por sala
+  const filtroEl = document.getElementById('at-filtro-sala');
+  if (filtroEl) {
+    const salaSel = filtroEl.value;
+    filtroEl.innerHTML = '<option value="">Todas as Salas</option>' +
+      [...db.salas].sort().map(s => `<option value="${s}"${s===salaSel?' selected':''}>${s}</option>`).join('');
+  }
 
-  // Salas em ordem alfabética
-  document.getElementById('at-sl').innerHTML = db.salas.length===0
-    ? '<div class="empty"><p>Nenhuma sala.</p></div>'
-    : [...db.salas].sort().map((s,i)=>`
-        <div class="edit-row">
-          <span style="font-size:13px;font-weight:500">${s}</span>
-          <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
-            <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
-          </div>
-        </div>`).join('');
+  // Filtra as máquinas pela sala selecionada
+  const salaSel = filtroEl ? filtroEl.value : '';
+  const maqFiltradas = salaSel
+    ? db.maquinas.filter(m => m.sala === salaSel)
+    : db.maquinas;
 
-  // Máquinas agrupadas por sala e em ordem alfabética
+  // Agrupa por sala
   const bySala = {};
-  [...db.maquinas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
+  [...maqFiltradas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
     if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
   });
-  document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
-    <div style="margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
-      ${bySala[sala].map((m,_i)=>{
-        const gi=db.maquinas.indexOf(m);
-        const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
-        return `<div class="edit-row">
-          <div>
-            <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
-            <div style="font-size:11px;color:var(--txt3)">
-              Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
-              Preventiva: ${m.periodicidade||'—'}
+
+  document.getElementById('at-ml').innerHTML = Object.keys(bySala).length === 0
+    ? '<div class="empty"><p>Nenhum ativo encontrado.</p></div>'
+    : Object.keys(bySala).sort().map(sala=>`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
+        ${bySala[sala].map(m=>{
+          const gi=db.maquinas.indexOf(m);
+          const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
+          return `<div class="edit-row">
+            <div>
+              <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+              <div style="font-size:11px;color:var(--txt3)">
+                Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
+                Preventiva: ${m.periodicidade||'—'}
+              </div>
             </div>
-          </div>
-          <div class="edit-acts">
             <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
-            <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+
+  renderCritChart();
+}
 
   // Gráfico de criticidade
   renderCritChart();
