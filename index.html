@@ -630,7 +630,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
     <div class="card">
      <div class="card-t" style="justify-content:space-between">
       <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>
-      <button class="btn btn-sm btn-p" onclick="showRegModal()">+ Novo Usuário</button>
      </div>
      <div id="pg-ul"></div>
     </div>
@@ -747,32 +746,9 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
  </div>
 </div></div>
 
-<!-- MODAL NOVO USUÁRIO (admin) -->
-<div class="mb" id="m-usr"><div class="modal" style="max-width:420px">
- <div class="mhd"><div class="mtit" id="mu-t">Novo Usuário</div><button class="mcl" onclick="closeM('m-usr')">×</button></div>
- <div class="lalert" id="mu-alert"></div>
- <div class="fg"><label>Nome Completo</label><input type="text" id="mu-nome" placeholder="Nome"></div>
- <div class="fg"><label>Login</label><input type="text" id="mu-user" placeholder="Login de acesso"></div>
- <div class="fg"><label>Senha</label><input type="password" id="mu-pass" placeholder="Senha"></div>
- <div class="fg"><label>Tipo de Acesso</label>
-  <select id="mu-tipo">
-   <option value="administracao">Administração</option>
-   <option value="manutencao">Manutenção</option>
-   <option value="producao">Produção</option>
-  </select>
- </div>
- <input type="hidden" id="mu-idx" value="">
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('m-usr')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarUsuario()">Salvar</button>
- </div>
-</div></div>
-
-
-<script>
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  SIGMAN Enterprise — JavaScript v4                               ║
-// ║  Muffato Foods · PCM · OEE · TPM                                ║
+// ║  Muffato Foods · PCM · OEE · TPM                                 ║
 // ╠══════════════════════════════════════════════════════════════════╣
 // ║  CONFIGURAÇÃO — altere apenas estas linhas                       ║
 // ╚══════════════════════════════════════════════════════════════════╝
