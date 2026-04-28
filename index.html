@@ -2146,7 +2146,7 @@ function navInspRel(idx){
 }
 function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent||'').then(()=>alert('Copiado!'));}
 
-// ══════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
 // ATIVOS
 // ══════════════════════════════════════════════════════════════════════
 let _editType=null,_editIdx=null;
@@ -2193,70 +2193,20 @@ function renderAtivos() {
       }).join('')}
     </div>`).join('');
 
-  // Filtro por sala — popula o select e lê seleção atual
-  const filtroEl = document.getElementById('at-filtro-sala');
-  if (filtroEl) {
-    const salaSel = filtroEl.value;
-    filtroEl.innerHTML = '<option value="">Todas as Salas</option>' +
-      [...db.salas].sort().map(s =>
-        `<option value="${s}"${s === salaSel ? ' selected' : ''}>${s}</option>`
-      ).join('');
-    filtroEl.value = salaSel; // restaura seleção após rebuild
-  }
-  const salaSel = filtroEl ? filtroEl.value : '';
-
-  // Filtra e agrupa máquinas
-  const maqFiltradas = salaSel
-    ? db.maquinas.filter(m => m.sala === salaSel)
-    : db.maquinas;
-
-  const bySala = {};
-  [...maqFiltradas].sort((a, b) => (a.sala + a.nome).localeCompare(b.sala + b.nome)).forEach(m => {
-    if (!bySala[m.sala]) bySala[m.sala] = [];
-    bySala[m.sala].push(m);
-  });
-
-  document.getElementById('at-ml').innerHTML = Object.keys(bySala).length === 0
-    ? '<div class="empty"><p>Nenhum ativo encontrado.</p></div>'
-    : Object.keys(bySala).sort().map(sala => `
-      <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
-        ${bySala[sala].map(m => {
-          const gi = db.maquinas.indexOf(m);
-          const critColor = {Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade] || 'var(--txt3)';
-          return `<div class="edit-row">
-            <div>
-              <div style="font-size:13px;font-weight:500">${m.nome}${m.tag ? ` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>` : ''}</div>
-              <div style="font-size:11px;color:var(--txt3)">
-                Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade || '—'}</span> |
-                Preventiva: ${m.periodicidade || '—'}
-              </div>
-            </div>
-            <div class="edit-acts">
-              <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
-              <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`).join('');
-
+  // Gráfico de criticidade
   renderCritChart();
 }
 
 function renderCritChart() {
   const cont = document.getElementById('at-crit-chart');
   if (!cont) return;
-  const counts = {'1':0,'2':0,'3':0,'4':0,'Outros':0};
+  const counts = {Alta:0, Média:0, Baixa:0, 'Sem info':0};
   db.maquinas.forEach(m => {
-    const k = m.criticidade;
-    // compatibilidade com legado
-    const mapped = {Alta:'2',Média:'3',Baixa:'4'}[k] || k;
-    if (counts[mapped] !== undefined) counts[mapped]++;
-    else counts['Outros']++;
+    const k = m.criticidade && counts[m.criticidade] !== undefined ? m.criticidade : 'Sem info';
+    counts[k]++;
   });
   const total = db.maquinas.length || 1;
-  const colors = {'1':'#ff2244','2':'#C41230','3':'#f59e0b','4':'#1fd988','Outros':'#6b7aa0'};
-  const labels = {'1':'1-Crítico','2':'2-Alta','3':'3-Média','4':'4-Baixa','Outros':'Outros'};
+  const colors = {Alta:'#C41230',Média:'#f59e0b',Baixa:'#1fd988','Sem info':'#6b7aa0'};
   cont.innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;gap:4px;height:36px;border-radius:8px;overflow:hidden;min-width:200px;flex:1">
@@ -2269,7 +2219,7 @@ function renderCritChart() {
         ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:12px">
             <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-            <span>${labels[k]||k}: <strong>${n}</strong></span>
+            <span>${k}: <strong>${n}</strong></span>
           </div>`).join('')}
       </div>
     </div>`;
@@ -2327,10 +2277,9 @@ function openEdit(type,idx) {
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
       <div class="fg"><label>Criticidade</label>
         <select id="me-crit">
-          <option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option>
-          <option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option>
-          <option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option>
-          <option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option>
+          <option${m.criticidade==='Alta'?' selected':''}>Alta</option>
+          <option${m.criticidade==='Média'?' selected':''}>Média</option>
+          <option${m.criticidade==='Baixa'?' selected':''}>Baixa</option>
         </select>
       </div>
       <div class="fg"><label>Periodicidade Preventiva</label>
