@@ -883,12 +883,11 @@ let db = {
 const ROLES = {
   administracao: {
     label: 'Administração',
-    menus: ['dashboard','planejadas','executadas','abertura','pcm',
-            'solicitacao','ativos','usuarios']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao', 'pcm', 'solicitacao','ativos','usuarios']
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','pcm','solicitacao']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao','solicitacao']
   },
   producao: {
     label: 'Produção',
@@ -1261,11 +1260,11 @@ const NAV = [
   { id:'planejadas',     ic:'📅', lbl:'O.S. Planejadas',  dot:true },
   { id:'executadas',     ic:'✅', lbl:'O.S. Executadas'       },
   { id:'abertura',       ic:'🔧', lbl:'Abertura de O.S.'      },
+  { id:'inspecao',     ic:'🔍', lbl:'Inspeção Diária'     },
   { id:'pcm', ic:'📋', lbl:'PCM', sub:[
       { id:'planejamento', ic:'📋', lbl:'Planejamento de O.S.' },
-      { id:'inspecao',     ic:'🔍', lbl:'Inspeção de Rota'     },
-      { id:'preventiva',   ic:'🔩', lbl:'Manutenção Preventiva'},
-      { id:'inspecao-tmpl',ic:'📄', lbl:'Templates Inspeção'   },
+      { id:'inspecao-tmpl',ic:'📄', lbl:'Inspeção de Rota'   },
+      { id:'preventiva',   ic:'🔩', lbl:'Manutenção Preventiva'},      
     ]
   },
   { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.', dot:true },
