@@ -2152,48 +2152,67 @@ function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-
 let _editType=null,_editIdx=null;
 
 function renderAtivos() {
-  // Popula o select de filtro por sala
+  populateAtMaqSala();
+
+  // Salas em ordem alfabética
+  document.getElementById('at-sl').innerHTML = db.salas.length === 0
+    ? '<div class="empty"><p>Nenhuma sala.</p></div>'
+    : [...db.salas].sort().map((s, i) => `
+        <div class="edit-row">
+          <span style="font-size:13px;font-weight:500">${s}</span>
+          <div class="edit-acts">
+            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
+            <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
+          </div>
+        </div>`).join('');
+
+  // Filtro por sala — popula o select e lê seleção atual
   const filtroEl = document.getElementById('at-filtro-sala');
   if (filtroEl) {
     const salaSel = filtroEl.value;
     filtroEl.innerHTML = '<option value="">Todas as Salas</option>' +
-      [...db.salas].sort().map(s => `<option value="${s}"${s===salaSel?' selected':''}>${s}</option>`).join('');
+      [...db.salas].sort().map(s =>
+        `<option value="${s}"${s === salaSel ? ' selected' : ''}>${s}</option>`
+      ).join('');
+    filtroEl.value = salaSel; // restaura seleção após rebuild
   }
-
-  // Filtra as máquinas pela sala selecionada
   const salaSel = filtroEl ? filtroEl.value : '';
+
+  // Filtra e agrupa máquinas
   const maqFiltradas = salaSel
     ? db.maquinas.filter(m => m.sala === salaSel)
     : db.maquinas;
 
-  // Agrupa por sala
   const bySala = {};
-  [...maqFiltradas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
-    if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
+  [...maqFiltradas].sort((a, b) => (a.sala + a.nome).localeCompare(b.sala + b.nome)).forEach(m => {
+    if (!bySala[m.sala]) bySala[m.sala] = [];
+    bySala[m.sala].push(m);
   });
 
   document.getElementById('at-ml').innerHTML = Object.keys(bySala).length === 0
     ? '<div class="empty"><p>Nenhum ativo encontrado.</p></div>'
-    : Object.keys(bySala).sort().map(sala=>`
+    : Object.keys(bySala).sort().map(sala => `
       <div style="margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
-        ${bySala[sala].map(m=>{
-          const gi=db.maquinas.indexOf(m);
-          const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
+        ${bySala[sala].map(m => {
+          const gi = db.maquinas.indexOf(m);
+          const critColor = {Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade] || 'var(--txt3)';
           return `<div class="edit-row">
             <div>
-              <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+              <div style="font-size:13px;font-weight:500">${m.nome}${m.tag ? ` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>` : ''}</div>
               <div style="font-size:11px;color:var(--txt3)">
-                Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
-                Preventiva: ${m.periodicidade||'—'}
+                Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade || '—'}</span> |
+                Preventiva: ${m.periodicidade || '—'}
               </div>
             </div>
-            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
+            <div class="edit-acts">
+              <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
+              <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
+            </div>
           </div>`;
         }).join('')}
       </div>`).join('');
 
-  // Gráfico de criticidade
   renderCritChart();
 }
 
