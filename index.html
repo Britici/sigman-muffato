@@ -2151,13 +2151,18 @@ function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-
 // ══════════════════════════════════════════════════════════════════════
 let _editType=null,_editIdx=null;
 
+// ══════════════════════════════════════════════════════════════════════
+// ATIVOS
+// ══════════════════════════════════════════════════════════════════════
+let _editType=null,_editIdx=null;
+
 function renderAtivos() {
   populateAtMaqSala();
 
   // Salas em ordem alfabética
-  document.getElementById('at-sl').innerHTML = db.salas.length === 0
+  document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
-    : [...db.salas].sort().map((s, i) => `
+    : [...db.salas].sort().map((s,i)=>`
         <div class="edit-row">
           <span style="font-size:13px;font-weight:500">${s}</span>
           <div class="edit-acts">
@@ -2165,6 +2170,37 @@ function renderAtivos() {
             <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
           </div>
         </div>`).join('');
+
+  // Máquinas agrupadas por sala e em ordem alfabética
+  const bySala = {};
+  [...db.maquinas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
+    if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
+  });
+  document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
+      ${bySala[sala].map((m,_i)=>{
+        const gi=db.maquinas.indexOf(m);
+        const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
+        return `<div class="edit-row">
+          <div>
+            <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+            <div style="font-size:11px;color:var(--txt3)">
+              Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
+              Preventiva: ${m.periodicidade||'—'}
+            </div>
+          </div>
+          <div class="edit-acts">
+            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
+            <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  // Gráfico de criticidade
+  renderCritChart();
+}
 
   // Filtro por sala — popula o select e lê seleção atual
   const filtroEl = document.getElementById('at-filtro-sala');
