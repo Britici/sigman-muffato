@@ -188,12 +188,43 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .b-alt{background:rgba(196,18,48,.13);color:#ff5570}
 .b-med{background:rgba(245,158,11,.13);color:var(--org)}
 .b-bai{background:rgba(31,217,136,.13);color:var(--grn)}
+/* Criticidade / Prioridade numérica 1-4 */
+.b-c1{background:rgba(196,18,48,.22);color:#ff2244;border:1px solid rgba(196,18,48,.4)}
+.b-c2{background:rgba(196,18,48,.13);color:#ff5570}
+.b-c3{background:rgba(245,158,11,.13);color:var(--org)}
+.b-c4{background:rgba(31,217,136,.13);color:var(--grn)}
 .b-adm{background:rgba(196,18,48,.12);color:#ff4d65}
 .b-man{background:rgba(64,150,255,.12);color:var(--blu)}
 .b-pro{background:rgba(31,217,136,.12);color:var(--grn)}
 
 .pdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
 .d-u{background:#ff2244}.d-a{background:#ff5570}.d-m{background:var(--org)}.d-b{background:var(--grn)}
+.d-1{background:#ff2244}.d-2{background:#ff5570}.d-3{background:var(--org)}.d-4{background:var(--grn)}
+/* Nav status dots */
+.nv-dot{width:9px;height:9px;border-radius:50%;position:absolute;right:10px;top:50%;transform:translateY(-50%);flex-shrink:0}
+.nv-dot.nd-grn{background:var(--grn)}
+.nv-dot.nd-org{background:var(--org);animation:navblink .9s ease-in-out infinite}
+.nv-dot.nd-red{background:#ff2244;animation:navblink .7s ease-in-out infinite}
+@keyframes navblink{0%,100%{opacity:1}50%{opacity:.2}}
+/* Nav submenu (PCM) */
+.nv-grp-hd{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--txt2);margin-bottom:2px;position:relative;width:100%}
+.nv-grp-hd:hover{background:var(--surf2);color:var(--txt)}
+.nv-grp-hd.act{color:var(--red)}
+.nv-grp-chev{margin-left:auto;font-size:10px;transition:transform .2s;padding-right:4px}
+.nv-grp-open .nv-grp-chev{transform:rotate(90deg)}
+.nv-sub-items{display:none;padding-left:8px}
+.nv-grp-open .nv-sub-items{display:block}
+.nv-sub-item{display:flex;align-items:center;gap:8px;padding:7px 10px 7px 28px;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--txt2);margin-bottom:1px;font-family:var(--fw);font-size:12px;font-weight:700;font-variant:small-caps;letter-spacing:.04em;position:relative}
+.nv-sub-item:hover{background:var(--surf2);color:var(--txt)}
+.nv-sub-item.act{background:rgba(196,18,48,.14);color:#ff3d5a}
+/* Photo upload */
+.photo-zone{border:2px dashed var(--bord2);border-radius:var(--r);padding:16px;text-align:center;cursor:pointer;transition:border-color .2s}
+.photo-zone:hover,.photo-zone.drag{border-color:var(--red)}
+.photo-thumb{max-width:120px;max-height:120px;border-radius:var(--rs);object-fit:cover;border:2px solid var(--bord)}
+/* Dashboard refresh bar */
+.dash-rf{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);margin-bottom:10px;font-size:12px;color:var(--txt3)}
+.rf-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:navblink 1.5s infinite}
+.rf-dot.off{background:var(--txt3);animation:none}
 
 /* ALERT */
 .alert{border-radius:var(--rs);padding:10px 14px;font-size:13px;margin-bottom:12px;font-weight:500;display:none}
@@ -381,6 +412,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <!-- DASHBOARD -->
    <div class="pg" id="pg-dashboard">
     <div class="ph"><div class="pt"><small>Visão Geral</small>Dashboard</div></div>
+    <div class="dash-rf" id="dash-rf-bar">
+      <span class="rf-dot off" id="rf-dot"></span>
+      <span id="rf-lbl" style="flex:1">Auto-atualização desligada</span>
+      <button class="btn btn-sm btn-gh" onclick="renderDash()">🔄 Atualizar agora</button>
+      <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ Ligar 15s</button>
+    </div>
     <div class="stats" id="d-stats"></div>
     <div class="two-col">
      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
@@ -442,7 +479,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="ab-sl" onchange="fMaq('ab')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="ab-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Ação</label><select id="ab-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="ab-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico</option><option value="2">🟠 2 – Alta</option><option value="3">🟡 3 – Média</option><option value="4">🟢 4 – Baixa</option></select></div>
       <div class="fg"><label>Manutentor Responsável</label><input type="text" id="ab-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -459,6 +496,16 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="card-t">Descrição</div>
      <div class="fg"><label>Problema / Ocorrência</label><textarea id="ab-pb" placeholder="Descreva o problema..."></textarea></div>
      <div class="fg" style="margin-top:10px"><label>Ação / Serviço Executado</label><textarea id="ab-ac" placeholder="Descreva o serviço..."></textarea></div>
+     <div class="fg" style="margin-top:10px"><label>Ação Preventiva (opcional)</label><textarea id="ab-ap" placeholder="Descreva ação preventiva identificada..."></textarea></div>
+     <div class="fg" style="margin-top:10px">
+      <label>Foto da OS (opcional)</label>
+      <div class="photo-zone" id="ab-photo-zone" onclick="document.getElementById('ab-photo-input').click()">
+       <input type="file" id="ab-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+       <div id="ab-photo-preview" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>
+       </div>
+      </div>
+     </div>
     </div>
     <div class="fa">
      <button class="btn btn-gh" onclick="clearAb()">Limpar</button>
@@ -466,9 +513,9 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
     </div>
    </div>
 
-   <!-- PLANEJAMENTO OS -->
+   <!-- PLANEJAMENTO OS / PCM -->
    <div class="pg" id="pg-planejamento">
-    <div class="ph"><div class="pt"><small>Planejamento</small>Planejamento de O.S.</div></div>
+    <div class="ph"><div class="pt"><small>PCM</small>Planejamento de O.S.</div></div>
     <div class="alert" id="al-pl"></div>
     <div class="card">
      <div class="card-t">Nova O.S. Planejada</div>
@@ -476,7 +523,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="pl-sl" onchange="fMaq('pl')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="pl-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico</option><option value="2">🟠 2 – Alta</option><option value="3">🟡 3 – Média</option><option value="4">🟢 4 – Baixa</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
       <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="8" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
@@ -498,7 +545,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <div class="fg"><label>Sala / Local</label><select id="sol-sl" onchange="fMaq('sol')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="sol-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="Alta">🟠 Alta</option><option value="Média">🟡 Média</option><option value="Baixa">🟢 Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico</option><option value="2">🟠 2 – Alta</option><option value="3">🟡 3 – Média</option><option value="4">🟢 4 – Baixa</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
      </div>
      <div class="fa">
@@ -555,9 +602,10 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
        <div class="fg"><label>Criticidade</label>
         <select id="at-mc">
-         <option value="Alta">Alta</option>
-         <option value="Média" selected>Média</option>
-         <option value="Baixa">Baixa</option>
+         <option value="1">1 – Crítico</option>
+         <option value="2">2 – Alta</option>
+         <option value="3" selected>3 – Média</option>
+         <option value="4">4 – Baixa</option>
         </select>
        </div>
        <div class="fg"><label>Periodicidade Preventiva</label>
@@ -827,14 +875,14 @@ const INSP_TMPL = [
 let db = {
   salas:        ['CARNE MOÍDA','LÁCTEOS','EMBUTIDOS','FATIADOS','UTILIDADES','PIZZA','CÁRNEOS','DEFUMADO','BACALHAU','LINGUIÇA','SALMOURA','TEMPERADOS','PORCIONAMENTO','CORREDOR PORCIONAMENTO','DESOSSA'],
   maquinas:     [
-    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'Alta',  periodicidade:'Mensal'},
-    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'Alta',  periodicidade:'Mensal'},
-    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'Alta',  periodicidade:'Mensal'},
-    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'Alta',  periodicidade:'Semanal'},
-    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'Média', periodicidade:'Mensal'},
-    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'Média', periodicidade:'Mensal'},
-    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'Alta',  periodicidade:'Trimestral'},
-    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'Alta',  periodicidade:'Trimestral'}
+    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'2',  periodicidade:'Mensal'},
+    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'2',  periodicidade:'Mensal'},
+    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'2',  periodicidade:'Mensal'},
+    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'1',  periodicidade:'Semanal'},
+    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'3', periodicidade:'Mensal'},
+    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'3', periodicidade:'Mensal'},
+    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'2',  periodicidade:'Trimestral'},
+    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'2',  periodicidade:'Trimestral'}
   ],
   ordens:       [],
   planejadas:   [],
@@ -858,12 +906,12 @@ let db = {
 const ROLES = {
   administracao: {
     label: 'Administração',
-    menus: ['dashboard','planejadas','executadas','abertura','planejamento',
-            'solicitacao','inspecao','ativos','usuarios','inspecao-tmpl','preventiva']
+    menus: ['dashboard','planejadas','executadas','abertura','pcm',
+            'solicitacao','ativos','usuarios']
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','solicitacao','inspecao']
+    menus: ['dashboard','planejadas','executadas','abertura','pcm','solicitacao']
   },
   producao: {
     label: 'Produção',
@@ -873,6 +921,8 @@ const ROLES = {
 
 let CU = null; // usuário logado
 let _pollTimer = null; // timer de atualização automática
+let _dashTimer = null; // timer específico do dashboard (15s)
+let _dashAutoRf = false; // auto-refresh dashboard ativo?
 
 // ══════════════════════════════════════════════════════════════════════
 // API — comunicação com Google Sheets
@@ -967,6 +1017,8 @@ async function apiLoadAll(silent = false) {
       paradaMin:   Number(r.Tempo_Parada_Min) || 0,
       prob:        normStr(r.Problema),
       acao:        normStr(r.Acao_Executada),
+      acaoPrev:    normStr(r.Acao_Preventiva||''),
+      fotoUrl:     normStr(r.Foto_URL||''),
       origem:      normStr(r.Origem),
       origemNum:   normStr(r.OS_Origem_Ref),
       criadoEm:    normStr(r.Criado_Em)
@@ -1049,7 +1101,7 @@ async function apiLoadAll(silent = false) {
   // Usuários — merge: Sheets tem nome/tipo, localStorage tem senhas
   const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
   if (d.usuarios && d.usuarios.length) {
-    db.usuarios = d.usuarios
+    db.users = d.usuarios
       .filter(r => r.Login && r.Ativo !== 'nao')
       .map(r => {
         const loc = localUsers.find(u => u.login === r.Login);
@@ -1057,10 +1109,10 @@ async function apiLoadAll(silent = false) {
       });
     // Adiciona usuários locais que ainda não foram ao Sheets
     localUsers.forEach(lu => {
-      if (!db.usuarios.find(u => u.login === lu.login)) db.usuarios.push(lu);
+      if (!db.users.find(u => u.login === lu.login)) db.users.push(lu);
     });
   } else if (localUsers.length) {
-    db.usuarios = localUsers;
+    db.users = localUsers;
   }
 
   // Ativos (Salas e Máquinas separados)
@@ -1072,7 +1124,7 @@ async function apiLoadAll(silent = false) {
   if (d.maquinas && d.maquinas.length) {
     d.maquinas.filter(r => r.Ativo !== 'nao').forEach(r => {
       const m = { nome: normStr(r.Nome), sala: normStr(r.Sala), tag: normStr(r.Tag),
-                  criticidade: normStr(r.Criticidade) || 'Média',
+                  criticidade: normStr(r.Criticidade) || '3',
                   periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal' };
       if (!db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala)) db.maquinas.push(m);
     });
@@ -1099,7 +1151,7 @@ function saveDB() {
       solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,
       osC: db.osC, plC: db.plC, solC: db.solC, inspC: db.inspC
     }));
-    localStorage.setItem('sigman_users', JSON.stringify(db.usuarios));
+    localStorage.setItem('sigman_users', JSON.stringify(db.users));
   } catch(e) {}
 }
 
@@ -1108,7 +1160,7 @@ function loadDB() {
     const r = localStorage.getItem('sigman_v4');
     if (r) Object.assign(db, JSON.parse(r));
     const u = localStorage.getItem('sigman_users');
-    if (u) db.usuarios = JSON.parse(u);
+    if (u) db.users = JSON.parse(u);
   } catch(e) {}
 }
 
@@ -1129,8 +1181,8 @@ async function doLogin() {
       localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
       // Atualiza lista local
       const idx = db.usuarios.findIndex(u => u.login === login);
-      if (idx >= 0) db.usuarios[idx] = { ...db.usuarios[idx], ...CU };
-      else db.usuarios.push(CU);
+      if (idx >= 0) db.users[idx] = { ...db.users[idx], ...CU };
+      else db.users.push(CU);
       saveDB();
       enterApp();
       return;
@@ -1140,7 +1192,7 @@ async function doLogin() {
   }
 
   // Login local (fallback ou offline)
-  const user = db.usuarios.find(x => x.login === login && x.senha === senha);
+  const user = db.users.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
@@ -1152,7 +1204,7 @@ function tryAuto() {
   if (!raw) return false;
   try {
     const s = JSON.parse(raw);
-    const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+    const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
     if (u) { CU = u; return true; }
   } catch(e) {}
   localStorage.removeItem('sigman_sess');
@@ -1161,6 +1213,7 @@ function tryAuto() {
 
 function doLogout() {
   clearInterval(_pollTimer);
+  clearInterval(_dashTimer);
   localStorage.removeItem('sigman_sess');
   CU = null;
   document.getElementById('app').classList.remove('on');
@@ -1195,8 +1248,11 @@ function enterApp() {
 
   buildNav();
   populateAll();
-  showPage(ROLES[CU.tipo].menus[0]);
+  // Primeiro menu disponível - para PCM vai para planejamento
+  const firstMenu = ROLES[CU.tipo].menus[0];
+  showPage(firstMenu === 'pcm' ? 'planejamento' : firstMenu);
   updStats();
+  updateNavDots();
 
   // Pré-preenche manutentor
   if (CU.tipo !== 'producao') {
@@ -1212,9 +1268,10 @@ function enterApp() {
     _pollTimer = setInterval(async () => {
       await apiLoadAll(true); // silencioso
       // Atualiza página atual em background
-      const act = document.querySelector('.nv-item.act');
+      const act = document.querySelector('.nv-item.act, .nv-sub-item.act');
       if (act) showPage(act.getAttribute('data-page'));
       updStats();
+      updateNavDots();
     }, POLL_MS);
   }
 }
@@ -1224,50 +1281,111 @@ function enterApp() {
 // ══════════════════════════════════════════════════════════════════════
 const NAV = [
   { id:'dashboard',      ic:'📊', lbl:'Dashboard'             },
-  { id:'planejadas',     ic:'📅', lbl:'O.S. Planejadas'       },
+  { id:'planejadas',     ic:'📅', lbl:'O.S. Planejadas',  dot:true },
   { id:'executadas',     ic:'✅', lbl:'O.S. Executadas'       },
   { id:'abertura',       ic:'🔧', lbl:'Abertura de O.S.'      },
-  { id:'planejamento',   ic:'📋', lbl:'Planejamento de O.S.'  },
-  { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.'   },
-  { id:'inspecao',       ic:'🔍', lbl:'Inspeção Diária'       },
+  { id:'pcm', ic:'📋', lbl:'PCM', sub:[
+      { id:'planejamento', ic:'📋', lbl:'Planejamento de O.S.' },
+      { id:'inspecao',     ic:'🔍', lbl:'Inspeção de Rota'     },
+      { id:'preventiva',   ic:'🔩', lbl:'Manutenção Preventiva'},
+      { id:'inspecao-tmpl',ic:'📄', lbl:'Templates Inspeção'   },
+    ]
+  },
+  { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.', dot:true },
   { id:'ativos',         ic:'🏭', lbl:'Ativos'                },
   { id:'usuarios',       ic:'👥', lbl:'Usuários'              },
-  { id:'inspecao-tmpl',  ic:'📄', lbl:'Inspeção'              },
-  { id:'preventiva',     ic:'🔩', lbl:'Preventiva'            },
 ];
 
 const LBLS = {
   dashboard:'Dashboard', planejadas:'O.S. Planejadas', executadas:'O.S. Executadas',
-  abertura:'Abertura de O.S.', planejamento:'Planejamento de O.S.',
-  solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
-  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'Inspeção', preventiva:'Preventiva'
+  abertura:'Abertura de O.S.', planejamento:'PCM — Planejamento de O.S.',
+  solicitacao:'Solicitação de O.S.', inspecao:'PCM — Inspeção de Rota',
+  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'PCM — Templates de Inspeção',
+  preventiva:'PCM — Manutenção Preventiva'
 };
+
+let _pcmOpen = true; // PCM submenu aberto por padrão
 
 function buildNav() {
   const nav = document.getElementById('sb-nav');
   const ok  = ROLES[CU.tipo]?.menus || [];
   nav.innerHTML = '';
   NAV.filter(n => ok.includes(n.id)).forEach(n => {
-    const el = document.createElement('div');
-    el.className = 'nv-item';
-    el.setAttribute('data-page', n.id);
-    el.setAttribute('data-label', n.lbl);
-    el.onclick = () => { showPage(n.id); closeSB(); };
-    el.innerHTML = `<div class="nv-ic">${n.ic}</div><div class="nv-lbl sc">${n.lbl}</div>`;
-    nav.appendChild(el);
+    if (n.sub) {
+      // Submenu group
+      const grp = document.createElement('div');
+      grp.className = 'nv-grp' + (_pcmOpen ? ' nv-grp-open' : '');
+      grp.innerHTML = `<div class="nv-grp-hd" onclick="togglePCM(this)">
+        <div class="nv-ic">${n.ic}</div>
+        <div class="nv-lbl sc">${n.lbl}</div>
+        <span class="nv-grp-chev">▶</span>
+      </div>
+      <div class="nv-sub-items">
+        ${n.sub.map(s=>`
+          <div class="nv-sub-item" data-page="${s.id}" onclick="showPage('${s.id}');closeSB()">
+            <span>${s.ic}</span><span>${s.lbl}</span>
+          </div>`).join('')}
+      </div>`;
+      nav.appendChild(grp);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'nv-item';
+      el.setAttribute('data-page', n.id);
+      el.setAttribute('data-label', n.lbl);
+      el.onclick = () => { showPage(n.id); closeSB(); };
+      el.innerHTML = `<div class="nv-ic">${n.ic}</div><div class="nv-lbl sc">${n.lbl}</div>${n.dot?'<span class="nv-dot" id="dot-'+n.id+'"></span>':''}`;
+      nav.appendChild(el);
+    }
   });
+  updateNavDots();
+}
+
+function togglePCM(el) {
+  const grp = el.parentElement;
+  grp.classList.toggle('nv-grp-open');
+  _pcmOpen = grp.classList.contains('nv-grp-open');
+}
+
+function updateNavDots() {
+  // Dot para O.S. Planejadas
+  const dotPl = document.getElementById('dot-planejadas');
+  if (dotPl) {
+    const atrasadas = db.planejadas.filter(p => p.status === 'Atrasada').length;
+    const abertas   = db.planejadas.filter(p => p.status !== 'Concluída' && p.status !== 'Executada').length;
+    const urgentes  = db.planejadas.filter(p => (p.prioridade === '1' || p.prioridade === 'Alta') && p.status !== 'Concluída').length;
+    if (atrasadas > 0 || urgentes > 0) { dotPl.className='nv-dot nd-red'; }
+    else if (abertas > 0)              { dotPl.className='nv-dot nd-org'; }
+    else                               { dotPl.className='nv-dot nd-grn'; }
+  }
+  // Dot para Solicitações
+  const dotSol = document.getElementById('dot-solicitacao');
+  if (dotSol) {
+    const urgSol = db.solicitacoes.filter(s => (s.prioridade==='1'||s.prioridade==='Alta') && s.status!=='Executada' && s.status!=='Concluída').length;
+    const pendSol = db.solicitacoes.filter(s => s.status==='Não Executada').length;
+    if (urgSol > 0)        { dotSol.className='nv-dot nd-red'; }
+    else if (pendSol > 0)  { dotSol.className='nv-dot nd-org'; }
+    else                   { dotSol.className='nv-dot nd-grn'; }
+  }
 }
 
 function showPage(pid) {
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nv-item').forEach(n => n.classList.remove('act'));
+  document.querySelectorAll('.nv-sub-item').forEach(n => n.classList.remove('act'));
   const pg = document.getElementById('pg-' + pid);
   if (pg) pg.classList.add('on');
   const ni = document.querySelector(`.nv-item[data-page="${pid}"]`);
   if (ni) ni.classList.add('act');
+  const si = document.querySelector(`.nv-sub-item[data-page="${pid}"]`);
+  if (si) si.classList.add('act');
   document.getElementById('tb-t').textContent = LBLS[pid] || '';
 
-  if (pid === 'dashboard')     renderDash();
+  // Dashboard: ligar/desligar timer 15s
+  clearInterval(_dashTimer);
+  if (pid === 'dashboard') {
+    renderDash();
+    if (_dashAutoRf) startDashTimer();
+  }
   if (pid === 'planejadas')    renderPlan();
   if (pid === 'executadas')    renderExec();
   if (pid === 'solicitacao')   renderSol();
@@ -1281,6 +1399,95 @@ function showPage(pid) {
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
   }
   if (pid === 'planejamento') { populateSalas('pl'); }
+  updateNavDots();
+}
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// DASHBOARD — AUTO REFRESH 15s
+// ══════════════════════════════════════════════════════════════════════
+function startDashTimer() {
+  clearInterval(_dashTimer);
+  _dashTimer = setInterval(async () => {
+    const act = document.querySelector('.nv-item.act, .nv-sub-item.act');
+    const pid  = act ? act.getAttribute('data-page') : null;
+    if (pid === 'dashboard') {
+      await apiLoadAll(true);
+      renderDash();
+      updateNavDots();
+      const lbl = document.getElementById('rf-lbl');
+      if (lbl) lbl.textContent = 'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
+    }
+  }, 15000);
+}
+
+function toggleDashRefresh() {
+  _dashAutoRf = !_dashAutoRf;
+  const btn = document.getElementById('rf-btn');
+  const dot = document.getElementById('rf-dot');
+  const lbl = document.getElementById('rf-lbl');
+  if (_dashAutoRf) {
+    startDashTimer();
+    if (btn) { btn.textContent = '⏸ Desligar'; btn.style.background='rgba(31,217,136,.15)'; btn.style.color='var(--grn)'; btn.style.borderColor='rgba(31,217,136,.4)'; }
+    if (dot) dot.className = 'rf-dot';
+    if (lbl) lbl.textContent = 'Auto-atualização a cada 15s';
+  } else {
+    clearInterval(_dashTimer);
+    if (btn) { btn.textContent = '▶ Ligar 15s'; btn.style.background='var(--surf3)'; btn.style.color='var(--txt2)'; btn.style.borderColor='var(--bord)'; }
+    if (dot) dot.className = 'rf-dot off';
+    if (lbl) lbl.textContent = 'Auto-atualização desligada';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FOTO — Preview e upload (Google Drive via Apps Script)
+// ══════════════════════════════════════════════════════════════════════
+let _photoFile = null;
+let _photoBase64 = null;
+
+function previewPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _photoFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _photoBase64 = e.target.result.split(',')[1];
+    const prev = document.getElementById('ab-photo-preview');
+    prev.innerHTML = `
+      <img src="${e.target.result}" class="photo-thumb" alt="Foto OS">
+      <div style="font-size:12px;color:var(--txt2)">
+        <strong>${file.name}</strong><br>
+        <span style="color:var(--txt3)">${(file.size/1024).toFixed(0)} KB</span><br>
+        <button class="btn btn-sm" onclick="removePhoto(event)" style="margin-top:6px;background:rgba(196,18,48,.12);color:#ff4d65;border:1px solid rgba(196,18,48,.3);padding:3px 8px">🗑 Remover</button>
+      </div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto(e) {
+  e.stopPropagation();
+  _photoFile = null; _photoBase64 = null;
+  document.getElementById('ab-photo-input').value = '';
+  document.getElementById('ab-photo-preview').innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
+}
+
+async function uploadFotoOS(numero) {
+  if (!_photoBase64 || !USE_API) return null;
+  try {
+    const ext = (_photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadFoto',
+        numero,
+        fileName: numero + '.' + ext,
+        mimeType: _photoFile.type || 'image/jpeg',
+        base64: _photoBase64
+      })
+    });
+    const r = await resp.json();
+    return r.ok ? r.fileUrl : null;
+  } catch(e) { console.warn('Foto não enviada:', e); return null; }
 }
 
 function toggleSB() {
@@ -1384,9 +1591,11 @@ function updStats() {
 
 function prio(p) {
   if (!p) return '';
-  const c = {Alta:'b-alt', Média:'b-med', Baixa:'b-bai'};
-  const d = {Alta:'d-a', Média:'d-m', Baixa:'d-b'};
-  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${p}</span>`;
+  // Suporte tanto ao formato novo (1-4) quanto ao legado (Alta/Média/Baixa)
+  const c = {'1':'b-c1','2':'b-c2','3':'b-c3','4':'b-c4','Alta':'b-c2','Média':'b-c3','Baixa':'b-c4','Urgente':'b-c1'};
+  const d = {'1':'d-1','2':'d-2','3':'d-3','4':'d-4','Alta':'d-2','Média':'d-3','Baixa':'d-4','Urgente':'d-1'};
+  const lbl = {'1':'1 – Crítico','2':'2 – Alta','3':'3 – Média','4':'4 – Baixa'};
+  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${lbl[p]||p}</span>`;
 }
 function tipoBadge(t) {
   if (!t) return '';
@@ -1587,9 +1796,10 @@ function editarPlan(id) {
     <div class="fg"><label>Prazo Limite</label><input type="date" id="ep-prazo" value="${p.prazo||''}"></div>
     <div class="fg"><label>Prioridade</label>
       <select id="ep-prio">
-        <option value="Alta"${p.prioridade==='Alta'?' selected':''}>🟠 Alta</option>
-        <option value="Média"${p.prioridade==='Média'?' selected':''}>🟡 Média</option>
-        <option value="Baixa"${p.prioridade==='Baixa'?' selected':''}>🟢 Baixa</option>
+        <option value="1"${p.prioridade==='1'?' selected':''}>🔴 1 – Crítico</option>
+        <option value="2"${(p.prioridade==='2'||p.prioridade==='Alta')?' selected':''}>🟠 2 – Alta</option>
+        <option value="3"${(p.prioridade==='3'||p.prioridade==='Média')?' selected':''}>🟡 3 – Média</option>
+        <option value="4"${(p.prioridade==='4'||p.prioridade==='Baixa')?' selected':''}>🟢 4 – Baixa</option>
       </select>
     </div>
     <div class="fg"><label>Descrição</label><textarea id="ep-desc">${p.desc||''}</textarea></div>`;
@@ -1677,6 +1887,7 @@ async function salvarOS() {
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in'), fim  = v('ab-fm'),
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
+        acaoPrev = v('ab-ap').trim(),
         parada = v('ab-parada');
   if (!sala||!maq||!tipo||!pr||!manut||!data) {
     showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er'); return;
@@ -1689,23 +1900,32 @@ async function salvarOS() {
   }
   const numero = genOS(), agora = new Date().toISOString();
   const os = { id: Date.now(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
-               durMin, paradaMin, prob, acao, criadoEm:agora, origem:'direta' };
+               durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
   db.osC++; db.ordens.push(os); saveDB(); updStats();
+  showAlert('al-ab', `Registrando ${numero}...`, 'ok');
+  // Upload da foto (async, não bloqueia)
+  const fotoUrl = await uploadFotoOS(numero);
   apiAppend('ordens', {
     OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
     Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
+    Acao_Preventiva: acaoPrev, Foto_URL: fotoUrl||'',
     Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
   });
-  showAlert('al-ab', `Ordem ${numero} registrada!`, 'ok');
+  showAlert('al-ab', `Ordem ${numero} registrada!${fotoUrl?' 📷 Foto enviada.':''}`, 'ok');
   clearAb();
-  setTimeout(()=>showPage('dashboard'), 900);
+  setTimeout(()=>showPage('dashboard'), 1200);
 }
 
 function clearAb() {
-  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-parada'].forEach(id=>sv(id,''));
+  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-ap','ab-parada'].forEach(id=>sv(id,''));
   sv('ab-dt', today());
   if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
+  _photoFile = null; _photoBase64 = null;
+  const inp = document.getElementById('ab-photo-input');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('ab-photo-preview');
+  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1825,10 +2045,10 @@ async function concluir() {
 // ══════════════════════════════════════════════════════════════════════
 function buildInsp() {
   const c = document.getElementById('insp-secs');
-  if (c.dataset.built) return;
+  // Sempre reconstrói para resetar estado
   c.dataset.built = '1';
   c.innerHTML = INSP_TMPL.map(sec => `
-    <div class="insp-sec">
+    <div class="insp-sec open">
       <div class="insp-hd" onclick="this.parentElement.classList.toggle('open')">
         <div class="insp-ht">${sec.sala}</div>
         <span class="insp-chev">▶</span>
@@ -1997,7 +2217,7 @@ function renderAtivos() {
       <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
       ${bySala[sala].map((m,_i)=>{
         const gi=db.maquinas.indexOf(m);
-        const critColor={Alta:'var(--red)',Média:'var(--org)',Baixa:'var(--grn)'}[m.criticidade]||'var(--txt3)';
+        const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
             <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
@@ -2021,13 +2241,17 @@ function renderAtivos() {
 function renderCritChart() {
   const cont = document.getElementById('at-crit-chart');
   if (!cont) return;
-  const counts = {Alta:0, Média:0, Baixa:0, 'Sem info':0};
+  const counts = {'1':0,'2':0,'3':0,'4':0,'Outros':0};
   db.maquinas.forEach(m => {
-    const k = m.criticidade && counts[m.criticidade] !== undefined ? m.criticidade : 'Sem info';
-    counts[k]++;
+    const k = m.criticidade;
+    // compatibilidade com legado
+    const mapped = {Alta:'2',Média:'3',Baixa:'4'}[k] || k;
+    if (counts[mapped] !== undefined) counts[mapped]++;
+    else counts['Outros']++;
   });
   const total = db.maquinas.length || 1;
-  const colors = {Alta:'#C41230',Média:'#f59e0b',Baixa:'#1fd988','Sem info':'#6b7aa0'};
+  const colors = {'1':'#ff2244','2':'#C41230','3':'#f59e0b','4':'#1fd988','Outros':'#6b7aa0'};
+  const labels = {'1':'1-Crítico','2':'2-Alta','3':'3-Média','4':'4-Baixa','Outros':'Outros'};
   cont.innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;gap:4px;height:36px;border-radius:8px;overflow:hidden;min-width:200px;flex:1">
@@ -2040,7 +2264,7 @@ function renderCritChart() {
         ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:12px">
             <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-            <span>${k}: <strong>${n}</strong></span>
+            <span>${labels[k]||k}: <strong>${n}</strong></span>
           </div>`).join('')}
       </div>
     </div>`;
@@ -2098,9 +2322,10 @@ function openEdit(type,idx) {
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
       <div class="fg"><label>Criticidade</label>
         <select id="me-crit">
-          <option${m.criticidade==='Alta'?' selected':''}>Alta</option>
-          <option${m.criticidade==='Média'?' selected':''}>Média</option>
-          <option${m.criticidade==='Baixa'?' selected':''}>Baixa</option>
+          <option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option>
+          <option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option>
+          <option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option>
+          <option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option>
         </select>
       </div>
       <div class="fg"><label>Periodicidade Preventiva</label>
@@ -2149,7 +2374,7 @@ function salvarEdit() {
 function renderUsuarios() {
   const ul = document.getElementById('pg-ul');
   if (!ul) return;
-  ul.innerHTML = db.usuarios.map((u,i)=>`
+  ul.innerHTML = db.users.map((u,i)=>`
     <div class="edit-row">
       <div>
         <div style="font-size:13px;font-weight:500">${u.nome}</div>
@@ -2172,7 +2397,7 @@ function showRegModal() {
 }
 
 function openEditUser(i) {
-  const u=db.usuarios[i];
+  const u=db.users[i];
   document.getElementById('mu-t').textContent='Editar Usuário';
   sv('mu-nome',u.nome);sv('mu-user',u.login);sv('mu-pass',u.senha);
   sv('mu-tipo',u.tipo);sv('mu-idx',i);
@@ -2186,11 +2411,11 @@ function salvarUsuario() {
   const al=document.getElementById('mu-alert');
   if(!nome||!login||!senha){al.textContent='Preencha todos os campos.';al.className='lalert err show';return;}
   if(idx===''){
-    if(db.usuarios.find(u=>u.login===login)){al.textContent='Login já existe.';al.className='lalert err show';return;}
-    db.usuarios.push({login,senha,nome,tipo});
+    if(db.users.find(u=>u.login===login)){al.textContent='Login já existe.';al.className='lalert err show';return;}
+    db.users.push({login,senha,nome,tipo});
     apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha,Ativo:'sim',Criado_Em:new Date().toISOString()}});
   } else {
-    db.usuarios[parseInt(idx)]={login,senha,nome,tipo};
+    db.users[parseInt(idx)]={login,senha,nome,tipo};
     apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha}});
   }
   saveDB();renderUsuarios();closeM('m-usr');
@@ -2198,7 +2423,7 @@ function salvarUsuario() {
 
 function delUser(i) {
   if(!confirm('Remover usuário?'))return;
-  const u=db.usuarios[i];db.usuarios.splice(i,1);saveDB();renderUsuarios();
+  const u=db.users[i];db.users.splice(i,1);saveDB();renderUsuarios();
   if(u)apiDelete('usuarios',u.login,'Login');
 }
 
@@ -2543,6 +2768,8 @@ function verDet(id,tipo) {
       ${item.paradaMin?`<div class="dr"><span class="dl">Tempo de Parada</span><span class="dv">${item.paradaMin}min</span></div>`:''}
       <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
       <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
+      ${item.acaoPrev?`<div class="dr"><span class="dl">Ação Preventiva</span><span class="dv">${item.acaoPrev}</span></div>`:''}
+      ${item.fotoUrl?`<div class="dr"><span class="dl">Foto</span><span class="dv"><a href="${item.fotoUrl}" target="_blank" style="color:var(--red)">📷 Ver foto</a></span></div>`:''}
       ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
     const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
     waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
@@ -2581,7 +2808,7 @@ window.exportarParaSheets = async function() {
     payload: {
       salas:    db.salas,
       maquinas: db.maquinas,
-      usuarios: db.usuarios
+      usuarios: db.users
     }
   });
   if (r && r.ok) {
@@ -2627,7 +2854,7 @@ async function init() {
   if (sess) {
     try {
       const s = JSON.parse(sess);
-      const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      const u = db.users.find(x => x.login === s.login && x.senha === s.senha);
       if (u) {
         CU = u;
         enterApp(); // entra imediatamente
