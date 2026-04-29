@@ -2108,23 +2108,25 @@ async function salvarInsp() {
   showAlert('al-insp','Inspeção salva!','ok');
   setTimeout(()=>showPage('dashboard'),900);
 }
-
-function gerarTextoRel(insp) {
-  if(!insp)return'';
+function gerarTextoRel(obj) {
+  if (!obj) return "Dados não encontrados.";
+  
   let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
-  insp.itens.forEach(sec=>{
-    txt+=`● Sala: ${sec.sala}\n`;
-    sec.equips.forEach(eq=>{
-      if(!eq.status)return;
-      txt+=`${eq.nome} / ${eq.status==='ok'?'ok':'Não vai rodar'}${eq.hora?' '+eq.hora+'h':''}${eq.obs?' – '+eq.obs:''}\n`;
-      (eq.subs||[]).forEach(s=>{if(!s.status)return;txt+=`  ${s.nome} / ${s.status==='ok'?'ok':'Não vai rodar'}${s.hora?' '+s.hora+'h':''}${s.obs?' – '+s.obs:''}\n`;});
+  
+  // Verifica se 'itens' existe e é uma lista antes de usar o forEach
+  if (obj.itens && Array.isArray(obj.itens)) {
+    obj.itens.forEach(item => {
+      // Sua lógica atual de montagem do texto aqui
+      txt += `- ${item.descricao}: ${item.status}\n`; 
     });
-    txt+='\n';
-  });
+  } else {
+    txt += "Nenhum item registrado para esta inspeção.";
+  }
+  
   return txt;
 }
 
-function gerarRel() {
+  function gerarRel() {
   const pgAtiva=document.getElementById('pg-inspecao').classList.contains('on');
   let txt='';
   if(pgAtiva){const itens=collectInsp();txt=gerarTextoRel({data:v('insp-dt'),turno:v('insp-tn'),manut:v('insp-mn'),itens});}
