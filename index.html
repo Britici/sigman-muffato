@@ -329,13 +329,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 <style>
   @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── BADGE INSPEÇÃO ── */
-.b-ins{background:rgba(64,150,255,.14);color:#5aa8ff}
-/* ── OEE METER ── */
-.oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
-.oee-fill{height:100%;border-radius:4px;transition:width .5s}
-</style>
-
 <!-- ══ LOGIN ══ -->
 <div id="login-screen">
  <div class="lbox">
@@ -2110,17 +2103,47 @@ async function salvarInsp() {
 }
 
 function gerarTextoRel(insp) {
-  if(!insp)return'';
-  let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
-  insp.itens.forEach(sec=>{
-    txt+=`● Sala: ${sec.sala}\n`;
-    sec.equips.forEach(eq=>{
-      if(!eq.status)return;
-      txt+=`${eq.nome} / ${eq.status==='ok'?'ok':'Não vai rodar'}${eq.hora?' '+eq.hora+'h':''}${eq.obs?' – '+eq.obs:''}\n`;
-      (eq.subs||[]).forEach(s=>{if(!s.status)return;txt+=`  ${s.nome} / ${s.status==='ok'?'ok':'Não vai rodar'}${s.hora?' '+s.hora+'h':''}${s.obs?' – '+s.obs:''}\n`;});
+  if (!insp) return '';
+  let txt = `*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
+  if (!insp.itens || !insp.itens.length) return txt + '(sem itens registrados)';
+
+  // Detecta formato: hierárquico (salvo localmente) ou plano (vindo do Sheets)
+  const isHierarquico = insp.itens[0] && 'equips' in insp.itens[0];
+
+  if (isHierarquico) {
+    // formato local: itens[] → { sala, equips:[{nome, status, hora, obs, subs:[...]}] }
+    insp.itens.forEach(sec => {
+      txt += `● Sala: ${sec.sala}\n`;
+      (sec.equips || []).forEach(eq => {
+        if (!eq.status) return;
+        txt += `${eq.nome} / ${eq.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+        txt += `${eq.hora ? ' ' + eq.hora + 'h' : ''}${eq.obs ? ' – ' + eq.obs : ''}\n`;
+        (eq.subs || []).forEach(s => {
+          if (!s.status) return;
+          txt += `  ${s.nome} / ${s.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+          txt += `${s.hora ? ' ' + s.hora + 'h' : ''}${s.obs ? ' – ' + s.obs : ''}\n`;
+        });
+      });
+      txt += '\n';
     });
-    txt+='\n';
-  });
+  } else {
+    // formato Sheets: itens[] → { sala, equip, sub, status, hora, obs }
+    const bySala = {};
+    insp.itens.forEach(item => {
+      if (!bySala[item.sala]) bySala[item.sala] = [];
+      bySala[item.sala].push(item);
+    });
+    Object.entries(bySala).forEach(([sala, items]) => {
+      txt += `● Sala: ${sala}\n`;
+      items.forEach(item => {
+        if (!item.status) return;
+        const nome = item.sub ? `${item.equip} / ${item.sub}` : item.equip;
+        txt += `${nome} / ${item.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+        txt += `${item.hora ? ' ' + item.hora + 'h' : ''}${item.obs ? ' – ' + item.obs : ''}\n`;
+      });
+      txt += '\n';
+    });
+  }
   return txt;
 }
 
@@ -2208,42 +2231,6 @@ function renderAtivos() {
         </div>`;
       }).join('')}
     </div>`).join('');
-
-  // Gráfico de criticidade
-  renderCritChart();
-}
-
-function renderCritChart() {
-  const cont = document.getElementById('at-crit-chart');
-  if (!cont) return;
-  const counts = {'1':0,'2':0,'3':0,'4':0,'Outros':0};
-  db.maquinas.forEach(m => {
-    const k = m.criticidade;
-    // compatibilidade com legado
-    const mapped = {Alta:'2',Média:'3',Baixa:'4'}[k] || k;
-    if (counts[mapped] !== undefined) counts[mapped]++;
-    else counts['Outros']++;
-  });
-  const total = db.maquinas.length || 1;
-  const colors = {'1':'#ff2244','2':'#C41230','3':'#f59e0b','4':'#1fd988','Outros':'#6b7aa0'};
-  const labels = {'1':'1-Crítico','2':'2-Alta','3':'3-Média','4':'4-Baixa','Outros':'Outros'};
-  cont.innerHTML = `
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
-      <div style="display:flex;gap:4px;height:36px;border-radius:8px;overflow:hidden;min-width:200px;flex:1">
-        ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
-          <div title="${k}: ${n}" style="background:${colors[k]};flex:${n};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">
-            ${Math.round(n/total*100)}%
-          </div>`).join('')}
-      </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        ${Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
-          <div style="display:flex;align-items:center;gap:5px;font-size:12px">
-            <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-            <span>${labels[k]||k}: <strong>${n}</strong></span>
-          </div>`).join('')}
-      </div>
-    </div>`;
-}
 
 function addSala() {
   const n = v('at-sn').trim().toUpperCase();
@@ -2793,29 +2780,6 @@ window.exportarParaSheets = async function() {
     console.error('❌ Erro na exportação:', r);
   }
 };
-
-// ══════════════════════════════════════════════════════════════════════
-// DIAGNÓSTICO (Console do navegador)
-// ══════════════════════════════════════════════════════════════════════
-window.testarAPI = async function() {
-  console.log('🔍 Testando API...\n  URL:', API_URL);
-  const r = await apiGet({action:'ping'});
-  if(r&&r.ok) console.log('✅ API online!', r);
-  else console.error('❌ API offline:', r);
-};
-window.testarGravacao = async function() {
-  console.log('🔍 Testando gravação...');
-  const r = await apiAppend('ordens',{
-    OS_Numero:'OS-TESTE',Data:today(),Sala:'TESTE',Maquina:'TESTE',
-    Tipo:'Corretiva',Prioridade:'Média',Manutentor:'Teste',
-    Hora_Inicio:'08:00',Hora_Fim:'08:05',Duracao_Min:5,Tempo_Parada_Min:5,
-    Problema:'Teste',Acao_Executada:'Teste',Origem:'teste',OS_Origem_Ref:'',Criado_Em:new Date().toISOString()
-  });
-  if(r&&r.ok) console.log('✅ Gravação OK! Verifique a aba Ordens_Executadas.');
-  else console.error('❌ Erro:', r);
-};
-window.verDB = function(){console.log('📊 DB:',db);};
-window.verSessao = function(){console.log('👤 Sessão:',localStorage.getItem('sigman_sess'));};
 
 // ══════════════════════════════════════════════════════════════════════
 // INICIALIZAÇÃO
