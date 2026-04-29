@@ -2018,41 +2018,13 @@ async function concluir() {
 // ══════════════════════════════════════════════════════════════════════
 // INSPEÇÃO DIÁRIA
 // ══════════════════════════════════════════════════════════════════════
-// Monta a estrutura {sala, equips:[{nome,subs:[]}]} a partir de db.tplInspecao
-// (filtrando por tipo escolhido — padrão: 'rota')
-function _tplInspParaEstrutura(tipo) {
-  tipo = tipo || 'rota';
-  const itens = db.tplInspecao.filter(t => t.tipo === tipo);
-  if (!itens.length) return INSP_TMPL; // fallback ao template hardcoded
-  // Agrupa por sala → equipamento → sub-itens
-  const bySala = {};
-  itens.sort((a,b) => (a.ordem||0) - (b.ordem||0));
-  itens.forEach(it => {
-    if (!bySala[it.sala]) bySala[it.sala] = {};
-    if (!bySala[it.sala][it.equip]) bySala[it.sala][it.equip] = [];
-    if (it.sub) bySala[it.sala][it.equip].push(it.sub);
-  });
-  const out = [];
-  Object.keys(bySala).forEach(sala => {
-    const equips = [];
-    Object.keys(bySala[sala]).forEach(eqNome => {
-      const subsNomes = bySala[sala][eqNome];
-      const eqId = (sala + '_' + eqNome).replace(/[^A-Za-z0-9]/g,'_').toLowerCase();
-      const subs = subsNomes.map((s,i) => ({ id: eqId+'_s'+i, nome: s }));
-      equips.push({ id: eqId, nome: eqNome, subs });
-    });
-    out.push({ sala, equips });
-  });
-  return out;
-}
-let _inspEstrutura = null;
 function buildInsp() {
   const c = document.getElementById('insp-secs');
-  // Reconstrói sempre — template pode ter mudado via polling
-  _inspEstrutura = _tplInspParaEstrutura('rota');
-  c.innerHTML = _inspEstrutura.map(sec => `
-    <div class="insp-sec" id="isec-${sec.sala.replace(/\s/g,'_')}">
-      <div class="insp-hd" onclick="toggleSec(this)">
+  // Sempre reconstrói para resetar estado
+  c.dataset.built = '1';
+  c.innerHTML = INSP_TMPL.map(sec => `
+    <div class="insp-sec open">
+      <div class="insp-hd" onclick="this.parentElement.classList.toggle('open')">
         <div class="insp-ht">${sec.sala}</div>
         <span class="insp-chev">▶</span>
       </div>
@@ -2062,7 +2034,6 @@ function buildInsp() {
     </div>`).join('');
 }
 
-// Renderiza uma linha de equipamento (com sub-itens se houver)
 function renderEquip(eq) {
   let html = `
     <div class="insp-row" id="row-${eq.id}">
@@ -2071,10 +2042,9 @@ function renderEquip(eq) {
         <button class="iok"  onclick="setStatus('${eq.id}','ok',this)">OK</button>
         <button class="inok" onclick="setStatus('${eq.id}','nok',this)">NÃO OK</button>
       </div>
-      <div class="itime"><input type="time" id="t-${eq.id}" placeholder="--:--"></div>
+      <div class="itime"><input type="time" id="t-${eq.id}"></div>
       <div class="iobs"><input type="text" id="o-${eq.id}" placeholder="Observações..."></div>
     </div>`;
-
   if (eq.subs && eq.subs.length) {
     html += `<div class="insp-sub-lbl">${eq.nome} — Sub-itens</div><div class="insp-sub">`;
     html += eq.subs.map(s => `
@@ -2084,7 +2054,7 @@ function renderEquip(eq) {
           <button class="iok"  onclick="setStatus('${s.id}','ok',this)">OK</button>
           <button class="inok" onclick="setStatus('${s.id}','nok',this)">NÃO OK</button>
         </div>
-        <div class="itime"><input type="time" id="t-${s.id}" placeholder="--:--"></div>
+        <div class="itime"><input type="time" id="t-${s.id}"></div>
         <div class="iobs"><input type="text" id="o-${s.id}" placeholder="Observações..."></div>
       </div>`).join('');
     html += '</div>';
@@ -2092,131 +2062,105 @@ function renderEquip(eq) {
   return html;
 }
 
-// Abre/fecha seção da inspeção
-function toggleSec(hd) { hd.parentElement.classList.toggle('open'); }
-
-// Define status OK ou NÃO OK de um equipamento e registra horário automático
-function setStatus(id, st, btn) {
-  const row = document.getElementById('row-' + id);
-  row.querySelectorAll('.iok,.inok').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  row.dataset.status = st;
-  if (st === 'ok') {
-    const ti = document.getElementById('t-' + id);
-    if (ti && !ti.value) {
-      const now = new Date();
-      ti.value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    }
+function setStatus(id,st,btn) {
+  const row = document.getElementById('row-'+id);
+  row.querySelectorAll('.iok,.inok').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); row.dataset.status = st;
+  if (st==='ok') {
+    const ti = document.getElementById('t-'+id);
+    if (ti&&!ti.value){const now=new Date();ti.value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');}
   }
 }
 
-// Coleta todos os dados preenchidos na tela de inspeção
 function collectInsp() {
-  const data = [];
-  const tmpl = _inspEstrutura || INSP_TMPL;
-  tmpl.forEach(sec => {
-    const equips = [];
-    sec.equips.forEach(eq => {
-      const row = document.getElementById('row-' + eq.id);
-      if (!row) return;
-      const subs = (eq.subs||[]).map(s => {
-        const sr = document.getElementById('row-' + s.id);
-        if (!sr) return null;
-        return { id: s.id, nome: s.nome, status: sr.dataset.status||'', hora: v('t-'+s.id), obs: v('o-'+s.id) };
-      }).filter(Boolean);
-      equips.push({ id: eq.id, nome: eq.nome, status: row.dataset.status||'', hora: v('t-'+eq.id), obs: v('o-'+eq.id), subs });
+  const data=[];
+  INSP_TMPL.forEach(sec=>{
+    const equips=[];
+    sec.equips.forEach(eq=>{
+      const row=document.getElementById('row-'+eq.id);if(!row)return;
+      const subs=(eq.subs||[]).map(s=>{const sr=document.getElementById('row-'+s.id);if(!sr)return null;return{id:s.id,nome:s.nome,status:sr.dataset.status||'',hora:v('t-'+s.id),obs:v('o-'+s.id)};}).filter(Boolean);
+      equips.push({id:eq.id,nome:eq.nome,status:row.dataset.status||'',hora:v('t-'+eq.id),obs:v('o-'+eq.id),subs});
     });
-    data.push({ sala: sec.sala, equips });
+    data.push({sala:sec.sala,equips});
   });
   return data;
 }
 
-// Salva a inspeção no banco e no Sheets
-function salvarInsp() {
-  const data  = v('insp-dt');
-  const turno = v('insp-tn');
-  const manut = v('insp-mn').trim();
-  if (!data || !manut) { showAlert('al-insp','Informe data e manutentor.','er'); return; }
-
-  const itens = collectInsp();
-  const agora = new Date().toISOString();
-  const insp  = { id: Date.now(), data, turno, manut, itens, criadoEm: agora };
-  db.inspecoes.push(insp);
-  saveDB();
-
-  // Salva cada linha no Sheets (uma linha por equipamento/sub-item)
-  itens.forEach(sec => {
-    sec.equips.forEach(eq => {
-      if (!eq.status) return; // Só salva equipamentos que foram marcados
-      apiAppend('inspecoes', {
-        Data: data, Turno: turno, Manutentor: manut,
-        Sala: sec.sala, Equipamento: eq.nome, Sub_Item: '',
-        Status: eq.status, Hora: eq.hora, Observacoes: eq.obs, Criado_Em: agora
-      });
-      (eq.subs||[]).forEach(s => {
-        if (!s.status) return;
-        apiAppend('inspecoes', {
-          Data: data, Turno: turno, Manutentor: manut,
-          Sala: sec.sala, Equipamento: eq.nome, Sub_Item: s.nome,
-          Status: s.status, Hora: s.hora, Observacoes: s.obs, Criado_Em: agora
-        });
+async function salvarInsp() {
+  const data=v('insp-dt'),turno=v('insp-tn'),manut=v('insp-mn').trim(),
+        horas=parseInt(v('insp-horas'))||8;
+  if(!data||!manut){showAlert('al-insp','Informe data e manutentor.','er');return;}
+  const itens=collectInsp();
+  const id=genINSP(),agora=new Date().toISOString();
+  db.inspecoes.push({id,data,turno,horasTurno:horas,manut,itens,criadoEm:agora});
+  db.inspC++;saveDB();
+  itens.forEach(sec=>{
+    sec.equips.forEach(eq=>{
+      if(!eq.status)return;
+      apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
+        Sala:sec.sala,Equipamento:eq.nome,Sub_Item:'',Status:eq.status,Hora:eq.hora,Observacoes:eq.obs,Criado_Em:agora});
+      (eq.subs||[]).forEach(s=>{if(!s.status)return;
+        apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
+          Sala:sec.sala,Equipamento:eq.nome,Sub_Item:s.nome,Status:s.status,Hora:s.hora,Observacoes:s.obs,Criado_Em:agora});
       });
     });
   });
-
-  showAlert('al-insp','Inspeção salva com sucesso!','ok');
-  // Após salvar, redireciona ao dashboard
-  setTimeout(() => showPage('dashboard'), 900);
+  showAlert('al-insp','Inspeção salva!','ok');
+  setTimeout(()=>showPage('dashboard'),900);
 }
 
-// Gera o texto do relatório no formato WhatsApp
 function gerarTextoRel(insp) {
-  if (!insp) return '';
-  let txt = `*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
-  insp.itens.forEach(sec => {
-    txt += `● Sala: ${sec.sala}\n`;
-    sec.equips.forEach(eq => {
-      if (!eq.status) return;
-      const lbl = eq.status === 'ok' ? 'ok' : 'Não vai rodar';
-      txt += `${eq.nome} / ${lbl}${eq.hora ? ' ' + eq.hora + 'h' : ''}${eq.obs ? ' – ' + eq.obs : ''}\n`;
-      (eq.subs||[]).forEach(s => {
-        if (!s.status) return;
-        const sl = s.status === 'ok' ? 'ok' : 'Não vai rodar';
-        txt += `  ${s.nome} / ${sl}${s.hora ? ' ' + s.hora + 'h' : ''}${s.obs ? ' – ' + s.obs : ''}\n`;
-      });
+  if(!insp)return'';
+  let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
+  insp.itens.forEach(sec=>{
+    txt+=`● Sala: ${sec.sala}\n`;
+    sec.equips.forEach(eq=>{
+      if(!eq.status)return;
+      txt+=`${eq.nome} / ${eq.status==='ok'?'ok':'Não vai rodar'}${eq.hora?' '+eq.hora+'h':''}${eq.obs?' – '+eq.obs:''}\n`;
+      (eq.subs||[]).forEach(s=>{if(!s.status)return;txt+=`  ${s.nome} / ${s.status==='ok'?'ok':'Não vai rodar'}${s.hora?' '+s.hora+'h':''}${s.obs?' – '+s.obs:''}\n`;});
     });
-    txt += '\n';
+    txt+='\n';
   });
   return txt;
 }
 
-// Abre modal com relatório da inspeção para copiar para o WhatsApp
 function gerarRel() {
-  const lastInsp = [...db.inspecoes].sort((a,b) => b.data.localeCompare(a.data))[0];
-  const pgAtiva  = document.getElementById('pg-inspecao').classList.contains('on');
-  let txt = '';
-  if (pgAtiva) {
-    // Gera a partir do que está na tela agora (ainda não salvo)
-    const itens = collectInsp();
-    txt = gerarTextoRel({ data: v('insp-dt'), turno: v('insp-tn'), manut: v('insp-mn'), itens });
-  } else if (lastInsp) {
-    txt = gerarTextoRel(lastInsp);
-  } else {
-    alert('Nenhuma inspeção encontrada.'); return;
-  }
-  document.getElementById('m-rel-b').textContent = txt;
+  const pgAtiva=document.getElementById('pg-inspecao').classList.contains('on');
+  let txt='';
+  if(pgAtiva){const itens=collectInsp();txt=gerarTextoRel({data:v('insp-dt'),turno:v('insp-tn'),manut:v('insp-mn'),itens});}
+  else{const last=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];if(last)txt=gerarTextoRel(last);}
+  if(!txt){alert('Nenhuma inspeção.');return;}
+  document.getElementById('m-rel-b').textContent=txt;openM('m-rel');
+}
+
+// Histórico de inspeções (lista para navegar 1 a 1)
+let _inspIdx = 0;
+function verRelatorio() {
+  const sorted=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(!sorted.length){alert('Nenhuma inspeção registrada.');return;}
+  _inspIdx=0;
+  mostrarInspRel(sorted,_inspIdx);
+}
+function mostrarInspRel(sorted,idx) {
+  const insp=sorted[idx];
+  const nav=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx-1})" ${idx===0?'disabled':''}>◀ Anterior</button>
+    <span style="font-size:12px;color:var(--txt3)">${idx+1} de ${sorted.length}</span>
+    <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx+1})" ${idx===sorted.length-1?'disabled':''}>Próxima ▶</button>
+  </div>`;
+  document.getElementById('m-rel-b').innerHTML='';
+  const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:var(--fm);font-size:11px;color:var(--txt2);line-height:1.9';
+  pre.textContent=gerarTextoRel(insp);
+  document.getElementById('m-rel-b').innerHTML=nav;
+  document.getElementById('m-rel-b').appendChild(pre);
   openM('m-rel');
 }
-
-function verRelatorio() {
-  // Abre histórico navegável (mais recente primeiro)
-  abrirHistoricoRel();
+function navInspRel(idx){
+  const sorted=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(idx<0||idx>=sorted.length)return;
+  _inspIdx=idx;mostrarInspRel(sorted,idx);
 }
-
-function copyRel() {
-  navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent)
-    .then(() => alert('Copiado para a área de transferência!'));
-}
+function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent||'').then(()=>alert('Copiado!'));}
 
 // ══════════════════════════════════════════════════════════════════════
 // ATIVOS
