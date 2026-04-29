@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="dark">
 <head>
+<link rel="icon" href="data:,">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>SIGMAN · Muffato Foods</title>
@@ -2112,6 +2113,13 @@ async function salvarInsp() {
 function gerarTextoRel(insp) {
   if(!insp)return'';
   let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
+  if (!lista || !Array.isArray(lista)) return "Sem dados"; 
+  
+  lista.forEach(i => {
+    txt += `${i.item}: ${i.status === 'ok' ? '✅' : '❌'}\n`;
+  });
+  return txt;
+}
   insp.itens.forEach(sec=>{
     txt+=`● Sala: ${sec.sala}\n`;
     sec.equips.forEach(eq=>{
