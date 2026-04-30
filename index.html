@@ -2111,17 +2111,47 @@ async function salvarInsp() {
 }
 
 function gerarTextoRel(insp) {
-  if(!insp)return'';
-  let txt=`*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
-  insp.itens.forEach(sec=>{
-    txt+=`● Sala: ${sec.sala}\n`;
-    sec.equips.forEach(eq=>{
-      if(!eq.status)return;
-      txt+=`${eq.nome} / ${eq.status==='ok'?'ok':'Não vai rodar'}${eq.hora?' '+eq.hora+'h':''}${eq.obs?' – '+eq.obs:''}\n`;
-      (eq.subs||[]).forEach(s=>{if(!s.status)return;txt+=`  ${s.nome} / ${s.status==='ok'?'ok':'Não vai rodar'}${s.hora?' '+s.hora+'h':''}${s.obs?' – '+s.obs:''}\n`;});
+  if (!insp) return '';
+  let txt = `*INSPEÇÃO DIÁRIA — ${insp.data} — ${insp.turno}*\n*Manutentor: ${insp.manut}*\n\n`;
+  if (!insp.itens || !insp.itens.length) return txt + '(sem itens registrados)';
+
+  // Detecta formato: hierárquico (salvo localmente) ou plano (vindo do Sheets)
+  const isHierarquico = insp.itens[0] && 'equips' in insp.itens[0];
+
+  if (isHierarquico) {
+    // formato local: itens[] → { sala, equips:[{nome, status, hora, obs, subs:[...]}] }
+    insp.itens.forEach(sec => {
+      txt += `● Sala: ${sec.sala}\n`;
+      (sec.equips || []).forEach(eq => {
+        if (!eq.status) return;
+        txt += `${eq.nome} / ${eq.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+        txt += `${eq.hora ? ' ' + eq.hora + 'h' : ''}${eq.obs ? ' – ' + eq.obs : ''}\n`;
+        (eq.subs || []).forEach(s => {
+          if (!s.status) return;
+          txt += `  ${s.nome} / ${s.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+          txt += `${s.hora ? ' ' + s.hora + 'h' : ''}${s.obs ? ' – ' + s.obs : ''}\n`;
+        });
+      });
+      txt += '\n';
     });
-    txt+='\n';
-  });
+  } else {
+    // formato Sheets: itens[] → { sala, equip, sub, status, hora, obs }
+    const bySala = {};
+    insp.itens.forEach(item => {
+      if (!bySala[item.sala]) bySala[item.sala] = [];
+      bySala[item.sala].push(item);
+    });
+    Object.entries(bySala).forEach(([sala, items]) => {
+      txt += `● Sala: ${sala}\n`;
+      items.forEach(item => {
+        if (!item.status) return;
+        const nome = item.sub ? `${item.equip} / ${item.sub}` : item.equip;
+        txt += `${nome} / ${item.status === 'ok' ? 'ok' : 'Não vai rodar'}`;
+        txt += `${item.hora ? ' ' + item.hora + 'h' : ''}${item.obs ? ' – ' + item.obs : ''}\n`;
+      });
+      txt += '\n';
+    });
+  }
   return txt;
 }
 
