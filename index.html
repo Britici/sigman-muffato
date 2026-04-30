@@ -1108,7 +1108,6 @@ function saveDB() {
       solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,
       osC: db.osC, plC: db.plC, solC: db.solC, inspC: db.inspC
     }));
-    localStorage.setItem('sigman_users', JSON.stringify(db.usuarios));
   } catch(e) {}
 }
 
@@ -1116,8 +1115,6 @@ function loadDB() {
   try {
     const r = localStorage.getItem('sigman_v4');
     if (r) Object.assign(db, JSON.parse(r));
-    const u = localStorage.getItem('sigman_users');
-    if (u) db.usuarios = JSON.parse(u);
   } catch(e) {}
 }
 
@@ -1129,26 +1126,7 @@ async function doLogin() {
   const senha = v('l-p').trim();
   if (!login || !senha) { lAlert('Preencha usuário e senha.'); return; }
 
-  // Tenta no Sheets primeiro (com hash)
-  if (USE_API) {
-    const r = await apiGet({ action: 'login', login, senha });
-    if (r && r.ok) {
-      CU = r.user;
-      CU.senha = senha; // mantém para revalidação local
-      localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
-      // Atualiza lista local
-      const idx = db.usuarios.findIndex(u => u.login === login);
-      if (idx >= 0) db.usuarios[idx] = { ...db.usuarios[idx], ...CU };
-      else db.usuarios.push(CU);
-      saveDB();
-      enterApp();
-      return;
-    }
-    if (r && !r.ok && r.error === 'Senha incorreta') { lAlert('Senha incorreta.'); return; }
-    // Se Sheets offline, tenta localmente
-  }
-
-  // Login local (fallback ou offline)
+  // Autenticação local apenas
   const user = db.usuarios.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
@@ -1176,7 +1154,6 @@ function doLogout() {
   document.getElementById('app').classList.remove('on');
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('l-admin-lnk').style.display = 'none';
   document.getElementById('lf-login').style.display = 'block';
   document.getElementById('lf-reg').style.display = 'none';
 }
@@ -2360,17 +2337,13 @@ function salvarEdit() {
 function renderUsuarios() {
   const ul = document.getElementById('pg-ul');
   if (!ul) return;
-  ul.innerHTML = db.usuarios.map((u,i)=>`
+  ul.innerHTML = db.usuarios.map(u => `
     <div class="edit-row">
       <div>
         <div style="font-size:13px;font-weight:500">${u.nome}</div>
         <div style="font-size:11px;color:var(--txt3)">@${u.login}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        ${roleBadge(u.tipo)}
-        <button class="btn btn-edit btn-sm" onclick="openEditUser(${i})">✎</button>
-        ${i>0?`<button class="btn btn-d" onclick="delUser(${i})">✕</button>`:''}
-      </div>
+      ${roleBadge(u.tipo)}
     </div>`).join('');
 }
 
