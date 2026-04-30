@@ -330,11 +330,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 <style>
   @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── BADGE INSPEÇÃO ── */
-.b-ins{background:rgba(64,150,255,.14);color:#5aa8ff}
-/* ── OEE METER ── */
-.oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
-.oee-fill{height:100%;border-radius:4px;transition:width .5s}
 </style>
 
 <!-- ══ LOGIN ══ -->
@@ -2824,29 +2819,6 @@ window.exportarParaSheets = async function() {
     console.error('❌ Erro na exportação:', r);
   }
 };
-
-// ══════════════════════════════════════════════════════════════════════
-// DIAGNÓSTICO (Console do navegador)
-// ══════════════════════════════════════════════════════════════════════
-window.testarAPI = async function() {
-  console.log('🔍 Testando API...\n  URL:', API_URL);
-  const r = await apiGet({action:'ping'});
-  if(r&&r.ok) console.log('✅ API online!', r);
-  else console.error('❌ API offline:', r);
-};
-window.testarGravacao = async function() {
-  console.log('🔍 Testando gravação...');
-  const r = await apiAppend('ordens',{
-    OS_Numero:'OS-TESTE',Data:today(),Sala:'TESTE',Maquina:'TESTE',
-    Tipo:'Corretiva',Prioridade:'Média',Manutentor:'Teste',
-    Hora_Inicio:'08:00',Hora_Fim:'08:05',Duracao_Min:5,Tempo_Parada_Min:5,
-    Problema:'Teste',Acao_Executada:'Teste',Origem:'teste',OS_Origem_Ref:'',Criado_Em:new Date().toISOString()
-  });
-  if(r&&r.ok) console.log('✅ Gravação OK! Verifique a aba Ordens_Executadas.');
-  else console.error('❌ Erro:', r);
-};
-window.verDB = function(){console.log('📊 DB:',db);};
-window.verSessao = function(){console.log('👤 Sessão:',localStorage.getItem('sigman_sess'));};
 
 // ══════════════════════════════════════════════════════════════════════
 // INICIALIZAÇÃO
