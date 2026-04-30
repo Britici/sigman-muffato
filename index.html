@@ -345,22 +345,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="fg"><label>Usuário</label><input type="text" id="l-u" placeholder="Login" autocomplete="username"></div>
    <div class="fg"><label>Senha</label><input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password"></div>
    <button class="btn btn-p btn-fl" onclick="doLogin()" style="margin-top:4px">Entrar</button>
-   <div id="l-admin-lnk" style="text-align:center;margin-top:12px;display:none">
-    <button class="btn btn-gh btn-sm" onclick="showReg()">+ Cadastrar Usuário</button>
-   </div>
   </div>
-  <div id="lf-reg" style="display:none">
-   <div class="ltitle">Novo Usuário</div>
-   <div class="fg"><label>Nome Completo</label><input type="text" id="r-nome" placeholder="Nome"></div>
-   <div class="fg"><label>Login</label><input type="text" id="r-user" placeholder="Login de acesso"></div>
-   <div class="fg"><label>Senha</label><input type="password" id="r-pass" placeholder="Senha"></div>
-   <div class="fg"><label>Tipo de Acesso</label>
-    <select id="r-tipo">
-     <option value="administracao">Administração</option>
-     <option value="manutencao">Manutenção</option>
-     <option value="producao">Produção</option>
-    </select>
-   </div>
    <div style="display:flex;gap:8px;margin-top:4px">
     <button class="btn btn-gh btn-fl" onclick="backLogin()">Voltar</button>
     <button class="btn btn-p btn-fl" onclick="doReg()">Cadastrar</button>
