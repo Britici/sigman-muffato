@@ -828,17 +828,8 @@ const INSP_TMPL = [
 // BANCO DE DADOS LOCAL (cache em memória + localStorage)
 // ══════════════════════════════════════════════════════════════════════
 let db = {
-  salas:        ['CARNE MOÍDA','LÁCTEOS','EMBUTIDOS','FATIADOS','UTILIDADES','PIZZA','CÁRNEOS','DEFUMADO','BACALHAU','LINGUIÇA','SALMOURA','TEMPERADOS','PORCIONAMENTO','CORREDOR PORCIONAMENTO','DESOSSA'],
-  maquinas:     [
-    {nome:'CUBADORA',    sala:'CARNE MOÍDA', tag:'CUB-001', criticidade:'2',  periodicidade:'Mensal'},
-    {nome:'MOEDOR',      sala:'CARNE MOÍDA', tag:'MOE-001', criticidade:'2',  periodicidade:'Mensal'},
-    {nome:'CUBADORA',    sala:'LÁCTEOS',     tag:'CUB-002', criticidade:'2',  periodicidade:'Mensal'},
-    {nome:'PASTEURIZADOR',sala:'LÁCTEOS',    tag:'PAS-001', criticidade:'1',  periodicidade:'Semanal'},
-    {nome:'EMBUTIDEIRA', sala:'EMBUTIDOS',   tag:'EMB-001', criticidade:'3', periodicidade:'Mensal'},
-    {nome:'FATIADORA',   sala:'FATIADOS',    tag:'FAT-001', criticidade:'3', periodicidade:'Mensal'},
-    {nome:'COMPRESSOR 1',sala:'UTILIDADES',  tag:'COMP-001',criticidade:'2',  periodicidade:'Trimestral'},
-    {nome:'COMPRESSOR 2',sala:'UTILIDADES',  tag:'COMP-002',criticidade:'2',  periodicidade:'Trimestral'}
-  ],
+  salas:        [],
+  maquinas:     [],
   ordens:       [],
   planejadas:   [],
   solicitacoes: [],
