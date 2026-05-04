@@ -343,7 +343,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
   <div id="lf-login">
    <div class="ltitle">Acesso ao Sistema</div>
    <div class="fg"><label>Usuário</label><input type="text" id="l-u" placeholder="Login" autocomplete="username"></div>
-   <div class="fg"><label>Senha</label><input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password"></div>
+   <div class="fg"><label>Senha</label>
+      <div style="position:relative">
+      <input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password" style="padding-right:40px">
+      <button type="button" onclick="toggleSenha()" id="btn-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--txt3);font-size:15px;padding:0;line-height:1">👁</button>
+   </div>
+</div>
    <button class="btn btn-p btn-fl" onclick="doLogin()" style="margin-top:4px">Entrar</button>
   </div>
   </div>
@@ -1157,6 +1162,7 @@ function doLogout() {
 
 function showReg()     { document.getElementById('lf-login').style.display='none';  document.getElementById('lf-reg').style.display='block'; }
 function backLogin()   { document.getElementById('lf-reg').style.display='none';    document.getElementById('lf-login').style.display='block'; }
+function toggleSenha(){const i=document.getElementById('l-p'),b=document.getElementById('btn-eye');i.type=i.type==='password'?'text':'password';b.textContent=i.type==='password'?'👁':'🙈';}
 function lAlert(m,t='err') {
   const el = document.getElementById('l-alert');
   el.textContent = m; el.className = 'lalert '+t+' show';
