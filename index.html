@@ -329,7 +329,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 </div>
 <style>
   @keyframes spin { to { transform: rotate(360deg); } }
-
 </style>
 
 <!-- ══ LOGIN ══ -->
@@ -595,11 +594,18 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        </div>
        <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
       </div>
-      <div class="card"><div class="card-t">Máquinas Cadastradas</div><div id="at-ml"></div></div>
+      <div class="card">
+        <div class="card-t" style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Máquinas Cadastradas</span>
+          <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:12px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:160px">
+            <option value="">Todas as Salas</option>
+          </select>
+        </div>
+        <div id="at-ml"></div>
+      </div>       
      </div>
     </div>
    </div>
-
 
    <!-- PÁGINA: USUÁRIOS (admin only) -->
    <div class="pg" id="pg-usuarios">
