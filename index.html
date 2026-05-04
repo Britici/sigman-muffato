@@ -1750,15 +1750,25 @@ function delPlan(id) {
 // ══════════════════════════════════════════════════════════════════════
 function renderExec() {
   populateSalaFilter('fe-sl');
+  // Popula filtro de manutentor dinamicamente
+  const mnSel = document.getElementById('fe-mn');
+  if (mnSel) {
+    const cur = mnSel.value;
+    const manuts = [...new Set(db.ordens.map(o=>o.manut).filter(Boolean))].sort();
+    mnSel.innerHTML = '<option value="">Todos os Manut.</option>' + manuts.map(m=>`<option value="${m}">${m}</option>`).join('');
+    if (cur) mnSel.value = cur;
+  }
   const tx  = v('fe-tx').toLowerCase();
   const tp  = v('fe-tp');
   const sl  = v('fe-sl');
+  const mn  = v('fe-mn');
   const dtI = v('fe-dt-ini');
   const dtF = v('fe-dt-fim');
   let data = [...db.ordens].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   if (tx) data = data.filter(o => [o.numero,o.sala,o.maq,o.manut,o.tipo].some(x=>x&&x.toLowerCase().includes(tx)));
   if (tp) data = data.filter(o => o.tipo === tp);
   if (sl) data = data.filter(o => o.sala === sl);
+  if (mn) data = data.filter(o => o.manut === mn);
   if (dtI) data = data.filter(o => o.data >= dtI);
   if (dtF) data = data.filter(o => o.data <= dtF);
   const tb = document.getElementById('tb-exec');
