@@ -2186,10 +2186,22 @@ function renderAtivos() {
         </div>`).join('');
 
   // Máquinas agrupadas por sala e em ordem alfabética
+  // Popula e aplica filtro de sala nas máquinas
+  const filSel = document.getElementById('at-ml-fil');
+  if (filSel) {
+    const curFil = filSel.value;
+    filSel.innerHTML = '<option value="">Todas as Salas</option>' + [...db.salas].sort().map(s=>`<option value="${s}">${s}</option>`).join('');
+    if (curFil) filSel.value = curFil;
+  }
+  const filSala = filSel ? filSel.value : '';
+
+  // Máquinas agrupadas por sala e em ordem alfabética
   const bySala = {};
-  [...db.maquinas].sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
-    if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
-  });
+  [...db.maquinas]
+    .filter(m => !filSala || m.sala === filSala)
+    .sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
+      if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
+    });  
   document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
