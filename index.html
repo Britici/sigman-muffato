@@ -54,10 +54,10 @@ body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--red);background:var(--surf3)}
 .fg textarea{resize:vertical;min-height:80px}
 .fg select option{background:var(--surf2);color:var(--txt)}
-.fg input[type=date]::-webkit-calendar-picker-indicator,
-.fg input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.65);cursor:pointer}
-[data-theme=light] .fg input[type=date]::-webkit-calendar-picker-indicator,
-[data-theme=light] .fg input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.15) opacity(.65)}
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.65);cursor:pointer}
+[data-theme=light] input[type=date]::-webkit-calendar-picker-indicator,
+[data-theme=light] input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.15) opacity(.65)}
 .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .fg-3{grid-template-columns:1fr 1fr 1fr}
 .fg-full{grid-column:1/-1}
@@ -438,6 +438,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
       <option>Preditiva</option><option>Preventiva</option>
      </select>
      <select id="fe-sl" onchange="renderExec()"><option value="">Todas as Salas</option></select>
+     <select id="fe-mn" onchange="renderExec()"><option value="">Todos os Manut.</option></select>
      <input type="date" id="fe-dt-ini" title="Data inicial" onchange="renderExec()">
      <input type="date" id="fe-dt-fim" title="Data final" onchange="renderExec()">
     </div>
