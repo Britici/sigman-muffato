@@ -687,6 +687,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
  <div id="md-b"></div>
  <div class="wa-prev" id="md-wa" style="display:none"></div>
  <button class="wa-cp" id="md-wa-btn" onclick="copyWA()" style="display:none">📋 Copiar para WhatsApp</button>
+ <button class="wa-cp" id="md-print-btn" onclick="imprimirDetOS()" style="display:none;background:#444;margin-top:6px">🖨️ Imprimir O.S.</button>
 </div></div>
 
 <!-- MODAL CONCLUIR -->
@@ -876,6 +877,7 @@ const ROLES = {
 let CU = null; // usuário logado
 let _pollTimer = null; // timer de atualização automática
 let _dashTimer = null; // timer específico do dashboard (15s)
+let _curDet = null;
 let _dashAutoRf = false; // auto-refresh dashboard ativo?
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2748,10 +2750,77 @@ function verDet(id,tipo) {
       ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}`;
     waEl.style.display='none';waBtn.style.display='none';
   }
-  document.getElementById('md-b').innerHTML=rows;openM('m-det');
+  document.getElementById('md-b').innerHTML=rows;
+  _curDet={item,tipo};
+  document.getElementById('md-print-btn').style.display='inline-block';
+  openM('m-det');
 }
 function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>alert('Copiado!'));}
 
+function imprimirDetOS() {
+  if (!_curDet) return;
+  const {item, tipo} = _curDet;
+  const titulo = tipo==='os' ? 'ORDEM DE SERVIÇO EXECUTADA' : 'ORDEM DE SERVIÇO PLANEJADA';
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>${titulo}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
+    .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
+    .header-left{display:flex;align-items:center;gap:12px}
+    .header-left img{height:48px;object-fit:contain}
+    h1{font-size:15px;color:#C41230;margin-bottom:2px}
+    .info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+    .info-box{border:1px solid #ccc;border-radius:3px;padding:6px 10px}
+    .info-label{font-size:9px;color:#666;text-transform:uppercase}
+    .info-val{font-size:12px;font-weight:bold}
+    .section{margin-bottom:10px}
+    .section-title{font-size:11px;font-weight:bold;background:#f0f0f0;padding:5px 8px;border-left:3px solid #C41230;margin-bottom:6px}
+    .section-content{border:1px solid #ddd;border-radius:3px;padding:8px 10px;font-size:12px;min-height:40px;line-height:1.6}
+    .assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:9px}
+    @media print{body{padding:10mm}}
+  </style></head><body>
+  <div class="header">
+    <div class="header-left">
+      <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" alt="Muffato Foods">
+      <div><div style="font-weight:bold;font-size:13px">MUFFATO FOODS</div><div style="font-size:10px;color:#666">Gestão de Manutenção — SIGMAN</div></div>
+    </div>
+    <div style="text-align:center"><h1>${titulo}</h1><div style="font-size:11px;font-weight:bold;color:#C41230">${item.numero}</div></div>
+    <div style="text-align:right;font-size:9px;color:#666">Doc: SIGMAN<br>Rev: 01</div>
+  </div>
+  <div class="info-grid">
+    <div class="info-box"><div class="info-label">Sala / Local</div><div class="info-val">${item.sala}</div></div>
+    <div class="info-box"><div class="info-label">Máquina / Ativo</div><div class="info-val">${item.maq}</div></div>
+    <div class="info-box"><div class="info-label">Tipo</div><div class="info-val">${item.tipo}</div></div>
+    <div class="info-box"><div class="info-label">Prioridade</div><div class="info-val">${item.prioridade||'—'}</div></div>
+    ${tipo==='os'?`
+    <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${item.manut||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(item.data)}</div></div>
+    <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">${item.ini||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${item.fim||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Duração (min)</div><div class="info-val">${item.durMin||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Parada (min)</div><div class="info-val">${item.paradaMin||'—'}</div></div>
+    `:`
+    <div class="info-box"><div class="info-label">Prazo Limite</div><div class="info-val">${fd(item.prazo)}</div></div>
+    <div class="info-box"><div class="info-label">Status</div><div class="info-val">${item.status||'—'}</div></div>
+    `}
+  </div>
+  ${tipo==='os'?`
+  <div class="section"><div class="section-title">Problema / Ocorrência</div><div class="section-content">${item.prob||'—'}</div></div>
+  <div class="section"><div class="section-title">Ação / Serviço Executado</div><div class="section-content">${item.acao||'—'}</div></div>
+  ${item.acaoPrev?`<div class="section"><div class="section-title">Ação Preventiva Identificada</div><div class="section-content">${item.acaoPrev}</div></div>`:''}
+  `:`
+  <div class="section"><div class="section-title">Serviço Planejado</div><div class="section-content">${item.desc||'—'}</div></div>
+  ${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${item.desc2}</div></div>`:''}
+  `}
+  <div style="display:flex;justify-content:space-between;margin-top:20px">
+    <div><div class="assinatura">Assinatura do Manutentor</div></div>
+    <div><div class="assinatura">Visto do Supervisor</div></div>
+  </div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
+}
 // ══════════════════════════════════════════════════════════════════════
 // MODAIS
 // ══════════════════════════════════════════════════════════════════════
