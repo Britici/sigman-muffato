@@ -718,7 +718,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 <div class="mb" id="m-rel"><div class="modal" style="max-width:640px">
  <div class="mhd"><div class="mtit">Relatório de Inspeção</div><button class="mcl" onclick="closeM('m-rel')">×</button></div>
  <div class="insp-report" id="m-rel-b"></div>
- <button class="wa-cp" onclick="copyRel()">📋 Copiar para WhatsApp</button>
+<button class="wa-cp" onclick="copyRel()">📋 Copiar para WhatsApp</button>
+<button class="wa-cp" onclick="imprimirInspDiaria()" style="background:#444;margin-top:6px">🖨️ Imprimir Inspeção</button>
 </div></div>
 
 <!-- MODAL EDITAR -->
@@ -2164,6 +2165,126 @@ function navInspRel(idx){
   _inspIdx=idx;mostrarInspRel(sorted,idx);
 }
 function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent||'').then(()=>alert('Copiado!'));}
+
+function imprimirInspDiaria() {
+  // Detecta qual inspeção está sendo exibida no modal
+  const pgAtiva = document.getElementById('pg-inspecao').classList.contains('on');
+  let insp;
+  if (pgAtiva) {
+    insp = {
+      data:       v('insp-dt'),
+      turno:      v('insp-tn'),
+      horasTurno: parseInt(v('insp-horas')) || 8,
+      manut:      v('insp-mn'),
+      itens:      collectInsp()
+    };
+  } else {
+    const sorted = [...db.inspecoes].sort((a,b) => (b.data||'').localeCompare(a.data||''));
+    insp = sorted[_inspIdx] || sorted[0];
+  }
+  if (!insp) { alert('Nenhuma inspeção para imprimir.'); return; }
+
+  const isHierarquico = insp.itens && insp.itens[0] && 'equips' in insp.itens[0];
+
+  // Monta linhas da tabela
+  let linhas = '';
+  if (isHierarquico) {
+    insp.itens.forEach(sec => {
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:11px;padding:5px 8px;border-left:3px solid #C41230">● ${sec.sala}</td></tr>`;
+      (sec.equips || []).forEach(eq => {
+        if (!eq.status) return;
+        const stOk  = eq.status === 'ok';
+        linhas += `<tr>
+          <td style="padding-left:14px">${eq.nome}</td>
+          <td style="text-align:center">${stOk ? '✔' : ''}</td>
+          <td style="text-align:center">${!stOk ? '✘' : ''}</td>
+          <td>${eq.hora||''}${eq.obs?' — '+eq.obs:''}</td>
+        </tr>`;
+        (eq.subs || []).forEach(s => {
+          if (!s.status) return;
+          const sOk = s.status === 'ok';
+          linhas += `<tr style="background:#fafafa">
+            <td style="padding-left:28px;font-size:10px;color:#444">↳ ${s.nome}</td>
+            <td style="text-align:center">${sOk ? '✔' : ''}</td>
+            <td style="text-align:center">${!sOk ? '✘' : ''}</td>
+            <td style="font-size:10px">${s.hora||''}${s.obs?' — '+s.obs:''}</td>
+          </tr>`;
+        });
+      });
+    });
+  } else {
+    const bySala = {};
+    (insp.itens || []).forEach(item => {
+      if (!bySala[item.sala]) bySala[item.sala] = [];
+      bySala[item.sala].push(item);
+    });
+    Object.entries(bySala).forEach(([sala, items]) => {
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:11px;padding:5px 8px;border-left:3px solid #C41230">● ${sala}</td></tr>`;
+      items.forEach(item => {
+        if (!item.status) return;
+        const stOk = item.status === 'ok';
+        const nome = item.sub ? `${item.equip} / ${item.sub}` : item.equip;
+        linhas += `<tr>
+          <td style="padding-left:14px">${nome}</td>
+          <td style="text-align:center">${stOk ? '✔' : ''}</td>
+          <td style="text-align:center">${!stOk ? '✘' : ''}</td>
+          <td>${item.hora||''}${item.obs?' — '+item.obs:''}</td>
+        </tr>`;
+      });
+    });
+  }
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>INSPEÇÃO DIÁRIA</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
+    .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
+    .header-left{display:flex;align-items:center;gap:12px}
+    .header-left img{height:44px;object-fit:contain}
+    h1{font-size:15px;color:#C41230;margin-bottom:2px}
+    .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+    .info-box{border:1px solid #ccc;border-radius:3px;padding:5px 8px}
+    .info-label{font-size:9px;color:#666;text-transform:uppercase}
+    .info-val{font-size:12px;font-weight:bold}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px}
+    th{background:#C41230;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    td{padding:5px 8px;border:1px solid #ddd;vertical-align:middle}
+    tr:nth-child(even) td{background:#fafafa}
+    .assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:9px}
+    @media print{body{padding:10mm}}
+  </style></head><body>
+  <div class="header">
+    <div class="header-left">
+      <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" alt="Muffato Foods">
+      <div><div style="font-weight:bold;font-size:13px">MUFFATO FOODS</div><div style="font-size:10px;color:#666">Gestão de Manutenção — SIGMAN</div></div>
+    </div>
+    <div style="text-align:center"><h1>INSPEÇÃO DIÁRIA</h1></div>
+    <div style="text-align:right;font-size:9px;color:#666">Doc: SIGMAN-INSP<br>Rev: 01</div>
+  </div>
+  <div class="info-grid">
+    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(insp.data)}</div></div>
+    <div class="info-box"><div class="info-label">Turno</div><div class="info-val">${insp.turno||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Horas do Turno</div><div class="info-val">${insp.horasTurno||8}h</div></div>
+    <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${insp.manut||'—'}</div></div>
+  </div>
+  <table>
+    <tr>
+      <th style="width:40%">Equipamento / Sub-item</th>
+      <th style="width:8%;text-align:center">OK</th>
+      <th style="width:8%;text-align:center">NOK</th>
+      <th>Hora / Observações</th>
+    </tr>
+    ${linhas || '<tr><td colspan="4" style="text-align:center;color:#999;padding:20px">Nenhum item registrado</td></tr>'}
+  </table>
+  <div style="display:flex;justify-content:space-between;margin-top:20px">
+    <div><div class="assinatura">Assinatura do Manutentor</div></div>
+    <div><div class="assinatura">Visto do Supervisor</div></div>
+  </div>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // ATIVOS
