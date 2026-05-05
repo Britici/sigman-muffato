@@ -1206,15 +1206,14 @@ function enterApp() {
   // Inicia polling de atualização automática (só admin e manut)
   if (CU.tipo !== 'producao') {
     _pollTimer = setInterval(async () => {
-      await apiLoadAll(true); // silencioso
-      // Atualiza página atual em background
+      await apiLoadAll(true);
       const act = document.querySelector('.nv-item.act, .nv-sub-item.act');
-      if (act) showPage(act.getAttribute('data-page'));
+      const pid  = act ? act.getAttribute('data-page') : null;
+      // Inspeção Diária é protegida: nunca recarrega durante preenchimento
+      if (pid && pid !== 'inspecao') showPage(pid);
       updStats();
       updateNavDots();
     }, POLL_MS);
-  }
-}
 
 // ══════════════════════════════════════════════════════════════════════
 // SIDEBAR / NAVEGAÇÃO
@@ -2065,22 +2064,41 @@ async function salvarInsp() {
         horas=parseInt(v('insp-horas'))||8;
   if(!data||!manut){showAlert('al-insp','Informe data e manutentor.','er');return;}
   const itens=collectInsp();
-  const id=genINSP(),agora=new Date().toISOString();
+  const id=genINSP(), agora=new Date().toISOString();
   db.inspecoes.push({id,data,turno,horasTurno:horas,manut,itens,criadoEm:agora});
-  db.inspC++;saveDB();
-  itens.forEach(sec=>{
-    sec.equips.forEach(eq=>{
-      if(!eq.status)return;
-      apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
-        Sala:sec.sala,Equipamento:eq.nome,Sub_Item:'',Status:eq.status,Hora:eq.hora,Observacoes:eq.obs,Criado_Em:agora});
-      (eq.subs||[]).forEach(s=>{if(!s.status)return;
-        apiAppend('inspecoes',{ID_Inspecao:id,Data:data,Turno:turno,Horas_Turno:horas,Manutentor:manut,
-          Sala:sec.sala,Equipamento:eq.nome,Sub_Item:s.nome,Status:s.status,Hora:s.hora,Observacoes:s.obs,Criado_Em:agora});
+  db.inspC++; saveDB();
+  // Monta TODAS as linhas em memória e envia em UMA única chamada POST
+  const rows = [];
+  itens.forEach(sec => {
+    sec.equips.forEach(eq => {
+      if (!eq.status) return; // item não avaliado: não grava
+      rows.push({
+        ID_Inspecao:id, Data:data, Turno:turno, Horas_Turno:horas,
+        Manutentor:manut, Sala:sec.sala, Equipamento:eq.nome,
+        Sub_Item:'', Status:eq.status, Hora:eq.hora||'',
+        Observacoes:eq.obs||'', Criado_Em:agora
+      });
+      (eq.subs||[]).forEach(s => {
+        if (!s.status) return;
+        rows.push({
+          ID_Inspecao:id, Data:data, Turno:turno, Horas_Turno:horas,
+          Manutentor:manut, Sala:sec.sala, Equipamento:eq.nome,
+          Sub_Item:s.nome, Status:s.status, Hora:s.hora||'',
+          Observacoes:s.obs||'', Criado_Em:agora
+        });
       });
     });
   });
-  showAlert('al-insp','Inspeção salva!','ok');
-  setTimeout(()=>showPage('dashboard'),900);
+  if (rows.length > 0) {
+    showAlert('al-insp', `Salvando ${rows.length} itens...`, 'ok');
+    const r = await apiPost({ action:'appendBatch', sheet:'inspecoes', rows });
+    if (!r || !r.ok) {
+      showAlert('al-insp', 'Erro ao salvar no Sheets. Dados gravados localmente.', 'er');
+      return;
+    }
+  }
+  showAlert('al-insp', `Inspeção salva! ${rows.length} itens gravados.`, 'ok');
+  setTimeout(()=>showPage('dashboard'), 900);
 }
 
 function gerarTextoRel(insp) {
