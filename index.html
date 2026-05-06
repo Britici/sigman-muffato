@@ -1207,10 +1207,6 @@ function enterApp() {
   if (CU.tipo !== 'producao') {
     _pollTimer = setInterval(async () => {
       await apiLoadAll(true);
-      const act = document.querySelector('.nv-item.act, .nv-sub-item.act');
-      const pid  = act ? act.getAttribute('data-page') : null;
-      // Inspeção Diária é protegida: nunca recarrega durante preenchimento
-      if (pid && pid !== 'inspecao') showPage(pid);
       updStats();
       updateNavDots();
     }, POLL_MS);
@@ -2313,7 +2309,6 @@ let _editType=null,_editIdx=null;
 
 function renderAtivos() {
   populateAtMaqSala();
-  <div id="at-crit-chart"></div>
   // Salas em ordem alfabética
   document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
@@ -2538,8 +2533,6 @@ const INSP_MAQ_ITEMS = [
 ];
 
 function initInspTmpl() {
-  populateSalas('insp-tmpl');
-  sv('insp-tmpl-sala','');
   populateSalaFilter('insp-tmpl-sala');
   sv('insp-tmpl-dt', today());
   if(CU.tipo!=='producao') sv('insp-tmpl-mn', CU.nome);
@@ -2607,7 +2600,7 @@ async function salvarInspTmpl() {
       const val=v('itval-'+gi+'-'+ii);
       const obs=v('itobs-'+gi+'-'+ii);
       if(tipo==='rota'){
-        apiAppend('insp_rota',{ID:agora,Data:data,Turno:v('insp-tn')||'',Manutentor:manut,
+        apiAppend('insp_rota',{ID:agora,Data:data,Turno: '' ||'',Manutentor:manut,
           Sala:maqInfo.sala||v('insp-tmpl-sala')||'',Ponto_Inspecao:grp.sistema,Item:item,
           Status:st,Hora:'',Valor_Medido:val,Limite_Min:'',Limite_Max:'',
           Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
@@ -3002,8 +2995,7 @@ async function init() {
         if (USE_API) {
           apiLoadAll(true).then(()=>{
             updStats();
-            const act=document.querySelector('.nv-item.act');
-            if(act)showPage(act.getAttribute('data-page'));
+            updateNavDots();
           }).catch(()=>{});
         }
         document.getElementById('loading-screen').style.display='none';
