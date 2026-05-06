@@ -600,6 +600,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
           <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:12px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:160px">
             <option value="">Todas as Salas</option>
           </select>
+          
         </div>
         <div id="at-ml"></div>
       </div>       
@@ -2312,7 +2313,7 @@ let _editType=null,_editIdx=null;
 
 function renderAtivos() {
   populateAtMaqSala();
-
+  <div id="at-crit-chart"></div>
   // Salas em ordem alfabética
   document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
@@ -2363,7 +2364,7 @@ function renderAtivos() {
         </div>`;
       }).join('')}
     </div>`).join('');
-
+  
   // Gráfico de criticidade
   renderCritChart();
 }
