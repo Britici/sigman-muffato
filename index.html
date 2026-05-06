@@ -379,8 +379,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="tb-r">
     <div class="tb-stat" id="tb-stat"><span id="th-hj">0</span> OS hoje</div>
     <button class="tb-btn" onclick="toggleTheme()" id="th-btn">🌙</button>
-    <button class="tb-btn" onclick="" title="Sair">⎋</button>
-   </div>
+    <button class="tb-btn" onclick="doLogout()" title="Sair">⎋</button>   </div>
   </header>
 
   <main class="cont">
@@ -570,6 +569,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
        <button class="btn btn-p btn-sm" onclick="addSala()">+ Adicionar</button>
       </div>
       <div class="card"><div class="card-t">Salas Cadastradas</div><div id="at-sl"></div></div>
+       <div class="card"><div class="card-t">Criticidade das Máquinas</div><div id="at-crit-chart"></div></div>
      </div>
      <div>
       <div class="card">
