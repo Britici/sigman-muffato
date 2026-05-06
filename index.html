@@ -379,7 +379,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
    <div class="tb-r">
     <div class="tb-stat" id="tb-stat"><span id="th-hj">0</span> OS hoje</div>
     <button class="tb-btn" onclick="toggleTheme()" id="th-btn">🌙</button>
-    <button class="tb-btn" onclick="doLogout()" title="Sair">⎋</button>
+    <button class="tb-btn" onclick="" title="Sair">⎋</button>
    </div>
   </header>
 
@@ -873,7 +873,7 @@ const ROLES = {
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','inspecao','solicitacao']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao']
   },
   producao: {
     label: 'Produção',
@@ -1160,8 +1160,7 @@ function doLogout() {
   document.getElementById('app').classList.remove('on');
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('lf-login').style.display = 'block';
-  document.getElementById('lf-reg').style.display = 'none';
+  document.getElementById('lf-login').style.display = 'flex';
 }
 
 function showReg()     { document.getElementById('lf-login').style.display='none';  document.getElementById('lf-reg').style.display='block'; }
@@ -1240,7 +1239,7 @@ const NAV = [
 const LBLS = {
   dashboard:'Dashboard', planejadas:'O.S. Planejadas', executadas:'O.S. Executadas',
   abertura:'Abertura de O.S.', planejamento:'PCM — Planejamento de O.S.',
-  solicitacao:'Solicitação de O.S.', inspecao:'PCM — Inspeção de Rota',
+  solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
   ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'PCM — Templates de Inspeção',
   preventiva:'PCM — Manutenção Preventiva'
 };
@@ -2505,56 +2504,19 @@ function salvarEdit() {
 function renderUsuarios() {
   const ul = document.getElementById('pg-ul');
   if (!ul) return;
-  ul.innerHTML = db.usuarios.map(u => `
-    <div class="edit-row">
-      <div>
-        <div style="font-size:13px;font-weight:500">${u.nome}</div>
-        <div style="font-size:11px;color:var(--txt3)">@${u.login}</div>
-      </div>
-      ${roleBadge(u.tipo)}
-    </div>`).join('');
+  ul.innerHTML = db.usuarios.length === 0
+    ? '<div class="empty"><div class="ei">👥</div><p>Nenhum usuário.</p></div>'
+    : db.usuarios.map(u => `
+        <div class="edit-row">
+          <div>
+            <div style="font-size:13px;font-weight:500">${u.nome}</div>
+            <div style="font-size:11px;color:var(--txt3)">@${u.login}</div>
+          </div>
+          ${roleBadge(u.tipo)}
+        </div>`).join('');
 }
 
-function showRegModal() {
-  document.getElementById('mu-t').textContent='Novo Usuário';
-  ['mu-nome','mu-user','mu-pass'].forEach(id=>sv(id,''));
-  sv('mu-tipo','manutencao');sv('mu-idx','');
-  document.getElementById('mu-alert').className='lalert';
-  openM('m-usr');
-}
-
-function openEditUser(i) {
-  const u=db.usuarios[i];
-  document.getElementById('mu-t').textContent='Editar Usuário';
-  sv('mu-nome',u.nome);sv('mu-user',u.login);sv('mu-pass',u.senha);
-  sv('mu-tipo',u.tipo);sv('mu-idx',i);
-  document.getElementById('mu-alert').className='lalert';
-  openM('m-usr');
-}
-
-function salvarUsuario() {
-  const nome=v('mu-nome').trim(),login=v('mu-user').trim(),
-        senha=v('mu-pass').trim(),tipo=v('mu-tipo'),idx=v('mu-idx');
-  const al=document.getElementById('mu-alert');
-  if(!nome||!login||!senha){al.textContent='Preencha todos os campos.';al.className='lalert err show';return;}
-  if(idx===''){
-    if(db.usuarios.find(u=>u.login===login)){al.textContent='Login já existe.';al.className='lalert err show';return;}
-    db.usuarios.push({login,senha,nome,tipo});
-    apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha,Ativo:'sim',Criado_Em:new Date().toISOString()}});
-  } else {
-    db.usuarios[parseInt(idx)]={login,senha,nome,tipo};
-    apiPost({action:'upsertUsuario',row:{Login:login,Nome:nome,Tipo_Acesso:tipo,Senha_Plana:senha}});
-  }
-  saveDB();renderUsuarios();closeM('m-usr');
-}
-
-function delUser(i) {
-  if(!confirm('Remover usuário?'))return;
-  const u=db.usuarios[i];db.usuarios.splice(i,1);saveDB();renderUsuarios();
-  if(u)apiDelete('usuarios',u.login,'Login');
-}
-
-// ══════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════
 // TEMPLATES DE INSPEÇÃO (admin)
 // ══════════════════════════════════════════════════════════════════════
 // Estrutura PCM de inspeção de rota e mecânica/elétrica
