@@ -398,7 +398,29 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
      <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
     </div>
-    <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
+        <!-- Card: Gráfico Semanal -->
+    <div class="card">
+      <div class="card-t" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px">
+          <span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>
+          OS por Dia — Últimos 7 Dias
+        </span>
+      </div>
+      <div id="d-weekly"></div>
+    </div>
+    
+    <!-- Card: Top Salas + Histórico -->
+    <div class="two-col">
+      <div class="card">
+        <div class="card-t">Top Salas — Corretivas (mês)</div>
+        <div id="d-top-salas"></div>
+      </div>
+      <div class="card">
+        <div class="card-t">Histórico de Ações</div>
+        <div id="d-historico"></div>
+      </div>
+    </div>
+     <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
     <div class="card">
      <div class="card-t" style="justify-content:space-between">
       <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Inspeção Diária — Último Relatório</span>
@@ -1587,10 +1609,13 @@ function renderDash() {
   // MTTR
   const ordComTempo = db.ordens.filter(o => o.durMin > 0);
   const mttr = ordComTempo.length ? Math.round(ordComTempo.reduce((s,o)=>s+o.durMin,0)/ordComTempo.length) : 0;
-
-  // % Preventiva
-  const pctPrev = total30 ? Math.round(prev30/total30*100) : 0;
-  const backlog  = plOpen;
+  
+  // MTBF
+  const nCorr = db.ordens.filter(o => o.tipo === 'Corretiva').length;
+  const mtbfH = nCorr > 0 ? Math.round((diasMes * horasTurno - (mttr/60 * nCorr)) / nCorr) : 0;
+    // % Preventiva
+    const pctPrev = total30 ? Math.round(prev30/total30*100) : 0;
+    const backlog  = plOpen;
 
   // Cards de KPI
   document.getElementById('d-stats').innerHTML = `
@@ -1619,6 +1644,11 @@ function renderDash() {
       <div class="sc-lbl">MTTR (min)</div>
       <div class="sc-val">${mttr}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">Tempo médio de reparo</div>
+    </div>
+    <div class="sc-card c-p">
+      <div class="sc-lbl">MTBF (h)</div>
+      <div class="sc-val">${mtbfH > 0 ? mtbfH : '—'}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Tempo médio entre falhas</div>
     </div>
     <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}">
       <div class="sc-lbl">Backlog OS</div>
@@ -1657,7 +1687,14 @@ function renderDash() {
         <div>
           <span class="osn">${p.numero}</span>
           <div style="font-size:13px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
-          <div style="font-size:11px;color:var(--txt3)">Prazo: ${fd(p.prazo)}</div>
+        <div style="font-size:11px;color:var(--txt3)">${(()=>{
+        if (!p.prazo) return 'Sem prazo';
+        const dias = Math.ceil((new Date(p.prazo) - new Date(today())) / 86400000);
+        if (dias < 0)  return `<span style="color:#ff2244;font-weight:700">⚠ ${Math.abs(dias)}d atrasada</span>`;
+        if (dias === 0) return `<span style="color:#ff2244;font-weight:700">⚠ Vence hoje</span>`;
+        if (dias <= 3)  return `<span style="color:var(--org);font-weight:600">🕐 Vence em ${dias}d</span>`;
+        return `Prazo: ${fd(p.prazo)} (${dias}d)`;
+      })()}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(p.prioridade)}${stBadge(p.status)}
@@ -1694,6 +1731,88 @@ function renderDash() {
     : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada ainda.</p></div>';
 }
 
+// ── Gráfico semanal ────────────────────────────
+const last7 = [];
+for (let i = 6; i >= 0; i--) {
+  const d = new Date();
+  d.setDate(d.getDate() - i);
+  const ds = d.toISOString().slice(0,10);
+  last7.push({
+    ds,
+    lbl: d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.',''),
+    cor:  db.ordens.filter(o=>o.data===ds&&o.tipo==='Corretiva').length,
+    prev: db.ordens.filter(o=>o.data===ds&&o.tipo==='Preventiva').length,
+    tot:  db.ordens.filter(o=>o.data===ds).length
+  });
+}
+const maxW = Math.max(...last7.map(d=>d.tot), 1);
+const dW = document.getElementById('d-weekly');
+if (dW) dW.innerHTML = `
+  <div style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:8px 0">
+    ${last7.map(d=>`
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="font-family:var(--fm);font-size:10px;color:var(--txt3)">${d.tot||''}</div>
+        <div style="width:100%;border-radius:4px 4px 0 0;min-height:3px;
+          background:${d.ds===today()?'var(--red)':'var(--blu)'};
+          height:${Math.max(d.tot/maxW*72,d.tot>0?4:0)}px;
+          opacity:${d.ds===today()?1:.7};
+          position:relative">
+          ${d.cor>0?`<div style="position:absolute;bottom:0;left:0;right:0;
+            height:${Math.round(d.cor/d.tot*100)}%;background:var(--red);border-radius:4px 4px 0 0;opacity:.8"></div>`:''}
+        </div>
+        <div style="font-size:10px;color:${d.ds===today()?'var(--red)':'var(--txt3)'};
+          font-weight:${d.ds===today()?700:400}">${d.lbl}</div>
+      </div>`).join('')}
+  </div>
+  <div style="display:flex;gap:12px;margin-top:4px">
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)">
+      <span style="width:10px;height:10px;border-radius:2px;background:var(--red)"></span>Corretiva
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt3)">
+      <span style="width:10px;height:10px;border-radius:2px;background:var(--blu)"></span>Outros tipos
+    </div>
+  </div>`;
+
+// ── Top salas ────────────────────────────
+const bySala = {};
+db.ordens.filter(o=>o.data&&o.data.startsWith(mes)&&o.tipo==='Corretiva').forEach(o=>{
+  bySala[o.sala] = (bySala[o.sala]||0)+1;
+});
+const topSalas = Object.entries(bySala).sort((a,b)=>b[1]-a[1]).slice(0,5);
+const maxSala  = topSalas[0]?.[1] || 1;
+const dTS = document.getElementById('d-top-salas');
+if (dTS) dTS.innerHTML = topSalas.length === 0
+  ? '<div class="empty"><div class="ei">🏭</div><p>Sem corretivas este mês.</p></div>'
+  : topSalas.map(([sala,n],i)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
+        <span style="font-family:var(--fm);font-size:11px;color:var(--txt3);min-width:14px">${i+1}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${sala}</div>
+          <div style="height:5px;background:var(--surf3);border-radius:3px;margin-top:4px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(n/maxSala*100)}%;background:var(--red);border-radius:3px"></div>
+          </div>
+        </div>
+        <span style="font-family:var(--fw);font-size:18px;font-weight:800;color:var(--red)">${n}</span>
+      </div>`).join('');
+
+// ── Histórico ────────────────────────────
+const dH = document.getElementById('d-historico');
+if (dH) dH.innerHTML = db.historico.length === 0
+  ? '<div class="empty"><div class="ei">📝</div><p>Nenhuma ação registrada.</p></div>'
+  : db.historico.slice(0,10).map(h=>{
+      const ts = new Date(h.ts);
+      const hora = ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const data = ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+      const cor = h.acao.includes('Excluiu')?'var(--red)':h.acao.includes('Criou')?'var(--grn)':'var(--blu)';
+      return `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bord);align-items:flex-start">
+        <div style="width:6px;height:6px;border-radius:50%;background:${cor};flex-shrink:0;margin-top:5px"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">${h.acao} <span style="font-family:var(--fm);color:var(--red);font-size:11px">${h.numero}</span></div>
+          <div style="font-size:11px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.detalhe}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px">${h.user} · ${data} ${hora}</div>
+        </div>
+      </div>`;
+    }).join('');
 // ══════════════════════════════════════════════════════════════════════
 // O.S. PLANEJADAS
 // ══════════════════════════════════════════════════════════════════════
