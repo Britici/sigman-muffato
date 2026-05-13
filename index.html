@@ -1823,7 +1823,7 @@ if (dW) dW.innerHTML = `
           ${d.cor>0?`<div style="position:absolute;bottom:0;left:0;right:0;
             height:${Math.round(d.cor/d.tot*100)}%;background:var(--red);border-radius:4px 4px 0 0;opacity:.8"></div>`:''}
         </div>
-        <div style="font-size:10px;color:${d.ds===today()?'var(--red)':'var(--txt3)'];
+        <div style="font-size:10px;color:${d.ds===today()?'var(--red)':'var(--txt3)'};
           font-weight:${d.ds===today()?700:400}">${d.lbl}</div>
       </div>`).join('')}
   </div>
