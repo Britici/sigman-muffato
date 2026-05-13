@@ -386,12 +386,14 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
    <!-- DASHBOARD -->
    <div class="pg" id="pg-dashboard">
-    <div class="ph"><div class="pt"><small>Visão Geral</small>Dashboard</div></div>
-    <div class="dash-rf" id="dash-rf-bar">
-      <span class="rf-dot off" id="rf-dot"></span>
-      <span id="rf-lbl" style="flex:1">Auto-atualização desligada</span>
-      <button class="btn btn-sm btn-gh" onclick="renderDash()">🔄 Atualizar agora</button>
-      <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ Ligar 15s</button>
+   <div class="ph" style="flex-wrap:nowrap;align-items:center;gap:12px">
+      <div class="pt"><small>Visão Geral</small>Dashboard</div>
+      <div class="dash-rf" id="dash-rf-bar" style="margin-bottom:0;flex:1">
+        <span class="rf-dot off" id="rf-dot"></span>
+        <span id="rf-lbl" style="flex:1">Auto-atualização desligada</span>
+        <button class="btn btn-sm btn-gh" onclick="renderDash()">🔄 Atualizar agora</button>
+        <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ Ligar 15s</button>
+      </div>
     </div>
     <div class="stats" id="d-stats"></div>
     <div class="two-col">
