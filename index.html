@@ -572,20 +572,19 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
    <!-- ATIVOS -->
    <div class="pg" id="pg-ativos">
- <div class="ph">
-  <div class="pt"><small>Cadastro</small>Ativos</div>
-  <div id="at-crit-chart" style="display:flex;align-items:center;gap:12px"></div>
- </div>
+  <div class="ph">
+    <div class="pt"><small>Cadastro</small>Ativos</div>
+  </div>
     <div class="two-col">
-     <div>
-      <div class="card">
+    <div>
+      <div class="card"><div class="card-t">Criticidade das Máquinas</div><div id="at-crit-chart"></div></div>
+     <div class="card">
        <div class="card-t">Nova Sala / Local</div>
        <div class="fg"><label>Nome da Sala</label><input type="text" id="at-sn" placeholder="Ex: Carne Moída"></div>
        <button class="btn btn-p btn-sm" onclick="addSala()">+ Adicionar</button>
       </div>
       <div class="card"><div class="card-t">Salas Cadastradas</div><div id="at-sl"></div></div>
-       <div class="card"><div class="card-t">Criticidade das Máquinas</div><div id="at-crit-chart"></div></div>
-     </div>
+        </div>
      <div>
       <div class="card">
        <div class="card-t">Nova Máquina / Ativo</div>
@@ -2469,40 +2468,83 @@ function renderCritChart() {
   });
 
   const total = db.maquinas.length;
-  if (!total) { cont.innerHTML = ''; return; }
+  if (!total) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--txt3);padding:20px;font-size:12px">Nenhuma máquina cadastrada</div>';
+    return;
+  }
 
-  const colors = {'1':'#ff2244','2':'#C41230','3':'#f59e0b','4':'#1fd988'};
-  const labels = {'1':'Crítico','2':'Alta','3':'Média','4':'Baixa'};
-  const size = 72, r = 28, cx = 36, cy = 36, stroke = 10;
+  const colors = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988'};
+  const labels = {'1':'1 – Crítico','2':'2 – Alta','3':'3 – Média','4':'4 – Baixa'};
+
+  // ── Donut ──────────────────────────────────────────────────
+  const sz = 110, r = 38, cx = 55, cy = 55, sw = 16;
   const circ = 2 * Math.PI * r;
-
-  let offset = 0;
-  let arcs = '';
-  Object.entries(counts).filter(([,n])=>n>0).forEach(([k,n])=>{
+  let offset = 0, arcs = '';
+  const entries = Object.entries(counts).filter(([,n]) => n > 0);
+  entries.forEach(([k, n]) => {
     const dash = (n / total) * circ;
-    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}"
-      fill="none" stroke="${colors[k]}" stroke-width="${stroke}"
+    const pct  = Math.round(n / total * 100);
+    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="${colors[k]}" stroke-width="${sw}"
       stroke-dasharray="${dash.toFixed(2)} ${circ.toFixed(2)}"
       stroke-dashoffset="${(-offset).toFixed(2)}"
       transform="rotate(-90 ${cx} ${cy})">
-      <title>${labels[k]}: ${n}</title></circle>`;
+      <title>${labels[k]}: ${n} (${pct}%)</title></circle>`;
     offset += dash;
   });
 
-  const legenda = Object.entries(counts).filter(([,n])=>n>0).map(([k,n])=>`
-    <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2)">
-      <span style="width:8px;height:8px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-      ${labels[k]}: <strong style="color:var(--txt)">${n}</strong>
+  const legendaHtml = entries.map(([k, n]) => `
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2)">
+      <span style="width:9px;height:9px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
+      <span style="font-weight:700">${k}</span>
+      <span style="color:var(--txt3)">${Math.round(n/total*100)}%</span>
     </div>`).join('');
 
+  // ── Barras verticais ──────────────────────────────────────
+  const allBars  = [...Object.entries(counts), ['T', total]];
+  const barCols  = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988','T':'#5aa8ff'};
+  const barLbls  = {'1':'1','2':'2','3':'3','4':'4','T':'Total'};
+  const maxVal   = Math.max(...allBars.map(([,n]) => n), 1);
+  const chartH   = 100, chartW = 180, barW = 26, gap = 10;
+  const startX   = 10;
+  let barsSvg    = '';
+
+  allBars.forEach(([k, n], i) => {
+    const x   = startX + i * (barW + gap);
+    const bh  = Math.max(4, Math.round((n / maxVal) * chartH));
+    const y   = chartH - bh;
+    barsSvg += `
+      <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3"
+        fill="${barCols[k]}" opacity="0.88"/>
+      <text x="${x + barW/2}" y="${y - 3}" text-anchor="middle"
+        font-size="11" font-weight="800" fill="var(--txt)" font-family="var(--fw)">${n}</text>
+      <text x="${x + barW/2}" y="${chartH + 13}" text-anchor="middle"
+        font-size="9" fill="var(--txt3)" font-family="var(--fw)" font-weight="700">${barLbls[k]}</text>`;
+  });
+
   cont.innerHTML = `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surf3)" stroke-width="${stroke}"/>
-      ${arcs}
-      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
-        font-size="13" font-weight="800" fill="var(--txt)" font-family="var(--fw)">${total}</text>
-    </svg>
-    <div style="display:flex;flex-direction:column;gap:4px">${legenda}</div>`;
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+      <!-- Donut -->
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:6px">Visão Geral</div>
+        <svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surf3)" stroke-width="${sw}"/>
+          ${arcs}
+          <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+            font-size="15" font-weight="800" fill="var(--txt)" font-family="var(--fw)">${total}</text>
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:6px;align-items:flex-start">
+          ${legendaHtml}
+        </div>
+      </div>
+      <!-- Barras -->
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:8px">Quantidade da Distribuição</div>
+        <svg width="100%" height="${chartH + 20}" viewBox="0 0 ${startX*2 + allBars.length*(barW+gap)} ${chartH + 20}" preserveAspectRatio="xMidYMid meet">
+          ${barsSvg}
+        </svg>
+      </div>
+    </div>`;
 }
 
 function addSala() {
