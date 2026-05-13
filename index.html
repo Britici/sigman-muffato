@@ -398,6 +398,16 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
      <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
     </div>
+    <div class="two-col">
+    <div class="card">
+      <div class="card-t">Top Salas — Corretivas (mês)</div>
+      <div id="d-top-salas"></div>
+    </div>
+    <div class="card">
+      <div class="card-t">Histórico de Ações</div>
+      <div id="d-historico"></div>
+    </div>
+  </div>
     <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
     <div class="card">
      <div class="card-t" style="justify-content:space-between">
@@ -865,6 +875,7 @@ let db = {
     meta_disponibilidade: 85, meta_performance: 90, meta_qualidade: 99
   },
   osC:1, plC:1, solC:1, inspC:1
+  historico: []
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1117,6 +1128,7 @@ function saveDB() {
       ordens: db.ordens, planejadas: db.planejadas,
       solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,
       osC: db.osC, plC: db.plC, solC: db.solC, inspC: db.inspC
+      historico: db.historico
     }));
   } catch(e) {}
 }
@@ -1556,7 +1568,32 @@ function showAlert(id, msg, type='ok') {
   el.textContent = msg; el.className = 'alert '+type+' on';
   setTimeout(()=>el.classList.remove('on'), 4000);
 }
-
+function logEdit(acao, numero, detalhe) {
+  if (!CU) return;
+  const agora = new Date().toISOString();
+  const entry = {
+    ts:      agora,
+    user:    CU.nome,
+    login:   CU.login,
+    acao,
+    numero:  numero || '',
+    detalhe: detalhe || ''
+  };
+  db.historico.unshift(entry);
+  if (db.historico.length > 100) db.historico.pop();
+  saveDB();
+  // Envia para o Sheets
+  apiAppend('historico', {
+    ID:         agora,
+    Data_Hora:  agora,
+    Usuario:    CU.nome,
+    Login:      CU.login,
+    Acao:       acao,
+    Numero_Ref: numero || '',
+    Detalhe:    detalhe || ''
+  });
+}
+  
 // ══════════════════════════════════════════════════════════════════════
 // DASHBOARD — OEE + TPM
 // ══════════════════════════════════════════════════════════════════════
@@ -1692,6 +1729,53 @@ function renderDash() {
        </div>
        <div class="wa-prev" style="max-height:180px;overflow:auto;font-size:11px">${gerarTextoRel(lastInsp)}</div>`
     : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada ainda.</p></div>';
+  
+  // Top salas
+  const bySala = {};
+  db.ordens
+    .filter(o => o.data && o.data.startsWith(mes) && o.tipo === 'Corretiva')
+    .forEach(o => { bySala[o.sala] = (bySala[o.sala] || 0) + 1; });
+  const topSalas = Object.entries(bySala).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const maxSala  = topSalas[0]?.[1] || 1;
+  const dTS = document.getElementById('d-top-salas');
+  if (dTS) dTS.innerHTML = topSalas.length === 0
+    ? '<div class="empty"><div class="ei">🏭</div><p>Sem corretivas este mês.</p></div>'
+    : topSalas.map(([sala,n], i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
+          <span style="font-family:var(--fm);font-size:11px;color:var(--txt3);min-width:14px">${i+1}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">${sala}</div>
+            <div style="height:5px;background:var(--surf3);border-radius:3px;margin-top:4px;overflow:hidden">
+              <div style="height:100%;width:${Math.round(n/maxSala*100)}%;background:var(--red);border-radius:3px"></div>
+            </div>
+          </div>
+          <span style="font-family:var(--fw);font-size:18px;font-weight:800;color:var(--red)">${n}</span>
+        </div>`).join('');
+  
+  // Histórico
+  const dH = document.getElementById('d-historico');
+  if (dH) dH.innerHTML = db.historico.length === 0
+    ? '<div class="empty"><div class="ei">📝</div><p>Nenhuma ação ainda.</p></div>'
+    : db.historico.slice(0, 10).map(h => {
+        const ts   = new Date(h.ts);
+        const hora = ts.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+        const dia  = ts.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+        const cor  = h.acao.includes('Excluiu') ? 'var(--red)'
+                   : h.acao.includes('Criou')   ? 'var(--grn)'
+                   : 'var(--blu)';
+        return `
+          <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bord);align-items:flex-start">
+            <div style="width:7px;height:7px;border-radius:50%;background:${cor};flex-shrink:0;margin-top:4px"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600">
+                ${h.acao}
+                <span style="font-family:var(--fm);color:var(--red);font-size:11px">${h.numero}</span>
+              </div>
+              <div style="font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.detalhe}</div>
+              <div style="font-size:10px;color:var(--txt3);margin-top:2px">${h.user} · ${dia} ${hora}</div>
+            </div>
+          </div>`;
+      }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1749,6 +1833,7 @@ function editarPlan(id) {
 function delPlan(id) {
   if (!confirm('Excluir esta O.S. planejada?')) return;
   const pl = db.planejadas.find(p => String(p.id) === String(id));
+  if (pl) logEdit('Excluiu Planejada', pl.numero, pl.sala + ' · ' + pl.maq);
   db.planejadas = db.planejadas.filter(p => String(p.id) !== String(id));
   saveDB(); renderPlan();
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
@@ -1799,6 +1884,7 @@ function renderExec() {
 function delOS(id) {
   if (!confirm('Excluir esta O.S.?')) return;
   const os = db.ordens.find(o => String(o.id) === String(id));
+  if (os) logEdit('Excluiu OS', os.numero, os.sala + ' · ' + os.maq);
   db.ordens = db.ordens.filter(o => String(o.id) !== String(id));
   saveDB(); renderExec(); updStats();
   if (os) apiDelete('ordens', os.numero, 'OS_Numero');
@@ -1851,6 +1937,7 @@ async function salvarOS() {
   const os = { id: Date.now(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
                durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
   db.osC++; db.ordens.push(os); saveDB(); updStats();
+  logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
   showAlert('al-ab', `Registrando ${numero}...`, 'ok');
   // Upload da foto (async, não bloqueia)
   const fotoUrl = await uploadFotoOS(numero);
@@ -1889,6 +1976,7 @@ async function salvarPlan() {
   db.planejadas.push({id:Date.now(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
     status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
   db.plC++; saveDB();
+  logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
   apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
     Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
     Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
@@ -1980,6 +2068,7 @@ async function concluir() {
     manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,
     criadoEm:agora,origem:_ctp,origemNum:item.numero};
   db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
+  logEdit('Concluiu', item.numero, item.sala + ' · ' + item.maq);
   if(_ctp==='plan')renderPlan();else renderSol();updStats();
   if(_ctp==='plan'){apiUpdate('planejadas',item.numero,'PL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,Servico_Executado:desc,Concluido_Em:agora});}
   else{apiUpdate('solicitacoes',item.numero,'SOL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Servico_Executado:desc,Concluido_Em:agora});}
@@ -2507,6 +2596,7 @@ function salvarEdit() {
   } else if(_editType==='plan') {
     const p=db.planejadas.find(x=>String(x.id)===String(_editIdx));if(!p)return;
     p.status=v('ep-status');p.prazo=v('ep-prazo');p.prioridade=v('ep-prio');p.desc=v('ep-desc');
+    logEdit('Editou Planejada', p.numero, 'Status: ' + p.status + ' · Prazo: ' + p.prazo);
     saveDB();renderPlan();closeM('m-edit');
     apiUpdate('planejadas',p.numero,'PL_Numero',{Status:p.status,Prazo_Limite:p.prazo,Prioridade:p.prioridade,Descricao_Planejada:p.desc});
   }
