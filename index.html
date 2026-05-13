@@ -1748,7 +1748,7 @@ function renderDash() {
     : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada ainda.</p></div>';
   
   // Top salas
-  const bySala = {};
+  const bySala = [];
   db.ordens
     .filter(o => o.data && o.data.startsWith(mes) && o.tipo === 'Corretiva')
     .forEach(o => { bySala[o.sala] = (bySala[o.sala] || 0) + 1; });
