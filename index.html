@@ -347,7 +347,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
   </div>
   </div>
  </div>
-</div>
 
 <!-- ══ APP ══ -->
 <div id="app">
@@ -1077,6 +1076,17 @@ async function apiLoadAll(silent = false) {
     db.inspecoes = Object.values(map);
   }
 
+  if (d.historico && d.historico.length) {
+  db.historico = d.historico.slice(0, 100).map(r => ({
+    ts:      normStr(r.Data_Hora),
+    user:    normStr(r.Usuario),
+    login:   normStr(r.Login),
+    acao:    normStr(r.Acao),
+    numero:  normStr(r.Numero_Ref),
+    detalhe: normStr(r.Detalhe)
+  }));
+}
+  
   // Usuários — merge: Sheets tem nome/tipo, localStorage tem senhas
   const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
   if (d.usuarios && d.usuarios.length) {
@@ -1177,11 +1187,9 @@ function doLogout() {
   document.getElementById('app').classList.remove('on');
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('lf-login').style.display = 'flex';
+  document.getElementById('lf-login').style.display = 'block';
 }
 
-function showReg()     { document.getElementById('lf-login').style.display='none';  document.getElementById('lf-reg').style.display='block'; }
-//function backLogin()   { document.getElementById('lf-reg').style.display='none';    document.getElementById('lf-login').style.display='block'; }
 function lAlert(m,t='err') {
   const el = document.getElementById('l-alert');
   el.textContent = m; el.className = 'lalert '+t+' show';
@@ -1192,6 +1200,8 @@ function lAlert(m,t='err') {
 // ENTRAR NO APP
 // ══════════════════════════════════════════════════════════════════════
 function enterApp() {
+  clearInterval(_pollTimer);
+  clearInterval(_dashTimer);
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display   = 'none';
   document.getElementById('app').classList.add('on');
@@ -2093,6 +2103,7 @@ async function concluir() {
     Prioridade:item.prioridade,Manutentor:manut,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin,Problema:item.desc||'',Acao_Executada:desc,Origem:_ctp,
     OS_Origem_Ref:item.numero,Criado_Em:agora});
+  if (document.getElementById('pg-dashboard').classList.contains('on')) renderDash();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2152,6 +2163,14 @@ function setStatus(id,st,btn) {
   }
 }
 
+function setPrevStatus(key, st, btn) {
+  const row = btn.closest('.prev-row');
+  row.querySelectorAll('.iok,.inok').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const hid = document.getElementById('pvst-' + key);
+  if (hid) hid.value = st;
+}
+  
 function collectInsp() {
   const data=[];
   INSP_TMPL.forEach(sec=>{
@@ -2565,7 +2584,20 @@ function renderCritChart() {
 
     </div>`;
 }
-
+  
+function addSala() {
+  const nome = v('at-sn').trim().toUpperCase();
+  if (!nome) { alert('Informe o nome da sala.'); return; }
+  if (db.salas.includes(nome)) { alert('Sala já existe.'); return; }
+  db.salas.push(nome);
+  db.salas.sort();
+  saveDB();
+  sv('at-sn', '');
+  populateAll();
+  renderAtivos();
+  apiAppend('salas', { Nome: nome, Ativo: 'sim', Criado_Em: new Date().toISOString() });
+}
+  
 function addMaq() {
   const sala=v('at-ms'), nome=v('at-mn').trim().toUpperCase(),
         tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal';
@@ -2725,7 +2757,7 @@ function renderInspTmpl() {
     <div class="card" style="margin-bottom:10px">
       <div class="card-t">${grp.sistema}</div>
       ${grp.itens.map((item,ii)=>`
-        <div style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
+        <div class="insp-tmpl-row" data-id="${gi}-${ii}" style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
           <div style="font-size:13px">${item}</div>
           <div style="display:flex;gap:5px">
             <button class="iok"  onclick="setItmStatus('it-${gi}-${ii}','ok',this)">OK</button>
@@ -2740,12 +2772,12 @@ function renderInspTmpl() {
   document.getElementById('insp-tmpl-body').innerHTML = body;
 }
 
-function setItmStatus(id,st,btn) {
-  const row=btn.closest('div[style*="grid"]');
-  row.querySelectorAll('.iok,.inok').forEach(b=>b.classList.remove('on'));
+function setItmStatus(id, st, btn) {
+  const row = btn.closest('.insp-tmpl-row');
+  row.querySelectorAll('.iok,.inok').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
-  const hid=document.getElementById(id.replace('it-','itst-'));
-  if(hid)hid.value=st;
+  const hid = document.getElementById('itst-' + id.replace('it-', ''));
+  if (hid) hid.value = st;
 }
 
 async function salvarInspTmpl() {
@@ -2902,11 +2934,11 @@ function carregarTarefasPreventiva() {
     <div class="card" style="margin-bottom:10px">
       <div class="card-t">${grp}</div>
       ${tarefas.map((t,ti)=>`
-        <div style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
+        <div class="prev-row" data-key="${gi}-${ti}" style="display:grid;grid-template-columns:1fr auto auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
           <div style="font-size:13px">${t}</div>
           <div style="display:flex;gap:5px">
-            <button class="iok"  onclick="this.closest('div[style]').querySelector('.iok').classList.add('on');this.closest('div[style]').querySelector('.inok').classList.remove('on');this.closest('div[style]').querySelector('input[type=hidden]').value='ok'">OK</button>
-            <button class="inok" onclick="this.closest('div[style]').querySelector('.inok').classList.add('on');this.closest('div[style]').querySelector('.iok').classList.remove('on');this.closest('div[style]').querySelector('input[type=hidden]').value='nok'">NOK</button>
+            <button class="iok"  onclick="setPrevStatus('${gi}-${ti}','ok',this)">OK</button>
+            <button class="inok" onclick="setPrevStatus('${gi}-${ti}','nok',this)">NOK</button>          
           </div>
           <div><input type="number" placeholder="min" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px;width:60px;outline:none" id="pvmin-${gi}-${ti}"></div>
           <div><input type="text" placeholder="Materiais / Observações" style="background:var(--inp);border:1px solid var(--bord);border-radius:4px;color:var(--txt);font-size:12px;padding:4px 8px;width:100%;outline:none" id="pvobs-${gi}-${ti}"></div>
