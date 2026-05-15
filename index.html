@@ -756,7 +756,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
 const API_URL    = 'https://script.google.com/macros/s/AKfycbxQ-okD4Ya5AAwlnnTJiW24B3_OD67N8BXMdB23ubLA68j0srmZA-Kw48BqDqqkWLv8Ng/exec';
 const USE_API    = true;   // false = modo offline (só localStorage)
-const POLL_MS    = 60000;  // Atualização automática a cada 60 segundos
+const POLL_MS    = 180000;  // Atualização automática a cada 3 minutos
 
 // ══════════════════════════════════════════════════════════════════════
 // TEMPLATE DE INSPEÇÃO DIÁRIA (Equipamentos por Sala)
@@ -1349,9 +1349,9 @@ function showPage(pid) {
     renderDash();
     if (_dashAutoRf) startDashTimer();
   }
-  if (pid === 'planejadas')    renderPlan();
-  if (pid === 'executadas')    renderExec();
-  if (pid === 'solicitacao')   renderSol();
+  if (pid === 'planejadas')  { apiLoadAll(true).then(renderPlan); }
+  if (pid === 'executadas')  { apiLoadAll(true).then(renderExec); }
+  if (pid === 'solicitacao') { apiLoadAll(true).then(renderSol); }
   if (pid === 'ativos')        renderAtivos();
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      buildInsp();
@@ -3184,10 +3184,9 @@ async function init() {
       const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
       if (u) {
         CU = u;
-        enterApp(); // entra imediatamente
-        // Atualiza Sheets em segundo plano
-        if (USE_API) {
-          apiLoadAll(true).then(()=>{
+        // Aguarda Sheets antes de entrar
+        if (USE_API) await apiLoadAll(true);
+        enterApp();  
             updStats();
             updateNavDots();
           }).catch(()=>{});
