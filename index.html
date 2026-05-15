@@ -3186,11 +3186,13 @@ async function init() {
         CU = u;
         enterApp(); // entra imediatamente
         // Atualiza Sheets em segundo plano
-        if (USE_API) await apiLoadAll(true); {
-          enterApp(); {
+        if (USE_API) {
+          try {
+            await apiLoadAll(true);
+            enterApp();
             updStats();
             updateNavDots();
-          }).catch(()=>{});      
+          } catch(e) {}
         }
         document.getElementById('loading-screen').style.display='none';
         return;
