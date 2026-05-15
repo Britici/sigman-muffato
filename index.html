@@ -3184,12 +3184,13 @@ async function init() {
       const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
       if (u) {
         CU = u;
-        // Aguarda Sheets antes de entrar
-        if (USE_API) await apiLoadAll(true);
-        enterApp();  
+        enterApp(); // entra imediatamente
+        // Atualiza Sheets em segundo plano
+        if (USE_API) await apiLoadAll(true); {
+          enterApp(); {
             updStats();
             updateNavDots();
-          }.catch(()=>{});
+          }).catch(()=>{});      
         }
         document.getElementById('loading-screen').style.display='none';
         return;
@@ -3197,7 +3198,7 @@ async function init() {
     } catch(e) {}
     localStorage.removeItem('sigman_sess');
   }
-
+  
   // Sem sessão: carrega Sheets antes de mostrar login (para ter usuários atualizados)
   if (USE_API) {
     try { await apiLoadAll(); } catch(e) {}
