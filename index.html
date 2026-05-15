@@ -3189,9 +3189,11 @@ async function init() {
         if (USE_API) {
           try {
             await apiLoadAll(true);
-            enterApp();
+            // Se Sheets carregou dados mas localStorage estava vazio, re-renderiza
             updStats();
             updateNavDots();
+            const pgAtual = document.querySelector('.pg.on');
+            if (pgAtual && pgAtual.id === 'pg-dashboard') renderDash();
           } catch(e) {}
         }
         document.getElementById('loading-screen').style.display='none';
