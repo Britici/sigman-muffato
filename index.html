@@ -1349,9 +1349,9 @@ function showPage(pid) {
     renderDash();
     if (_dashAutoRf) startDashTimer();
   }
-  if (pid === 'planejadas')  { apiLoadAll(true).then(renderPlan); }
-  if (pid === 'executadas')  { apiLoadAll(true).then(renderExec); }
-  if (pid === 'solicitacao') { apiLoadAll(true).then(renderSol); }
+  if (pid === 'planejadas')  { renderPlan(); apiLoadAll(true).then(renderPlan); }
+  if (pid === 'executadas')  { renderExec(); apiLoadAll(true).then(renderExec); }
+  if (pid === 'solicitacao') { renderSol();  apiLoadAll(true).then(renderSol); }
   if (pid === 'ativos')        renderAtivos();
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      buildInsp();
@@ -1725,6 +1725,7 @@ function renderDash() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(p.prioridade)}${stBadge(p.status)}
+          ${CU&&CU.tipo!=='producao'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.id}','plan')">Concluir</button>`:''}
         </div>
       </div>`).join('');
 
@@ -3193,7 +3194,11 @@ async function init() {
             updStats();
             updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
-            if (pgAtual && pgAtual.id === 'pg-dashboard') renderDash();
+            const curPid  = pgAtual ? pgAtual.id.replace('pg-','') : '';
+            if (curPid === 'dashboard')   renderDash();
+            if (curPid === 'planejadas')  renderPlan();
+            if (curPid === 'executadas')  renderExec();
+            if (curPid === 'solicitacao') renderSol();
           } catch(e) {}
         }
         document.getElementById('loading-screen').style.display='none';
