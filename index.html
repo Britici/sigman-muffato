@@ -1352,7 +1352,7 @@ function showPage(pid) {
   if (pid === 'planejadas')  { renderPlan(); apiLoadAll(true).then(renderPlan); }
   if (pid === 'executadas')  { renderExec(); apiLoadAll(true).then(renderExec); }
   if (pid === 'solicitacao') { renderSol();  apiLoadAll(true).then(renderSol); }
-  if (pid === 'ativos')        renderAtivos();
+  if (pid === 'ativos')      { renderAtivos(); apiLoadAll(true).then(renderAtivos); }
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      buildInsp();
   if (pid === 'inspecao-tmpl') initInspTmpl();
