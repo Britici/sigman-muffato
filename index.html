@@ -440,7 +440,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <button class="btn btn-gh btn-sm" onclick="exportCSV()">⬇ Exportar com Filtros</button>
     </div>
     <div class="fr">
-     <input type="text" id="fe-tx" placeholder="🔍 Buscar..." oninput="renderExec()">
+     <input type="text" id="fe-tx" placeholder="🔍 Buscar..." oninput="renderExecDebounced()">
      <select id="fe-tp" onchange="renderExec()">
       <option value="">Todos os Tipos</option>
       <option>Corretiva</option><option>Inspeção</option><option>Melhoria</option>
@@ -981,7 +981,7 @@ async function apiLoadAll(silent = false) {
   // Ordens Executadas
   if (d.ordens && d.ordens.length) {
     db.ordens = d.ordens.map(r => ({
-      id:          Date.now() + Math.random(),
+      id:          crypto.randomUUID(),
       numero:      normStr(r.OS_Numero),
       sala:        normStr(r.Sala),
       maq:         normStr(r.Maquina),
@@ -1008,7 +1008,7 @@ async function apiLoadAll(silent = false) {
   // OS Planejadas
   if (d.planejadas && d.planejadas.length) {
     db.planejadas = d.planejadas.map(r => ({
-      id:         Date.now() + Math.random(),
+      id:         crypto.randomUUID(),
       numero:     normStr(r.PL_Numero),
       sala:       normStr(r.Sala),
       maq:        normStr(r.Maquina),
@@ -1033,7 +1033,7 @@ async function apiLoadAll(silent = false) {
   // Solicitações
   if (d.solicitacoes && d.solicitacoes.length) {
     db.solicitacoes = d.solicitacoes.map(r => ({
-      id:         Date.now() + Math.random(),
+      id:         crypto.randomUUID(),
       numero:     normStr(r.SOL_Numero),
       sala:       normStr(r.Sala),
       maq:        normStr(r.Maquina),
@@ -1165,18 +1165,6 @@ async function doLogin() {
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
   enterApp();
-}
-
-function tryAuto() {
-  const raw = localStorage.getItem('sigman_sess');
-  if (!raw) return false;
-  try {
-    const s = JSON.parse(raw);
-    const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
-    if (u) { CU = u; return true; }
-  } catch(e) {}
-  localStorage.removeItem('sigman_sess');
-  return false;
 }
 
 function doLogout() {
@@ -1533,6 +1521,9 @@ function populateSalaFilter(id) {
 const v   = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 const sv  = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
 const today = () => new Date().toISOString().slice(0,10);
+  
+  function debounce(fn, ms=300){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+    const renderExecDebounced = debounce(()=>renderExec());
 
 function fd(d) {
   if (!d) return '—';
@@ -1544,7 +1535,6 @@ function fd(d) {
 function genOS()   { return 'OS-'  + String(db.osC).padStart(4,'0'); }
 function genPL()   { return 'PL-'  + String(db.plC).padStart(4,'0'); }
 function genSOL()  { return 'SOL-' + String(db.solC).padStart(4,'0'); }
-function genINSP() { return 'INS-' + String(db.inspC).padStart(4,'0'); }
 
 function updStats() {
   const t = today();
@@ -1759,7 +1749,7 @@ function renderDash() {
     : '<div class="empty"><div class="ei">🔍</div><p>Nenhuma inspeção registrada ainda.</p></div>';
   
   // Top salas
-  const bySala = [];
+  const bySala = {};
   db.ordens
     .filter(o => o.data && o.data.startsWith(mes) && o.tipo === 'Corretiva')
     .forEach(o => { bySala[o.sala] = (bySala[o.sala] || 0) + 1; });
@@ -1811,8 +1801,9 @@ function renderDash() {
 // ══════════════════════════════════════════════════════════════════════
 function renderPlan() {
   const t  = today();
-  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) p.status = 'Atrasada'; });
-  saveDB();
+  let changed = false;
+  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) { p.status = 'Atrasada'; changed = true; } });
+  if (changed) saveDB();
   const st = v('fp-st');
   let data = [...db.planejadas].reverse();
   if (st) data = data.filter(p => p.status === st);
@@ -1962,7 +1953,7 @@ async function salvarOS() {
     if (!paradaMin) paradaMin = durMin;
   }
   const numero = genOS(), agora = new Date().toISOString();
-  const os = { id: Date.now(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
+  const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
                durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
   db.osC++; db.ordens.push(os); saveDB(); updStats();
   logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
@@ -2001,7 +1992,7 @@ async function salvarPlan() {
         horas=parseInt(v('pl-horas'))||8;
   if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
   const numero=genPL(), agora=new Date().toISOString();
-  db.planejadas.push({id:Date.now(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
+  db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
     status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
   db.plC++; saveDB();
   logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
@@ -2023,7 +2014,7 @@ async function salvarSol() {
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
   const numero=genSOL(),agora=new Date().toISOString();
-  db.solicitacoes.push({id:Date.now(),numero,sala,maq,tipo,prioridade:pr,desc,
+  db.solicitacoes.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
     status:'Não Executada',solicitante:CU.nome,criadoEm:agora});
   db.solC++;saveDB();
   apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
@@ -2092,7 +2083,7 @@ async function concluir() {
   if(ini&&fim){const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);durMin=Math.max(0,(h2*60+m2)-(h1*60+m1));if(!paradaMin)paradaMin=durMin;}
   Object.assign(item,{status:'Concluída',concluidoEm:agora,manut,ini,fim,dtExec:data,desc2:desc,durMin});
   const numero=genOS();
-  const os={id:Date.now(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
+  const os={id:crypto.randomUUID(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
     manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,
     criadoEm:agora,origem:_ctp,origemNum:item.numero};
   db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
@@ -2309,8 +2300,13 @@ function navInspRel(idx){
   if(idx<0||idx>=sorted.length)return;
   _inspIdx=idx;mostrarInspRel(sorted,idx);
 }
-function copyRel(){navigator.clipboard.writeText(document.getElementById('m-rel-b').textContent||'').then(()=>alert('Copiado!'));}
-
+  
+function copyRel(){
+  const pre = document.querySelector('#m-rel-b pre');
+  const txt = pre ? pre.textContent : (document.getElementById('m-rel-b').textContent || '');
+  navigator.clipboard.writeText(txt).then(()=>alert('Copiado!'));
+}
+  
 function imprimirInspDiaria() {
   // Detecta qual inspeção está sendo exibida no modal
   const pgAtiva = document.getElementById('pg-inspecao').classList.contains('on');
