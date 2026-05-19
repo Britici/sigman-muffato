@@ -2190,7 +2190,7 @@ async function salvarInsp() {
         horas=parseInt(v('insp-horas'))||8;
   if(!data||!manut){showAlert('al-insp','Informe data e manutentor.','er');return;}
   const itens=collectInsp();
-  const id=genINSP(), agora=new Date().toISOString();
+  const id=crypto.randomUUID(), agora=new Date().toISOString();
   db.inspecoes.push({id,data,turno,horasTurno:horas,manut,itens,criadoEm:agora});
   db.inspC++; saveDB();
   // Monta TODAS as linhas em memória e envia em UMA única chamada POST
