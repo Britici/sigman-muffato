@@ -2791,7 +2791,7 @@ async function salvarInspTmpl() {
       const val=v('itval-'+gi+'-'+ii);
       const obs=v('itobs-'+gi+'-'+ii);
       if(tipo==='rota'){
-        apiAppend('insp_rota',{ID:agora,Data:data,Turno: v('insp-tmpl-tn')||',Manutentor:manut,
+        apiAppend('insp_rota',{ID:agora,Data:data,Turno: v('insp-tmpl-tn')||'',Manutentor:manut,
           Sala:maqInfo.sala||v('insp-tmpl-sala')||'',Ponto_Inspecao:grp.sistema,Item:item,
           Status:st,Hora:'',Valor_Medido:val,Limite_Min:'',Limite_Max:'',
           Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
