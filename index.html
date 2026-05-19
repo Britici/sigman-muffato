@@ -1803,7 +1803,78 @@ function renderDash() {
           </div>`;
       }).join('');
 }
-
+function exportDashPDF() {
+  const t = today();
+  const sel = document.getElementById('dash-periodo');
+  const per = sel ? sel.value : 'mes';
+  const perLbl = per === '3m' ? 'Últimos 3 Meses' : per === 'ano' ? 'Este Ano' : 'Este Mês';
+  let startDate;
+  if (per === '3m') { const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-2);startDate=d.toISOString().slice(0,10); }
+  else if (per === 'ano') { startDate = t.slice(0,4)+'-01-01'; }
+  else { startDate = t.slice(0,7)+'-01'; }
+  const ordP = db.ordens.filter(o => o.data && o.data >= startDate);
+  const cor2 = ordP.filter(o=>o.tipo==='Corretiva').length;
+  const prv  = ordP.filter(o=>o.tipo==='Preventiva').length;
+  const tot  = ordP.length;
+  const ht   = db.configuracoes.horas_turno_1 || 8;
+  const dp   = Math.max(1, new Set(ordP.map(o=>o.data)).size);
+  const mP   = ordP.reduce((s,o)=>s+(o.paradaMin||o.durMin||0),0);
+  const disp = Math.min(100,Math.max(0,Math.round((1-mP/(dp*ht*60))*100)));
+  const pP   = tot ? Math.round(prv/tot*100) : 0;
+  const mtr  = (()=>{const ot=ordP.filter(o=>o.durMin>0);return ot.length?Math.round(ot.reduce((s,o)=>s+o.durMin,0)/ot.length):0;})();
+  const plOp = db.planejadas.filter(p=>p.status!=='Concluída').length;
+  const plAt = db.planejadas.filter(p=>p.status==='Atrasada').length;
+  const solP = db.solicitacoes.filter(s=>s.status==='Não Executada').length;
+  const bySala2={};ordP.filter(o=>o.tipo==='Corretiva').forEach(o=>{bySala2[o.sala]=(bySala2[o.sala]||0)+1;});
+  const topSalas2=Object.entries(bySala2).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const proximas2=db.planejadas.filter(p=>p.status!=='Concluída'&&p.prazo).sort((a,b)=>a.prazo.localeCompare(b.prazo)).slice(0,3);
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>SIGMAN — Dashboard ${fd(t)}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;padding:14mm 16mm}
+  .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:14px}
+  h1{font-size:15px;color:#C41230}h2{font-size:11px;margin:12px 0 6px;background:#f4f4f4;padding:4px 8px;border-left:3px solid #C41230;text-transform:uppercase;letter-spacing:.5px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .kpi{border:1px solid #e0e0e0;border-radius:4px;padding:8px;text-align:center}
+  .kpi-l{font-size:9px;color:#888;text-transform:uppercase}
+  .kpi-v{font-size:20px;font-weight:bold;color:#C41230;margin-top:2px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse}th,td{font-size:10px;padding:4px 6px;text-align:left;border-bottom:1px solid #eee}
+  th{background:#f4f4f4;font-weight:bold}
+  .foot{margin-top:18px;border-top:1px solid #e0e0e0;padding-top:6px;font-size:9px;color:#999;display:flex;justify-content:space-between}
+  @media print{body{padding:8mm 10mm}}</style></head><body>
+  <div class="header">
+    <div><b style="font-size:13px;color:#C41230">MUFFATO FOODS</b><br><span style="font-size:9px;color:#666">SIGMAN — Gestão de Manutenção</span></div>
+    <h1>RELATÓRIO — DASHBOARD</h1>
+    <div style="text-align:right;font-size:9px;color:#666">Período: ${perLbl}<br>Gerado em: ${fd(t)}</div>
+  </div>
+  <h2>KPIs do Período — ${perLbl}</h2>
+  <div class="grid">
+    <div class="kpi"><div class="kpi-l">OS no Período</div><div class="kpi-v">${tot}</div></div>
+    <div class="kpi"><div class="kpi-l">Disponibilidade</div><div class="kpi-v">${disp}%</div></div>
+    <div class="kpi"><div class="kpi-l">% Preventiva</div><div class="kpi-v">${pP}%</div></div>
+    <div class="kpi"><div class="kpi-l">MTTR (min)</div><div class="kpi-v">${mtr}</div></div>
+    <div class="kpi"><div class="kpi-l">Corretivas</div><div class="kpi-v">${cor2}</div></div>
+    <div class="kpi"><div class="kpi-l">Preventivas</div><div class="kpi-v">${prv}</div></div>
+    <div class="kpi"><div class="kpi-l">Backlog OS</div><div class="kpi-v">${plOp}</div></div>
+    <div class="kpi"><div class="kpi-l">Sol. Pendentes</div><div class="kpi-v">${solP}</div></div>
+  </div>
+  <div class="two-col">
+    <div><h2>Top Salas — Corretivas</h2>
+      ${topSalas2.length
+        ? `<table><tr><th>Sala</th><th style="text-align:right">OS</th></tr>${topSalas2.map(([s,n])=>`<tr><td>${s}</td><td style="text-align:right;font-weight:bold;color:#C41230">${n}</td></tr>`).join('')}</table>`
+        : '<p style="color:#999;font-size:10px;margin-top:6px">Sem dados</p>'}
+    </div>
+    <div><h2>Próximas Preventivas</h2>
+      ${proximas2.length
+        ? `<table><tr><th>OS / Ativo</th><th style="text-align:right">Prazo</th></tr>${proximas2.map(p=>{const d=Math.ceil((new Date(p.prazo)-new Date(t))/86400000);return`<tr><td>${p.numero} — ${p.maq}</td><td style="text-align:right;font-weight:bold;color:${d<0?'#C41230':d<=3?'#f59e0b':'#16a34a'}">${d<0?Math.abs(d)+'d atr.':d+'d'}</td></tr>`;}).join('')}</table>`
+        : '<p style="color:#999;font-size:10px;margin-top:6px">Sem pendentes</p>'}
+    </div>
+  </div>
+  <div class="foot"><span>SIGMAN — Muffato Foods</span><span>Confidencial</span><span>${fd(t)}</span></div>
+  <script>setTimeout(()=>window.print(),400);<\/script></body></html>`);
+  win.document.close();
+}
 // ══════════════════════════════════════════════════════════════════════
 // O.S. PLANEJADAS
 // ══════════════════════════════════════════════════════════════════════
