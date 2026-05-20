@@ -878,20 +878,7 @@ let db = {
   planejadas:   [],
   solicitacoes: [],
   inspecoes:    [],
-  usuarios:     [
-    {login:'admin', senha:'admin123', nome:'Administrador',   tipo:'administracao'},
-    {login:'amauri', senha:'admin123', nome:'Amauri Primel',   tipo:'administracao'},
-    {login:'marcia', senha:'admin123', nome:'Marcia Souza',   tipo:'administracao'},
-    {login:'leonardo', senha:'admin123', nome:'Leonardo Dias',   tipo:'administracao'},
-    {login:'larissa', senha:'admin123', nome:'Larissa Melo',   tipo:'administracao'},
-    {login:'adilson', senha:'adilson123', nome:'Adilson Pereira', tipo:'manutencao'},
-    {login:'carlos', senha:'carlos123', nome:'Carlos da Cruz', tipo:'manutencao'},
-    {login:'danilo', senha:'danilo123', nome:'Danilo Mariano', tipo:'manutencao'},
-    {login:'joao', senha:'joao123', nome:'Joâo Pereira', tipo:'manutencao'},
-    {login:'paulo', senha:'paulo123', nome:'Paulo do Carmo', tipo:'manutencao'},
-    {login:'tiago', senha:'tiago123', nome:'Tiago Britici', tipo:'manutencao'},
-    {login:'producao',  senha:'prod123',  nome:'Produção',   tipo:'producao'}
-  ],
+  usuarios:     [],
   configuracoes: {
     horas_turno_1: 8, horas_turno_2: 8, horas_turno_3: 8,
     meta_disponibilidade: 85, meta_performance: 90, meta_qualidade: 99
@@ -1109,19 +1096,18 @@ async function apiLoadAll(silent = false) {
   }));
 }
   
-  // Usuários — merge: Sheets tem nome/tipo, localStorage tem senhas
+  // Usuários — Sheets é a fonte de verdade; Senha_Hash do Sheets é usada diretamente.
+  // Se o usuário mudou a senha pelo app, a versão local tem prioridade.
   const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
   if (d.usuarios && d.usuarios.length) {
     db.usuarios = d.usuarios
-      .filter(r => r.Login && r.Ativo !== 'nao')
+      .filter(r => r.Login && String(r.Ativo).toLowerCase() !== 'nao')
       .map(r => {
         const loc = localUsers.find(u => u.login === r.Login);
-        return { login: r.Login, nome: r.Nome, tipo: r.Tipo_Acesso, senha: loc ? loc.senha : 'mudar123' };
+        // Prioridade: senha alterada no app (localStorage) > Senha_Hash do Sheets > fallback
+        const senha = loc ? loc.senha : (r.Senha_Hash || 'mudar123');
+        return { login: r.Login, nome: r.Nome, tipo: r.Tipo_Acesso, senha };
       });
-    // Adiciona usuários locais que ainda não foram ao Sheets
-    localUsers.forEach(lu => {
-      if (!db.usuarios.find(u => u.login === lu.login)) db.usuarios.push(lu);
-    });
   } else if (localUsers.length) {
     db.usuarios = localUsers;
   }
@@ -1181,7 +1167,17 @@ async function doLogin() {
   const senha = v('l-p').trim();
   if (!login || !senha) { lAlert('Preencha usuário e senha.'); return; }
 
-  // Autenticação local apenas
+  // Se não há usuários carregados ainda, tenta buscar do Sheets antes de autenticar
+  if (!db.usuarios.length && typeof USE_API !== 'undefined' && USE_API) {
+    lAlert('Carregando usuários…', 'ok');
+    try { await apiLoadAll(); } catch(e) { /* segue */ }
+  }
+
+  if (!db.usuarios.length) {
+    lAlert('Sem conexão com o servidor. Verifique a API_URL.', 'err');
+    return;
+  }
+
   const user = db.usuarios.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
