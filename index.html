@@ -1622,39 +1622,48 @@ function logEdit(acao, numero, detalhe) {
 // ══════════════════════════════════════════════════════════════════════
 function renderDash() {
   updStats();
-  const t   = today();
-  const mes = t.slice(0,7); // YYYY-MM
+  const t = today();
 
-  // Dados do mês atual
-  const ordMes   = db.ordens.filter(o => o.data && o.data.startsWith(mes));
-  const cor30    = db.ordens.filter(o => o.tipo === 'Corretiva').length;
-  const prev30   = db.ordens.filter(o => o.tipo === 'Preventiva').length;
-  const total30  = db.ordens.length;
-  const hj       = db.ordens.filter(o => o.data === t).length;
-  const plOpen   = db.planejadas.filter(p => p.status !== 'Concluída').length;
-  const plAtras  = db.planejadas.filter(p => p.status === 'Atrasada').length;
-  const solPend  = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
+  // Filtro de período
+  const sel = document.getElementById('dash-periodo');
+  const per = sel ? sel.value : 'mes';
+  let startDate;
+  if (per === '3m') {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
+    startDate = d.toISOString().slice(0,10);
+  } else if (per === 'ano') {
+    startDate = t.slice(0,4) + '-01-01';
+  } else {
+    startDate = t.slice(0,7) + '-01';
+  }
 
-  // OEE simplificado (por turno de 8h = 480min disponíveis/dia)
+  // Dados filtrados pelo período
+  const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
+  const cor     = ordPer.filter(o => o.tipo === 'Corretiva').length;
+  const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
+  const total   = ordPer.length;
+  const hj      = db.ordens.filter(o => o.data === t).length;
+  const plOpen  = db.planejadas.filter(p => p.status !== 'Concluída').length;
+  const plAtras = db.planejadas.filter(p => p.status === 'Atrasada').length;
+  const solPend = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
+
+  // Disponibilidade
   const horasTurno = db.configuracoes.horas_turno_1 || 8;
-  const diasMes   = new Set(ordMes.map(o => o.data)).size || 1;
-  const minDisp   = diasMes * horasTurno * 60;
-  const minParada = ordMes.reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
-  const disponib  = Math.min(100, Math.max(0, Math.round((1 - minParada/minDisp) * 100)));
-  const metaDisp  = db.configuracoes.meta_disponibilidade || 85;
-  const corColor  = disponib >= metaDisp ? 'var(--grn)' : disponib >= metaDisp-10 ? 'var(--org)' : 'var(--red)';
+  const diasPer    = Math.max(1, new Set(ordPer.map(o => o.data)).size);
+  const minDisp    = diasPer * horasTurno * 60;
+  const minParada  = ordPer.reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
+  const disponib   = Math.min(100, Math.max(0, Math.round((1 - minParada/minDisp) * 100)));
+  const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
 
-  // MTTR
-  const ordComTempo = db.ordens.filter(o => o.durMin > 0);
-  const mttr = ordComTempo.length ? Math.round(ordComTempo.reduce((s,o)=>s+o.durMin,0)/ordComTempo.length) : 0;
-
-  // MTBF
-  const nCorr = db.ordens.filter(o => o.tipo === 'Corretiva').length;
-  const mtbfH = nCorr > 0 ? Math.round((diasMes * horasTurno - (mttr/60 * nCorr)) / nCorr) : 0;
+  // MTTR / MTBF
+  const ordTempo = ordPer.filter(o => o.durMin > 0);
+  const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
+  const nCorr = cor;
+  const mtbfH = nCorr > 0 ? Math.round((diasPer * horasTurno - (mttr/60 * nCorr)) / nCorr) : 0;
 
   // % Preventiva
-  const pctPrev = total30 ? Math.round(prev30/total30*100) : 0;
-  const backlog  = plOpen;
+  const pctPrev = total ? Math.round(prev/total*100) : 0;
+  const metaPrev = 60;
 
   // Cards de KPI
   document.getElementById('d-stats').innerHTML = `
