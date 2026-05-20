@@ -1930,7 +1930,7 @@ function renderGauge(containerId, value, meta) {
   if (!cont) return;
   const color = value >= meta ? 'var(--grn)' : value >= meta-10 ? 'var(--org)' : 'var(--red)';
   const pct = Math.min(100, Math.max(0, value));
-  const r = 56, cx = 90, cy = 72, sw = 15;
+  const r = 40, cx = 52, cy = 46, sw = 13;
   function polarXY(deg) {
     const rad = (deg - 90) * Math.PI / 180;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -1944,18 +1944,25 @@ function renderGauge(containerId, value, meta) {
   const metaDeg = 180 + (meta / 100) * 180;
   const mp = polarXY(metaDeg);
   cont.innerHTML = `
-    <div style="text-align:center;padding:6px 0">
-      <svg viewBox="0 0 180 88" style="width:100%;max-width:280px;overflow:visible">
-        <path d="${arcPath(180,360)}" fill="none" stroke="var(--surf3)" stroke-width="${sw}" stroke-linecap="round"/>
-        <path d="${arcPath(180, valDeg < 180.1 ? 180.1 : valDeg)}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-        <circle cx="${mp.x.toFixed(2)}" cy="${mp.y.toFixed(2)}" r="5" fill="#f59e0b" stroke="var(--bg)" stroke-width="2"/>
-        <text x="${cx}" y="${cy-10}" text-anchor="middle" font-size="30" font-weight="800" fill="${color}" font-family="Barlow Condensed,sans-serif">${value}%</text>
-        <text x="${cx}" y="${cy+6}" text-anchor="middle" font-size="10" fill="var(--txt3)" font-family="Barlow,sans-serif">Disponibilidade</text>
-        <text x="22" y="82" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="Barlow,sans-serif">0%</text>
-        <text x="158" y="82" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="Barlow,sans-serif">100%</text>
-      </svg>
-      <div style="font-size:11px;color:var(--txt3);margin-top:2px">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;vertical-align:middle"></span>Meta: ${meta}%
+    <div style="display:flex;align-items:center;gap:18px;padding:10px 4px">
+      <div style="flex-shrink:0">
+        <svg width="104" height="62" viewBox="0 0 104 62" style="overflow:visible">
+          <path d="${arcPath(180,360)}" fill="none" stroke="var(--surf3)" stroke-width="${sw}" stroke-linecap="round"/>
+          <path d="${arcPath(180, valDeg < 180.1 ? 180.1 : valDeg)}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+          <circle cx="${mp.x.toFixed(2)}" cy="${mp.y.toFixed(2)}" r="4" fill="#f59e0b" stroke="var(--bg)" stroke-width="2"/>
+          <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="19" font-weight="800" fill="${color}" font-family="Barlow Condensed,sans-serif">${value}%</text>
+          <text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="8" fill="var(--txt3)" font-family="Barlow,sans-serif">0% ←——→ 100%</text>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--txt)">Disponibilidade</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:5px">Meta: <strong style="color:#f59e0b">${meta}%</strong></div>
+        <div style="height:5px;background:var(--surf3);border-radius:3px;width:110px;margin-top:8px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,value)}%;background:${color};border-radius:3px"></div>
+        </div>
+        <div style="font-size:11px;margin-top:6px;font-weight:600;color:${value>=meta?'var(--grn)':'var(--red)'}">
+          ${value >= meta ? '✅ Meta atingida' : `⚠ Abaixo em ${meta-value}%`}
+        </div>
       </div>
     </div>`;
 }
