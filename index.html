@@ -1808,14 +1808,13 @@ function renderDash() {
   
   // Top salas
   const bySala = {};
-  db.ordens
-    .filter(o => o.data && o.data.startsWith(mes) && o.tipo === 'Corretiva')
+  ordPer.filter(o => o.tipo === 'Corretiva')
     .forEach(o => { bySala[o.sala] = (bySala[o.sala] || 0) + 1; });
   const topSalas = Object.entries(bySala).sort((a,b) => b[1]-a[1]).slice(0,5);
   const maxSala  = topSalas[0]?.[1] || 1;
   const dTS = document.getElementById('d-top-salas');
   if (dTS) dTS.innerHTML = topSalas.length === 0
-    ? '<div class="empty"><div class="ei">🏭</div><p>Sem corretivas este mês.</p></div>'
+    ? '<div class="empty"><div class="ei">🏭</div><p>Sem corretivas no período.</p></div>'
     : topSalas.map(([sala,n], i) => `
         <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
           <span style="font-family:var(--fm);font-size:11px;color:var(--txt3);min-width:14px">${i+1}</span>
@@ -1925,6 +1924,175 @@ function exportDashPDF() {
   <script>setTimeout(()=>window.print(),400);<\/script></body></html>`);
   win.document.close();
 }
+
+function renderGauge(containerId, value, meta) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const color = value >= meta ? 'var(--grn)' : value >= meta-10 ? 'var(--org)' : 'var(--red)';
+  const pct = Math.min(100, Math.max(0, value));
+  const r = 56, cx = 90, cy = 72, sw = 15;
+  function polarXY(deg) {
+    const rad = (deg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  function arcPath(s, e) {
+    const sp = polarXY(s), ep = polarXY(e);
+    const large = (e - s) > 180 ? 1 : 0;
+    return `M ${sp.x.toFixed(2)} ${sp.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${ep.x.toFixed(2)} ${ep.y.toFixed(2)}`;
+  }
+  const valDeg = 180 + (pct / 100) * 180;
+  const metaDeg = 180 + (meta / 100) * 180;
+  const mp = polarXY(metaDeg);
+  cont.innerHTML = `
+    <div style="text-align:center;padding:6px 0">
+      <svg viewBox="0 0 180 88" style="width:100%;max-width:280px;overflow:visible">
+        <path d="${arcPath(180,360)}" fill="none" stroke="var(--surf3)" stroke-width="${sw}" stroke-linecap="round"/>
+        <path d="${arcPath(180, valDeg < 180.1 ? 180.1 : valDeg)}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+        <circle cx="${mp.x.toFixed(2)}" cy="${mp.y.toFixed(2)}" r="5" fill="#f59e0b" stroke="var(--bg)" stroke-width="2"/>
+        <text x="${cx}" y="${cy-10}" text-anchor="middle" font-size="30" font-weight="800" fill="${color}" font-family="Barlow Condensed,sans-serif">${value}%</text>
+        <text x="${cx}" y="${cy+6}" text-anchor="middle" font-size="10" fill="var(--txt3)" font-family="Barlow,sans-serif">Disponibilidade</text>
+        <text x="22" y="82" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="Barlow,sans-serif">0%</text>
+        <text x="158" y="82" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="Barlow,sans-serif">100%</text>
+      </svg>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;vertical-align:middle"></span>Meta: ${meta}%
+      </div>
+    </div>`;
+}
+
+function renderPCMRing(containerId, value, meta) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const color = value >= meta ? 'var(--grn)' : value >= meta * 0.75 ? 'var(--org)' : 'var(--red)';
+  const r = 40, cx = 52, cy = 52, sw = 13;
+  const circ = 2 * Math.PI * r;
+  const fill = Math.min(1, value / 100) * circ;
+  cont.innerHTML = `
+    <div style="display:flex;align-items:center;gap:18px;padding:10px 4px">
+      <div style="flex-shrink:0">
+        <svg width="104" height="104" viewBox="0 0 104 104">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surf3)" stroke-width="${sw}"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
+            stroke-dasharray="${fill.toFixed(2)} ${circ.toFixed(2)}"
+            stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
+          <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+            font-size="19" font-weight="800" fill="${color}" font-family="Barlow Condensed,sans-serif">${value}%</text>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--txt)">% Preventiva</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:5px">Meta PCM: <strong style="color:#f59e0b">${meta}%</strong></div>
+        <div style="height:5px;background:var(--surf3);border-radius:3px;width:110px;margin-top:8px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,value)}%;background:${color};border-radius:3px"></div>
+        </div>
+        <div style="font-size:11px;margin-top:6px;font-weight:600;color:${value>=meta?'var(--grn)':'var(--red)'}">
+          ${value >= meta ? '✅ Meta atingida' : `⚠ Faltam ${meta - value}%`}
+        </div>
+      </div>
+    </div>`;
+}
+  
+function renderTrend(containerId) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+    months.push(d.toISOString().slice(0,7));
+  }
+  const corrData = months.map(m => db.ordens.filter(o => o.data && o.data.startsWith(m) && o.tipo === 'Corretiva').length);
+  const prevData = months.map(m => db.ordens.filter(o => o.data && o.data.startsWith(m) && o.tipo === 'Preventiva').length);
+  const maxVal = Math.max(...corrData, ...prevData, 1);
+  const chartH = 90, barW = 16, gap = 5, groupGap = 12, startX = 8;
+  const groupW = barW * 2 + gap;
+  const svgW = startX * 2 + months.length * (groupW + groupGap) - groupGap;
+  let bars = '';
+  months.forEach((m, i) => {
+    const x = startX + i * (groupW + groupGap);
+    const lbl = m.slice(5,7) + '/' + m.slice(2,4);
+    const cH = corrData[i] > 0 ? Math.max(4, Math.round(corrData[i]/maxVal*chartH)) : 0;
+    const pH = prevData[i] > 0 ? Math.max(4, Math.round(prevData[i]/maxVal*chartH)) : 0;
+    bars += `
+      <rect x="${x}" y="${chartH-cH}" width="${barW}" height="${cH||1}" rx="3" fill="var(--red)" opacity=".85"/>
+      ${corrData[i]?`<text x="${x+barW/2}" y="${chartH-cH-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${corrData[i]}</text>`:''}
+      <rect x="${x+barW+gap}" y="${chartH-pH}" width="${barW}" height="${pH||1}" rx="3" fill="var(--grn)" opacity=".85"/>
+      ${prevData[i]?`<text x="${x+barW+gap+barW/2}" y="${chartH-pH-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${prevData[i]}</text>`:''}
+      <text x="${x+groupW/2}" y="${chartH+12}" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="var(--fw)">${lbl}</text>`;
+  });
+  cont.innerHTML = `
+    <div style="display:flex;gap:14px;margin-bottom:10px">
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)"><span style="width:10px;height:10px;background:var(--red);border-radius:2px;opacity:.85;display:inline-block"></span>Corretiva</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)"><span style="width:10px;height:10px;background:var(--grn);border-radius:2px;opacity:.85;display:inline-block"></span>Preventiva</span>
+    </div>
+    <svg width="100%" height="${chartH+18}" viewBox="0 0 ${svgW} ${chartH+18}" preserveAspectRatio="xMidYMid meet">${bars}</svg>`;
+}
+
+function renderProximas(containerId) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const t = today();
+  const abertas = db.planejadas
+    .filter(p => p.status !== 'Concluída' && p.prazo)
+    .sort((a,b) => a.prazo.localeCompare(b.prazo))
+    .slice(0,3);
+  if (!abertas.length) {
+    cont.innerHTML = '<div class="empty"><div class="ei">📅</div><p>Sem preventivas pendentes.</p></div>';
+    return;
+  }
+  cont.innerHTML = abertas.map(p => {
+    const dias = Math.ceil((new Date(p.prazo) - new Date(t)) / 86400000);
+    const uc = dias < 0 ? '#ff2244' : dias <= 3 ? 'var(--org)' : 'var(--grn)';
+    const ul = dias < 0 ? `${Math.abs(dias)}d atrasada` : dias === 0 ? 'Vence hoje' : `${dias}d restantes`;
+    const bw = Math.min(100, Math.max(5, 100 - Math.max(0,dias)/30*100));
+    return `
+      <div style="padding:9px 0;border-bottom:1px solid var(--bord)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span class="osn">${p.numero}</span>
+            <div style="font-size:12px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
+          </div>
+          <div style="text-align:right">
+            ${prio(p.prioridade)}
+            <div style="font-size:11px;font-weight:700;color:${uc};margin-top:4px">${ul}</div>
+          </div>
+        </div>
+        <div style="height:4px;background:var(--surf3);border-radius:2px;margin-top:6px;overflow:hidden">
+          <div style="height:100%;width:${bw}%;background:${uc};border-radius:2px"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderTopMaquinas(containerId, ordPer) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const byMaq = {};
+  ordPer.filter(o => o.tipo === 'Corretiva').forEach(o => {
+    const k = o.maq + '||' + o.sala;
+    if (!byMaq[k]) byMaq[k] = { maq: o.maq, sala: o.sala, n: 0, min: 0 };
+    byMaq[k].n++;
+    byMaq[k].min += (o.paradaMin || o.durMin || 0);
+  });
+  const top = Object.values(byMaq).sort((a,b) => b.n-a.n).slice(0,5);
+  if (!top.length) {
+    cont.innerHTML = '<div class="empty"><div class="ei">🔧</div><p>Sem corretivas no período.</p></div>';
+    return;
+  }
+  const maxN = top[0].n;
+  cont.innerHTML = top.map((m,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
+      <span style="font-family:var(--fm);font-size:11px;color:var(--txt3);min-width:14px">${i+1}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.maq}</div>
+        <div style="font-size:10px;color:var(--txt3)">${m.sala}${m.min?' · '+m.min+'min parada':''}</div>
+        <div style="height:4px;background:var(--surf3);border-radius:2px;margin-top:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(m.n/maxN*100)}%;background:var(--org);border-radius:2px"></div>
+        </div>
+      </div>
+      <span style="font-family:var(--fw);font-size:16px;font-weight:800;color:var(--org)">${m.n}</span>
+    </div>`).join('');
+}
+  
 // ══════════════════════════════════════════════════════════════════════
 // O.S. PLANEJADAS
 // ══════════════════════════════════════════════════════════════════════
@@ -2138,6 +2306,34 @@ function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=
 // ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
 // ══════════════════════════════════════════════════════════════════════
+  let _solPhotoFile = null, _solPhotoBase64 = null;
+
+function previewSolPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _solPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _solPhotoBase64 = e.target.result.split(',')[1];
+    document.getElementById('sol-photo-preview').innerHTML = `
+      <img src="${e.target.result}" style="max-height:80px;max-width:120px;border-radius:4px;object-fit:cover" alt="Foto">
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+        <strong>${file.name}</strong><br>
+        <span style="color:var(--txt3)">${(file.size/1024).toFixed(0)} KB</span><br>
+        <button class="btn btn-sm" onclick="removeSolPhoto(event)" style="margin-top:5px;background:rgba(196,18,48,.12);color:#ff4d65;border:1px solid rgba(196,18,48,.3);padding:3px 8px">🗑 Remover</button>
+      </div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeSolPhoto(e) {
+  e && e.stopPropagation();
+  _solPhotoFile = null; _solPhotoBase64 = null;
+  const inp = document.getElementById('sol-photo-input');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('sol-photo-preview');
+  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
+}
 async function salvarSol() {
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
@@ -2146,14 +2342,30 @@ async function salvarSol() {
   db.solicitacoes.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
     status:'Não Executada',solicitante:CU.nome,criadoEm:agora});
   db.solC++;saveDB();
+  let fotoUrl = '';
+  if (_solPhotoBase64 && typeof USE_API !== 'undefined' && USE_API) {
+    try {
+      const ext = (_solPhotoFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action:'uploadFoto', numero, fileName: numero+'.'+ext,
+          mimeType: _solPhotoFile.type||'image/jpeg', base64: _solPhotoBase64 })
+      });
+      const r = await resp.json();
+      if (r.ok) fotoUrl = r.fileUrl;
+    } catch(e) { console.warn('Foto não enviada:', e); }
+  }
   apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
+    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,Foto_URL:fotoUrl||'',
     Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
   showAlert('al-sol','Solicitação enviada!','ok');
   clearSol();renderSol();
   setTimeout(()=>showPage('dashboard'),900);
 }
-function clearSol(){['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));}
+function clearSol() {
+  ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
+  removeSolPhoto();
+}
 
 function renderSol() {
   let list = [...db.solicitacoes].reverse();
