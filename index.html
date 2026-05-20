@@ -401,8 +401,17 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
          <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:5px 12px">📄 PDF</button>
        </div>
        <div id="dash-banner" style="display:none"></div>
-       <div class="stats" id="d-stats"></div>
-      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
+        <div class="stats" id="d-stats"></div>
+        <div class="two-col">
+          <div class="card"><div class="card-t">Disponibilidade do Período</div><div id="d-gauge"></div></div>
+          <div class="card"><div class="card-t">Meta PCM — % Preventiva</div><div id="d-pcm-ring"></div></div>
+        </div>
+        <div class="card"><div class="card-t">Tendência — OS por Mês (últimos 6 meses)</div><div id="d-trend"></div></div>
+        <div class="two-col">
+          <div class="card"><div class="card-t">🔔 Próximas Preventivas</div><div id="d-proximas"></div></div>
+          <div class="card"><div class="card-t">🔧 Top Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
+        </div>
+        <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>    
       <div class="two-col">
        <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
        <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
