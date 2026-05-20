@@ -1111,19 +1111,19 @@ async function apiLoadAll(silent = false) {
     db.usuarios = localUsers;
   }
 
-  // Ativos (Salas e Máquinas separados)
+  // Ativos (Salas e Máquinas) — substitui completamente pelo Sheets (reflete exclusões)
   if (d.salas && d.salas.length) {
-    const shSalas = d.salas.filter(r => r.Ativo !== 'nao').map(r => normStr(r.Nome)).filter(Boolean);
-    shSalas.forEach(s => { if (!db.salas.includes(s)) db.salas.push(s); });
+    db.salas = d.salas.filter(r => r.Ativo !== 'nao').map(r => normStr(r.Nome)).filter(Boolean);
     db.salas.sort();
   }
   if (d.maquinas && d.maquinas.length) {
-    d.maquinas.filter(r => r.Ativo !== 'nao').forEach(r => {
-      const m = { nome: normStr(r.Nome), sala: normStr(r.Sala), tag: normStr(r.Tag),
-                  criticidade: normStr(r.Criticidade) || '3',
-                  periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal' };
-      if (!db.maquinas.find(x => x.nome === m.nome && x.sala === m.sala)) db.maquinas.push(m);
-    });
+    db.maquinas = d.maquinas.filter(r => r.Ativo !== 'nao').map(r => ({
+      nome:          normStr(r.Nome),
+      sala:          normStr(r.Sala),
+      tag:           normStr(r.Tag),
+      criticidade:   normStr(r.Criticidade) || '3',
+      periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal'
+    }));
     db.maquinas.sort((a,b) => (a.sala+a.nome).localeCompare(b.sala+b.nome));
   }
 
