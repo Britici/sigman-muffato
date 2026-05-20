@@ -156,7 +156,7 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.65
 /* STATS */
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
 @media(min-width:540px){.stats{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:900px){.stats{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:760px){.stats{grid-template-columns:repeat(5,1fr)}}
 .sc-card{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
 .sc-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:currentColor;opacity:.4}
 .sc-lbl{font-family:var(--fw);font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
@@ -1167,14 +1167,14 @@ async function doLogin() {
   const senha = v('l-p').trim();
   if (!login || !senha) { lAlert('Preencha usuário e senha.'); return; }
 
-  // Se não há usuários carregados ainda, tenta buscar do Sheets antes de autenticar
+  // Tenta recarregar do Sheets se ainda não há usuários (ex: API lenta no startup)
   if (!db.usuarios.length && typeof USE_API !== 'undefined' && USE_API) {
-    lAlert('Carregando usuários…', 'ok');
+    lAlert('Sincronizando…', 'ok');
     try { await apiLoadAll(); } catch(e) { /* segue */ }
   }
 
   if (!db.usuarios.length) {
-    lAlert('Sem conexão com o servidor. Verifique a API_URL.', 'err');
+    lAlert('Nenhum usuário encontrado. Preencha a aba Usuarios no Google Sheets e recarregue.', 'err');
     return;
   }
 
