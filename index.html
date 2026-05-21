@@ -3517,22 +3517,25 @@ async function init() {
   loadTheme();
   loadDB();
 
-  // Se tem sessão salva, entra direto com dados locais (rápido, sem esperar Sheets)
   const sess = localStorage.getItem('sigman_sess');
   if (sess) {
     try {
       const s = JSON.parse(sess);
-      const u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      let u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+
+      // Usuários não estão em cache local → carrega do Sheets antes de desistir
+      if (!u && USE_API) {
+        try { await apiLoadAll(); } catch(e) {}
+        u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      }
+
       if (u) {
         CU = u;
-        enterApp(); // entra imediatamente
-        // Atualiza Sheets em segundo plano
+        enterApp();
         if (USE_API) {
           try {
             await apiLoadAll(true);
-            // Se Sheets carregou dados mas localStorage estava vazio, re-renderiza
-            updStats();
-            updateNavDots();
+            updStats(); updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
             const curPid  = pgAtual ? pgAtual.id.replace('pg-','') : '';
             if (curPid === 'dashboard')   renderDash();
@@ -3547,8 +3550,7 @@ async function init() {
     } catch(e) {}
     localStorage.removeItem('sigman_sess');
   }
-  
-  // Sem sessão: carrega Sheets antes de mostrar login (para ter usuários atualizados)
+
   if (USE_API) {
     try { await apiLoadAll(); } catch(e) {}
   }
