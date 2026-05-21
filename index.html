@@ -306,6 +306,25 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
 /* ── BADGE INSPEÇÃO ── */
 .b-ins{background:rgba(64,150,255,.14);color:#5aa8ff}
+
+/* ── TRI-COL ── */
+.tri-col{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:640px){.tri-col{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.tri-col{grid-template-columns:1fr 1fr 1fr}}
+
+/* ── TOAST ── */
+#toast-cont{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--surf2);border:1px solid var(--bord2);border-radius:var(--rs);padding:11px 16px;font-size:13px;font-family:var(--fb);color:var(--txt);box-shadow:var(--shad);display:flex;align-items:center;gap:10px;max-width:340px;pointer-events:all;animation:toastIn .2s ease;transition:opacity .3s}
+.toast.ok{border-left:3px solid var(--grn)}
+.toast.er{border-left:3px solid var(--red)}
+.toast.inf{border-left:3px solid var(--blu)}
+.toast.war{border-left:3px solid var(--org)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── OFFLINE BANNER ── */
+#offline-banner{display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:var(--rs);padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--org);align-items:center;gap:10px}
+#offline-banner.on{display:flex}  
+  
 /* ── OEE METER ── */
 .oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
 .oee-fill{height:100%;border-radius:4px;transition:width .5s}
