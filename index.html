@@ -423,12 +423,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
     <div id="offline-banner">⚠️ <strong>Modo offline</strong> — dados do Google Sheets indisponíveis. Exibindo cache local.</div>
     <div class="stats" id="d-stats"></div>
 
-<!-- Próximas Preventivas + Top Máquinas logo abaixo dos KPIs -->
-<div class="two-col">
-  <div class="card"><div class="card-t">🔔 Próximas Preventivas</div><div id="d-proximas"></div></div>
-  <div class="card"><div class="card-t">🔧 Top Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
-</div>
-
 <!-- Disponibilidade + Meta PCM + Tendência na mesma linha -->
 <div class="tri-col">
   <div class="card"><div class="card-t">Disponibilidade do Período</div><div id="d-gauge"></div></div>
@@ -1663,6 +1657,21 @@ function renderDash() {
   const plAtras = db.planejadas.filter(p => p.status === 'Atrasada').length;
   const solPend = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
 
+  // Próximas Preventivas — count de planejadas abertas com prazo
+  const proxCount = db.planejadas.filter(p => p.status !== 'Concluída' && p.prazo).length;
+  const proxAtras = db.planejadas.filter(p => p.status === 'Atrasada').length;
+
+  // Top Máquina — mais corretivas no período
+  const _byMaq = {};
+  ordPer.filter(o => o.tipo === 'Corretiva').forEach(o => {
+    const k = o.maq + '||' + o.sala;
+    if (!_byMaq[k]) _byMaq[k] = { maq: o.maq, sala: o.sala, n: 0 };
+    _byMaq[k].n++;
+  });
+  const _topMaq = Object.values(_byMaq).sort((a,b) => b.n - a.n)[0];
+  const topMaqNome = _topMaq?.maq || '—';
+  const topMaqN    = _topMaq?.n   || 0;
+  const topMaqSala = _topMaq?.sala || '';
   // Disponibilidade
   const horasTurno = db.configuracoes.horas_turno_1 || 8;
   const diasPer    = Math.max(1, new Set(ordPer.map(o => o.data)).size);
@@ -1743,6 +1752,16 @@ function renderDash() {
       <div class="sc-lbl">Solicitações Pend.</div>
       <div class="sc-val">${solPend}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">Da produção</div>
+    </div>
+    <div class="sc-card ${proxAtras > 0 ? 'c-r' : proxCount > 0 ? 'c-go' : 'c-g'}">
+      <div class="sc-lbl">Próx. Preventivas</div>
+      <div class="sc-val">${proxCount}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${proxAtras > 0 ? proxAtras+' atrasada(s)' : 'Pendentes'}</div>
+    </div>
+    <div class="sc-card ${topMaqN > 3 ? 'c-r' : topMaqN > 1 ? 'c-o' : 'c-g'}">
+      <div class="sc-lbl">Top Corretiva</div>
+      <div class="sc-val" style="font-size:${topMaqNome.length > 8 ? '16px' : '24px'};line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${topMaqNome}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${topMaqN ? topMaqN+' OS · '+topMaqSala : 'Sem corretivas'}</div>
     </div>`;
 
   // Gauge + PCM Ring + Trend + Próximas + Top Máquinas
