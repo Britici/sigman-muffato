@@ -244,6 +244,9 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .empty p{font-size:13px}
 .two-col{display:grid;grid-template-columns:1fr;gap:14px}
 @media(min-width:768px){.two-col{grid-template-columns:1fr 1fr}}
+.tri-col{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:640px){.tri-col{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.tri-col{grid-template-columns:1fr 1fr 1fr}}
 
 /* ── MODALS ── */
 .mb{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
@@ -383,57 +386,37 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
   <main class="cont">
 
-   <!-- DASHBOARD -->
-    <div class="pg" id="pg-dashboard">
-        <div class="ph" style="flex-wrap:wrap;align-items:center;gap:8px">
-         <div class="pt"><small>Visão Geral</small>Dashboard</div>
-         <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:12px;font-family:var(--fw);font-weight:600;cursor:pointer">
-           <option value="mes">Este Mês</option>
-           <option value="3m">Últimos 3 Meses</option>
-           <option value="ano">Este Ano</option>
-         </select>
-         <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;flex-shrink:0">
-           <span class="rf-dot off" id="rf-dot"></span>
-           <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:4px 10px">🔄 Atualizar</button>
-           <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ 15s</button>
-           <span id="rf-lbl" style="font-size:11px;color:var(--txt3);white-space:nowrap">Desligada</span>
-         </div>
-         <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:5px 12px">📄 PDF</button>
-       </div>
-       <div id="dash-banner" style="display:none"></div>
-        <div class="stats" id="d-stats"></div>
-        <div class="two-col">
-          <div class="card"><div class="card-t">Disponibilidade do Período</div><div id="d-gauge"></div></div>
-          <div class="card"><div class="card-t">Meta PCM — % Preventiva</div><div id="d-pcm-ring"></div></div>
-        </div>
-        <div class="card"><div class="card-t">Tendência — OS por Mês (últimos 6 meses)</div><div id="d-trend"></div></div>
-        <div class="two-col">
-          <div class="card"><div class="card-t">🔔 Próximas Preventivas</div><div id="d-proximas"></div></div>
-          <div class="card"><div class="card-t">🔧 Top Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
-        </div> 
-      <div class="two-col">
-       <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
-       <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
-      </div>
-      <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div> 
-      <div class="card">
-       <div class="card-t" style="justify-content:space-between">
-        <span style="flex:1">Inspeção Diária — Último Relatório</span>
-        <button class="btn btn-sm btn-gh" onclick="verRelatorio()">Ver Completo</button>
-      </div>
-       <div id="d-insp"></div>
-      </div>
-      <div class="two-col">
-      <div class="card">
-        <div class="card-t">Top Salas — Corretivas (mês)</div>
-        <div id="d-top-salas"></div>
-      </div>
-      <div class="card">
-        <div class="card-t">Histórico de Ações</div>
-        <div id="d-historico"></div>
-      </div>
-    </div>
-   </div>
+   <div class="stats" id="d-stats"></div>
+
+<!-- Próximas Preventivas + Top Máquinas logo abaixo dos KPIs -->
+<div class="two-col">
+  <div class="card"><div class="card-t">🔔 Próximas Preventivas</div><div id="d-proximas"></div></div>
+  <div class="card"><div class="card-t">🔧 Top Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
+</div>
+
+<!-- Disponibilidade + Meta PCM + Tendência na mesma linha -->
+<div class="tri-col">
+  <div class="card"><div class="card-t">Disponibilidade do Período</div><div id="d-gauge"></div></div>
+  <div class="card"><div class="card-t">Meta PCM — % Preventiva</div><div id="d-pcm-ring"></div></div>
+  <div class="card"><div class="card-t">Tendência — OS por Mês (últimos 6 meses)</div><div id="d-trend"></div></div>
+</div>
+
+<div class="two-col">
+  <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
+  <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
+</div>
+<div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
+<div class="card">
+  <div class="card-t" style="justify-content:space-between">
+    <span style="flex:1">Inspeção Diária — Último Relatório</span>
+    <button class="btn btn-sm btn-gh" onclick="verRelatorio()">Ver Completo</button>
+  </div>
+  <div id="d-insp"></div>
+</div>
+<div class="two-col">
+  <div class="card"><div class="card-t">Top Salas — Corretivas (mês)</div><div id="d-top-salas"></div></div>
+  <div class="card"><div class="card-t">Histórico de Ações</div><div id="d-historico"></div></div>
+</div>
 
    <!-- OS PLANEJADAS -->
    <div class="pg" id="pg-planejadas">
