@@ -1164,7 +1164,7 @@ async function doLogin() {
   const user = db.usuarios.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
   CU = user;
-  localStorage.setItem('sigman_sess', JSON.stringify({ login, senha }));
+  localStorage.setItem('sigman_sess', JSON.stringify({ login, senha, user }));
   enterApp();
 }
 
@@ -3504,20 +3504,18 @@ async function init() {
   if (sess) {
     try {
       const s = JSON.parse(sess);
-      let u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
 
-      // Usuários não estão em cache local → carrega do Sheets antes de desistir
-      if (!u && USE_API) {
-        try { await apiLoadAll(); } catch(e) {}
-        u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
-      }
+      // Restaura usuário direto da sessão — zero chamada à API
+      const u = s.user || db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
 
       if (u) {
         CU = u;
         enterApp();
+        document.getElementById('loading-screen').style.display = 'none';
+
+        // Sincroniza Sheets em segundo plano (não bloqueia)
         if (USE_API) {
-          try {
-            await apiLoadAll(true);
+          apiLoadAll(true).then(() => {
             updStats(); updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
             const curPid  = pgAtual ? pgAtual.id.replace('pg-','') : '';
@@ -3525,22 +3523,22 @@ async function init() {
             if (curPid === 'planejadas')  renderPlan();
             if (curPid === 'executadas')  renderExec();
             if (curPid === 'solicitacao') renderSol();
-          } catch(e) {}
+          }).catch(() => {});
         }
-        document.getElementById('loading-screen').style.display='none';
         return;
       }
     } catch(e) {}
     localStorage.removeItem('sigman_sess');
   }
 
+  // Sem sessão: carrega Sheets antes de mostrar login
   if (USE_API) {
     try { await apiLoadAll(); } catch(e) {}
   }
 
   sv('ab-dt',today()); sv('mc-dt',today()); sv('insp-dt',today());
-  document.getElementById('loading-screen').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
 }
 
 init();
