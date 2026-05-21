@@ -244,9 +244,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .empty p{font-size:13px}
 .two-col{display:grid;grid-template-columns:1fr;gap:14px}
 @media(min-width:768px){.two-col{grid-template-columns:1fr 1fr}}
-.tri-col{display:grid;grid-template-columns:1fr;gap:14px}
-@media(min-width:640px){.tri-col{grid-template-columns:1fr 1fr}}
-@media(min-width:1024px){.tri-col{grid-template-columns:1fr 1fr 1fr}}
 
 /* ── MODALS ── */
 .mb{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
@@ -405,7 +402,26 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 
   <main class="cont">
 
-   <div class="stats" id="d-stats"></div>
+   <!-- DASHBOARD -->
+   <div class="pg" id="pg-dashboard">
+    <div class="ph" style="flex-wrap:wrap;align-items:center;gap:8px">
+     <div class="pt"><small>Visão Geral</small>Dashboard</div>
+     <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:12px;font-family:var(--fw);font-weight:600;cursor:pointer">
+       <option value="mes">Este Mês</option>
+       <option value="3m">Últimos 3 Meses</option>
+       <option value="ano">Este Ano</option>
+     </select>
+     <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;flex-shrink:0">
+       <span class="rf-dot off" id="rf-dot"></span>
+       <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:4px 10px">🔄 Atualizar</button>
+       <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ 15s</button>
+       <span id="rf-lbl" style="font-size:11px;color:var(--txt3);white-space:nowrap">Desligada</span>
+     </div>
+     <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:5px 12px">📄 PDF</button>
+    </div>
+    <div id="dash-banner" style="display:none"></div>
+    <div id="offline-banner">⚠️ <strong>Modo offline</strong> — dados do Google Sheets indisponíveis. Exibindo cache local.</div>
+    <div class="stats" id="d-stats"></div>
 
 <!-- Próximas Preventivas + Top Máquinas logo abaixo dos KPIs -->
 <div class="two-col">
@@ -436,6 +452,8 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
   <div class="card"><div class="card-t">Top Salas — Corretivas (mês)</div><div id="d-top-salas"></div></div>
   <div class="card"><div class="card-t">Histórico de Ações</div><div id="d-historico"></div></div>
 </div>
+
+   </div><!-- /pg-dashboard -->
 
    <!-- OS PLANEJADAS -->
    <div class="pg" id="pg-planejadas">
@@ -2221,7 +2239,7 @@ function exportCSV() {
   if (sl) data = data.filter(o => o.sala === sl);
   if (dtI) data = data.filter(o => o.data >= dtI);
   if (dtF) data = data.filter(o => o.data <= dtF);
-  if (!data.length) { alert('Sem dados para exportar com os filtros selecionados.'); return; }
+  if (!data.length) { showToast('Sem dados para exportar com os filtros selecionados.'); return; }
   const h = ['OS_Numero','Data','Sala','Maquina','Tipo','Prioridade','Manutentor','Hora_Inicio','Hora_Fim','Duracao_Min','Tempo_Parada_Min','Problema','Acao_Executada','Origem'];
   const rows = data.map(o => [
     o.numero, o.data, o.sala, o.maq, o.tipo, o.prioridade||'', o.manut,
@@ -2419,7 +2437,7 @@ function abrirConcluir(id, tipo) {
 async function concluir() {
   const manut=v('mc-mn').trim(), data=v('mc-dt'), ini=v('mc-in'),
         fim=v('mc-fm'), desc=v('mc-ds').trim(), parada=parseInt(v('mc-parada'))||0;
-  if (!manut||!desc){alert('Preencha manutentor e descrição.');return;}
+  if (!manut||!desc){showToast('Preencha manutentor e descrição.');return;}
   const item = _ctp==='plan'
     ? db.planejadas.find(x=>String(x.id)===String(_cid))
     : db.solicitacoes.find(x=>String(x.id)===String(_cid));
@@ -2615,7 +2633,7 @@ function gerarRel() {
   let txt='';
   if(pgAtiva){const itens=collectInsp();txt=gerarTextoRel({data:v('insp-dt'),turno:v('insp-tn'),manut:v('insp-mn'),itens});}
   else{const last=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];if(last)txt=gerarTextoRel(last);}
-  if(!txt){alert('Nenhuma inspeção.');return;}
+  if(!txt){showToast('Nenhuma inspeção.');return;}
   document.getElementById('m-rel-b').textContent=txt;openM('m-rel');
 }
 
@@ -2623,7 +2641,7 @@ function gerarRel() {
 let _inspIdx = 0;
 function verRelatorio() {
   const sorted=[...db.inspecoes].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
-  if(!sorted.length){alert('Nenhuma inspeção registrada.');return;}
+  if(!sorted.length){showToast('Nenhuma inspeção registrada.');return;}
   _inspIdx=0;
   mostrarInspRel(sorted,_inspIdx);
 }
@@ -2650,7 +2668,7 @@ function navInspRel(idx){
 function copyRel(){
   const pre = document.querySelector('#m-rel-b pre');
   const txt = pre ? pre.textContent : (document.getElementById('m-rel-b').textContent || '');
-  navigator.clipboard.writeText(txt).then(()=>alert('Copiado!'));
+  navigator.clipboard.writeText(txt).then(()=>showToast('Copiado!'));
 }
   
 function imprimirInspDiaria() {
@@ -2669,7 +2687,7 @@ function imprimirInspDiaria() {
     const sorted = [...db.inspecoes].sort((a,b) => (b.data||'').localeCompare(a.data||''));
     insp = sorted[_inspIdx] || sorted[0];
   }
-  if (!insp) { alert('Nenhuma inspeção para imprimir.'); return; }
+  if (!insp) { showToast('Nenhuma inspeção para imprimir.'); return; }
 
   const isHierarquico = insp.itens && insp.itens[0] && 'equips' in insp.itens[0];
 
@@ -2930,8 +2948,8 @@ function renderCritChart() {
   
 function addSala() {
   const nome = v('at-sn').trim().toUpperCase();
-  if (!nome) { alert('Informe o nome da sala.'); return; }
-  if (db.salas.includes(nome)) { alert('Sala já existe.'); return; }
+  if (!nome) { showToast('Informe o nome da sala.'); return; }
+  if (db.salas.includes(nome)) { showToast('Sala já existe.'); return; }
   db.salas.push(nome);
   db.salas.sort();
   saveDB();
@@ -2944,7 +2962,7 @@ function addSala() {
 function addMaq() {
   const sala=v('at-ms'), nome=v('at-mn').trim().toUpperCase(),
         tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal';
-  if(!sala||!nome){alert('Selecione sala e informe o nome.');return;}
+  if(!sala||!nome){showToast('Selecione sala e informe o nome.');return;}
   db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per});
   db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
   saveDB(); sv('at-mn',''); sv('at-mt',''); populateAll(); renderAtivos();
@@ -3125,7 +3143,7 @@ function setItmStatus(id, st, btn) {
 
 async function salvarInspTmpl() {
   const tipo=v('insp-tmpl-tipo'),data=v('insp-tmpl-dt'),manut=v('insp-tmpl-mn').trim();
-  if(!data||!manut){alert('Informe data e manutentor.');return;}
+  if(!data||!manut){showToast('Informe data e manutentor.');return;}
   const items=tipo==='rota'?INSP_ROTA_ITEMS:INSP_MAQ_ITEMS;
   const agora=new Date().toISOString();
   let maqInfo={sala:'',nome:'',tag:''};
@@ -3148,7 +3166,7 @@ async function salvarInspTmpl() {
       }
     });
   });
-  alert('Inspeção salva no banco de dados!');
+  showToast('Inspeção salva no banco de dados!');
 }
 
 function imprimirInspecao(tipo) {
@@ -3294,7 +3312,7 @@ function carregarTarefasPreventiva() {
 async function salvarPreventiva() {
   const maqVal=v('prev-maq').split('|');
   const data=v('prev-dt'),manut=v('prev-mn').trim(),per=v('prev-periodo');
-  if(!maqVal[1]||!data||!manut){alert('Selecione máquina, data e manutentor.');return;}
+  if(!maqVal[1]||!data||!manut){showToast('Selecione máquina, data e manutentor.');return;}
   const agora=new Date().toISOString();
   Object.entries(PREV_TAREFAS).forEach(([grp,tarefas],gi)=>{
     tarefas.forEach((t,ti)=>{
@@ -3308,7 +3326,7 @@ async function salvarPreventiva() {
       });
     });
   });
-  alert('Preventiva salva no banco de dados!');
+  showToast('Preventiva salva no banco de dados!');
 }
 
 function imprimirPreventiva() {
@@ -3413,7 +3431,7 @@ function verDet(id,tipo) {
   document.getElementById('md-print-btn').style.display='inline-block';
   openM('m-det');
 }
-function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>alert('Copiado!'));}
+function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>showToast('Copiado!'));}
 
 function imprimirDetOS() {
   if (!_curDet) return;
@@ -3484,7 +3502,9 @@ function imprimirDetOS() {
 // ══════════════════════════════════════════════════════════════════════
 function openM(id){document.getElementById(id).classList.add('on');}
 function closeM(id){document.getElementById(id).classList.remove('on');}
-document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',e=>{if(e.target===b)b.classList.remove('on');}));
+document.addEventListener('click', e => {
+  if (e.target.classList && e.target.classList.contains('mb')) e.target.classList.remove('on');
+});
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&document.getElementById('login-screen').style.display!=='none'){
     if(document.getElementById('lf-login').style.display!=='none')doLogin();
@@ -3515,7 +3535,25 @@ window.exportarParaSheets = async function() {
 // ══════════════════════════════════════════════════════════════════════
 // INICIALIZAÇÃO
 // ══════════════════════════════════════════════════════════════════════
-async function init() {
+// ── TOAST ──
+function showToast(msg, type='ok', dur=3500) {
+  let cont = document.getElementById('toast-cont');
+  if (!cont) { cont = document.createElement('div'); cont.id='toast-cont'; document.body.appendChild(cont); }
+  const icons = {ok:'✅', er:'❌', inf:'ℹ️', war:'⚠️'};
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  cont.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(), 300); }, dur);
+}
+
+// ── MODO OFFLINE ──
+function setOffline(on) {
+  const b = document.getElementById('offline-banner');
+  if (b) b.classList.toggle('on', on);
+}
+
+async function init() {async function init() {
   loadTheme();
   loadDB();
 
@@ -3523,18 +3561,20 @@ async function init() {
   if (sess) {
     try {
       const s = JSON.parse(sess);
+      let u = s.user || db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
 
-      // Restaura usuário direto da sessão — zero chamada à API
-      const u = s.user || db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      if (!u && USE_API) {
+        try { await apiLoadAll(); } catch(e) {}
+        u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      }
 
       if (u) {
         CU = u;
         enterApp();
         document.getElementById('loading-screen').style.display = 'none';
-
-        // Sincroniza Sheets em segundo plano (não bloqueia)
         if (USE_API) {
           apiLoadAll(true).then(() => {
+            setOffline(false);
             updStats(); updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
             const curPid  = pgAtual ? pgAtual.id.replace('pg-','') : '';
@@ -3542,7 +3582,7 @@ async function init() {
             if (curPid === 'planejadas')  renderPlan();
             if (curPid === 'executadas')  renderExec();
             if (curPid === 'solicitacao') renderSol();
-          }).catch(() => {});
+          }).catch(() => setOffline(true));
         }
         return;
       }
@@ -3550,14 +3590,14 @@ async function init() {
     localStorage.removeItem('sigman_sess');
   }
 
-  // Sem sessão: carrega Sheets antes de mostrar login
   if (USE_API) {
-    try { await apiLoadAll(); } catch(e) {}
+    try { await apiLoadAll(); setOffline(false); }
+    catch(e) { setOffline(true); }
   }
 
   sv('ab-dt',today()); sv('mc-dt',today()); sv('insp-dt',today());
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
 }
 
 init();
