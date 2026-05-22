@@ -2446,7 +2446,14 @@ function abrirConcluir(id, tipo) {
       <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
       <div style="font-size:12px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
       ${item.desc?`<div style="font-size:12px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
+      ${item.fotoUrl?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto da Solicitação</div>
+        <a href="${item.fotoUrl}" target="_blank">
+          <img src="${item.fotoUrl}" style="max-width:100%;max-height:200px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto">
+        </a>
+      </div>`:''}
     </div>`;
+  </div>`;
   sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
   ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(id=>sv(id,''));
   openM('m-con');
@@ -3431,8 +3438,7 @@ function verDet(id,tipo) {
       <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
       <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
       ${item.acaoPrev?`<div class="dr"><span class="dl">Ação Preventiva</span><span class="dv">${item.acaoPrev}</span></div>`:''}
-      ${item.fotoUrl?`<div class="dr"><span class="dl">Foto</span><span class="dv"><a href="${item.fotoUrl}" target="_blank" style="color:var(--red)">📷 Ver foto</a></span></div>`:''}
-      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
+      ${item.fotoUrl?`<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><a href="${item.fotoUrl}" target="_blank"><img src="${item.fotoUrl}" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto OS"></a></span></div>`:''}      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
     const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
     waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
   } else {
