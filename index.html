@@ -1808,7 +1808,7 @@ function renderDash() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(p.prioridade)}${stBadge(p.status)}
-          ${CU&&CU.tipo!=='producao'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.id}','plan')">Concluir</button>`:''}
+          ${CU&&CU.tipo!=='producao'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
         </div>
       </div>`).join('');
 
@@ -1826,8 +1826,7 @@ function renderDash() {
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(s.prioridade)}
           ${CU && CU.tipo !== 'producao'
-            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir(${JSON.stringify(s.id).replace(/"/g,"'")},'sol')">✓ Executar</button>`
-            : stBadge(s.status)}
+            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`            : stBadge(s.status)}
         </div>
       </div>`).join('');
 
@@ -2155,10 +2154,10 @@ function renderPlan() {
     <td style="font-family:var(--fm);font-size:11px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
     <td>${stBadge(p.status)}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-      ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.id}','plan')">Concluir</button>`:''}
-      <button class="btn btn-sm btn-gh" onclick="editarPlan('${p.id}')">✎ Editar</button>
-      <button class="btn btn-sm btn-gh" onclick="verDet('${p.id}','pl')">Ver</button>
-      <button class="btn btn-d" onclick="delPlan('${p.id}')">✕</button>
+      ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
+      <button class="btn btn-sm btn-gh" onclick="editarPlan('${p.numero}')">✎ Editar</button>
+      <button class="btn btn-sm btn-gh" onclick="verDet('${p.numero}','pl')">Ver</button>
+      <button class="btn btn-d" onclick="delPlan('${p.numero}')">✕</button>
     </div></td>
   </tr>`).join('');
 }
@@ -2190,9 +2189,9 @@ function editarPlan(id) {
 
 function delPlan(id) {
   if (!confirm('Excluir esta O.S. planejada?')) return;
-  const pl = db.planejadas.find(p => String(p.id) === String(id));
+  const pl = db.planejadas.find(p => p.numero === id);
   if (pl) logEdit('Excluiu Planejada', pl.numero, pl.sala + ' · ' + pl.maq);
-  db.planejadas = db.planejadas.filter(p => String(p.id) !== String(id));
+  db.planejadas = db.planejadas.filter(p => p.numero !== id);
   saveDB(); renderPlan();
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
 }
@@ -2233,17 +2232,17 @@ function renderExec() {
     <td style="font-size:12px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn btn-sm btn-gh" onclick="verDet('${o.id}','os')">Ver</button>
-      <button class="btn btn-d" onclick="delOS('${o.id}')">✕</button>
+      <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
+      <button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>>
     </div></td>
   </tr>`).join('');
 }
 
 function delOS(id) {
   if (!confirm('Excluir esta O.S.?')) return;
-  const os = db.ordens.find(o => String(o.id) === String(id));
+  const os = db.ordens.find(o => o.numero === id);
   if (os) logEdit('Excluiu OS', os.numero, os.sala + ' · ' + os.maq);
-  db.ordens = db.ordens.filter(o => String(o.id) !== String(id));
+  db.ordens = db.ordens.filter(o => o.numero !== id);
   saveDB(); renderExec(); updStats();
   if (os) apiDelete('ordens', os.numero, 'OS_Numero');
 }
@@ -2426,7 +2425,7 @@ function renderSol() {
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         ${prio(s.prioridade)}${stBadge(s.status)}
         ${CU&&CU.tipo!=='producao'&&s.status==='Não Executada'
-          ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.id}','sol')">✓ Executar</button>`:''}
+          ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`:''}
       </div>
     </div>`).join('');
 }
@@ -2437,10 +2436,9 @@ function renderSol() {
 let _cid=null, _ctp=null;
 
 function abrirConcluir(id, tipo) {
-  _cid=id; _ctp=tipo;
   const item = tipo==='plan'
-    ? db.planejadas.find(x=>String(x.id)===String(id))
-    : db.solicitacoes.find(x=>String(x.id)===String(id));
+    ? db.planejadas.find(x=>x.numero===id)
+    : db.solicitacoes.find(x=>x.numero===id);
   if (!item) return;
   document.getElementById('mc-inf').innerHTML = `
     <div style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:12px">
@@ -2464,9 +2462,9 @@ async function concluir() {
   const manut=v('mc-mn').trim(), data=v('mc-dt'), ini=v('mc-in'),
         fim=v('mc-fm'), desc=v('mc-ds').trim(), parada=parseInt(v('mc-parada'))||0;
   if (!manut||!desc){showToast('Preencha manutentor e descrição.');return;}
-  const item = _ctp==='plan'
-    ? db.planejadas.find(x=>String(x.id)===String(_cid))
-    : db.solicitacoes.find(x=>String(x.id)===String(_cid));
+    const item = _ctp==='plan'
+    ? db.planejadas.find(x=>x.numero===_cid)
+    : db.solicitacoes.find(x=>x.numero===_cid);
   if (!item) return;
   const agora=new Date().toISOString();
   let durMin=0,paradaMin=parada;
@@ -3067,7 +3065,7 @@ function salvarEdit() {
     apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
       Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade});
   } else if(_editType==='plan') {
-    const p=db.planejadas.find(x=>String(x.id)===String(_editIdx));if(!p)return;
+    const p=db.planejadas.find(x=>x.numero===_editIdx);if(!p)return;
     p.status=v('ep-status');p.prazo=v('ep-prazo');p.prioridade=v('ep-prio');p.desc=v('ep-desc');
     logEdit('Editou Planejada', p.numero, 'Status: ' + p.status + ' · Prazo: ' + p.prazo);
     saveDB();renderPlan();closeM('m-edit');
@@ -3418,9 +3416,9 @@ function imprimirPreventiva() {
 // VER DETALHE (modal)
 // ══════════════════════════════════════════════════════════════════════
 function verDet(id,tipo) {
-  const item=tipo==='os'
-    ?db.ordens.find(o=>String(o.id)===String(id))
-    :db.planejadas.find(p=>String(p.id)===String(id));
+    const item=tipo==='os'
+    ?db.ordens.find(o=>o.numero===id)
+    :db.planejadas.find(p=>p.numero===id);
   if(!item)return;
   document.getElementById('md-n').textContent=item.numero;
   document.getElementById('md-t').textContent=`${item.sala} · ${item.maq}`;
