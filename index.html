@@ -2436,6 +2436,7 @@ function renderSol() {
 let _cid=null, _ctp=null;
 
 function abrirConcluir(id, tipo) {
+  _cid=id; _ctp=tipo;
   const item = tipo==='plan'
     ? db.planejadas.find(x=>x.numero===id)
     : db.solicitacoes.find(x=>x.numero===id);
@@ -2454,7 +2455,7 @@ function abrirConcluir(id, tipo) {
       </div>`:''}
     </div>`;
   sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
-  ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(id=>sv(id,''));
+  ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(fid=>sv(fid,''));
   openM('m-con');
 }
 
