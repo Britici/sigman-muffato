@@ -1067,7 +1067,8 @@ async function apiLoadAll(silent = false) {
       manut:      normStr(r.Manutentor_Exec),
       dtExec:     normDate(r.Data_Execucao),
       desc2:      normStr(r.Servico_Executado),
-      criadoEm:   normStr(r.Criado_Em)
+      criadoEm:   normStr(r.Criado_Em),
+      fotoUrl:    normStr(r.Foto_URL||'')
     }));
     const max = Math.max(...db.solicitacoes.map(s => parseInt(s.numero.replace(/\D/g,''))||0), 0);
     db.solC = max + 1;
@@ -2380,8 +2381,9 @@ async function salvarSol() {
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
   const numero=genSOL(),agora=new Date().toISOString();
-  db.solicitacoes.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
-    status:'Não Executada',solicitante:CU.nome,criadoEm:agora});
+    const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
+    status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:''};
+  db.solicitacoes.push(solItem);
   db.solC++;saveDB();
   let fotoUrl = '';
   if (_solPhotoBase64 && typeof USE_API !== 'undefined' && USE_API) {
@@ -2393,7 +2395,7 @@ async function salvarSol() {
           mimeType: _solPhotoFile.type||'image/jpeg', base64: _solPhotoBase64 })
       });
       const r = await resp.json();
-      if (r.ok) fotoUrl = r.fileUrl;
+      if (r.ok) { fotoUrl = r.fileUrl; solItem.fotoUrl = fotoUrl; saveDB(); }
     } catch(e) { console.warn('Foto não enviada:', e); }
   }
   apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
