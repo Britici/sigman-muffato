@@ -1555,7 +1555,7 @@ const sv  = (id, val) => { const el = document.getElementById(id); if (el) el.va
 const today = () => new Date().toISOString().slice(0,10);
   
   function debounce(fn, ms=300){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
-    const renderExecDebounced = debounce(()=>renderExec());
+var renderExecDebounced = debounce(()=>renderExec());
 
 function fd(d) {
   if (!d) return '—';
@@ -2163,7 +2163,7 @@ function renderPlan() {
 }
 
 function editarPlan(id) {
-  const p = db.planejadas.find(x => String(x.id) === String(id));
+  const p = db.planejadas.find(x => x.numero === id);
   if (!p) return;
   document.getElementById('me-t').textContent = 'Editar O.S. Planejada — ' + p.numero;
   document.getElementById('me-b').innerHTML = `
@@ -2400,6 +2400,7 @@ async function salvarSol() {
   apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
     Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,Foto_URL:fotoUrl||'',
     Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+  logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
   showAlert('al-sol','Solicitação enviada!','ok');
   clearSol();renderSol();
   setTimeout(()=>showPage('dashboard'),900);
