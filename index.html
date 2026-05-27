@@ -983,7 +983,11 @@ function normTime(v) {
     return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0');
   }
   const s = String(v);
-  if (s.includes('T')) return s.split('T')[1].slice(0,5);
+  if (s.includes('T')) {
+    // Usa horário LOCAL, não UTC
+    const d = new Date(s);
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
   if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
   return '';
 }
