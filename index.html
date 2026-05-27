@@ -2144,7 +2144,10 @@ function renderTopMaquinas(containerId, ordPer) {
 function renderPlan() {
   const t  = today();
   let changed = false;
-  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) { p.status = 'Atrasada'; changed = true; } });
+  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) {
+  p.status = 'Atrasada'; changed = true;
+  apiUpdate('planejadas', p.numero, 'PL_Numero', { Status: 'Atrasada' });
+  } });
   if (changed) saveDB();
   const st = v('fp-st');
   let data = [...db.planejadas].reverse();
