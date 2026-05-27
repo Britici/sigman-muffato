@@ -2240,7 +2240,7 @@ function renderExec() {
     <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
-      <button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>>
+      <button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>
     </div></td>
   </tr>`).join('');
 }
@@ -2310,6 +2310,7 @@ async function salvarOS() {
     Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
     Acao_Preventiva: acaoPrev, Foto_URL: fotoUrl||'',
+    Tag_Maquina: db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
     Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
   });
   showAlert('al-ab', `Ordem ${numero} registrada!${fotoUrl?' 📷 Foto enviada.':''}`, 'ok');
