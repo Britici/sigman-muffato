@@ -465,7 +465,14 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      </select>
     </div>
     <div class="tw"><table><thead><tr>
-     <th>OS #</th><th>Sala</th><th>Máquina</th><th>Tipo</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th>Ações</th>
+      <th class="sortable" id="ph-numero"     onclick="sortPlan('numero')">OS #</th>
+      <th class="sortable" id="ph-sala"       onclick="sortPlan('sala')">Sala</th>
+      <th class="sortable" id="ph-maq"        onclick="sortPlan('maq')">Máquina</th>
+      <th class="sortable" id="ph-tipo"       onclick="sortPlan('tipo')">Tipo</th>
+      <th class="sortable" id="ph-prioridade" onclick="sortPlan('prioridade')">Prioridade</th>
+      <th class="sortable" id="ph-prazo"      onclick="sortPlan('prazo')">Prazo</th>
+      <th class="sortable" id="ph-status"     onclick="sortPlan('status')">Status</th>
+      <th>Ações</th>
     </tr></thead><tbody id="tb-plan"></tbody></table></div>
    </div>
 
@@ -588,8 +595,20 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
       <button class="btn btn-p" onclick="salvarSol()">Enviar Solicitação</button>
      </div>
     </div>
-    <div class="card"><div class="card-t">Solicitações Registradas</div><div id="sol-lista"></div></div>
-   </div>
+      <div class="card">
+      <div class="card-t" style="justify-content:space-between">
+        Solicitações Registradas
+        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:11px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer">
+          <option value="numero-desc">OS # ↓ (mais recente)</option>
+          <option value="numero-asc">OS # ↑ (mais antiga)</option>
+          <option value="prioridade-asc">Prioridade (crítica primeiro)</option>
+          <option value="status-asc">Status</option>
+          <option value="sala-asc">Sala A→Z</option>
+        </select>
+      </div>
+      <div id="sol-lista"></div>
+    </div>
+    </div>
 
    <!-- INSPEÇÃO DIÁRIA -->
    <div class="pg" id="pg-inspecao">
@@ -2154,17 +2173,50 @@ function renderTopMaquinas(containerId, ordPer) {
 // ══════════════════════════════════════════════════════════════════════
 // O.S. PLANEJADAS
 // ══════════════════════════════════════════════════════════════════════
+var planSort = { col: 'numero', dir: 'desc' };
+
+function sortPlan(col) {
+  if (planSort.col === col) {
+    planSort.dir = planSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    planSort.col = col;
+    planSort.dir = col === 'prazo' ? 'asc' : 'desc';
+  }
+  renderPlan();
+}
+
 function renderPlan() {
-  const t  = today();
+  const t = today();
   let changed = false;
-  db.planejadas.forEach(p => { if (p.status === 'Pendente' && p.prazo && p.prazo < t) {
-  p.status = 'Atrasada'; changed = true;
-  apiUpdate('planejadas', p.numero, 'PL_Numero', { Status: 'Atrasada' });
-  } });
+  db.planejadas.forEach(p => {
+    if (p.status === 'Pendente' && p.prazo && p.prazo < t) {
+      p.status = 'Atrasada'; changed = true;
+      apiUpdate('planejadas', p.numero, 'PL_Numero', { Status: 'Atrasada' });
+    }
+  });
   if (changed) saveDB();
   const st = v('fp-st');
-  let data = [...db.planejadas].reverse();
+  let data = [...db.planejadas];
   if (st) data = data.filter(p => p.status === st);
+
+  const { col, dir } = planSort;
+  const prioMap = { 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
+  const stMap   = { 'Atrasada':1, 'Pendente':2, 'Concluída':3 };
+  data.sort((a, b) => {
+    let va = a[col] || '', vb = b[col] || '';
+    if (col === 'prioridade') { va = prioMap[va] || 9; vb = prioMap[vb] || 9; return dir === 'asc' ? va - vb : vb - va; }
+    if (col === 'status')     { va = stMap[va]   || 9; vb = stMap[vb]   || 9; return dir === 'asc' ? va - vb : vb - va; }
+    const cmp = va.localeCompare(vb, 'pt-BR', { numeric: true });
+    return dir === 'asc' ? cmp : -cmp;
+  });
+
+  ['numero','sala','maq','tipo','prioridade','prazo','status'].forEach(c => {
+    const el = document.getElementById('ph-' + c);
+    if (!el) return;
+    el.classList.remove('asc','desc');
+    if (c === col) el.classList.add(dir);
+  });
+
   const tb = document.getElementById('tb-plan');
   if (!data.length) { tb.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="ei">📅</div><p>Nenhuma O.S. planejada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(p => `<tr>
@@ -2461,11 +2513,22 @@ function clearSol() {
 }
 
 function renderSol() {
-  let list = [...db.solicitacoes].reverse();
-  if (CU && CU.tipo==='producao') list = list.filter(s=>s.solicitante===CU.nome);
+  const sortVal = (document.getElementById('sol-sort') || {}).value || 'numero-desc';
+  const [col, dir] = sortVal.split('-');
+  const prioMap = { '1':1, 'Alta':2, '2':2, 'Média':3, '3':3, 'Baixa':4, '4':4 };
+  const stMap   = { 'Não Executada':1, 'Concluída':2, 'Executada':3 };
+  let list = [...db.solicitacoes];
+  if (CU && CU.tipo === 'producao') list = list.filter(s => s.solicitante === CU.nome);
+  list.sort((a, b) => {
+    let va = a[col] || '', vb = b[col] || '';
+    if (col === 'prioridade') { va = prioMap[va] || 9; vb = prioMap[vb] || 9; return dir === 'asc' ? va - vb : vb - va; }
+    if (col === 'status')     { va = stMap[va]   || 9; vb = stMap[vb]   || 9; return dir === 'asc' ? va - vb : vb - va; }
+    const cmp = va.localeCompare(vb, 'pt-BR', { numeric: true });
+    return dir === 'asc' ? cmp : -cmp;
+  });
   const c = document.getElementById('sol-lista');
-  if (!list.length){c.innerHTML='<div class="empty"><div class="ei">📣</div><p>Nenhuma solicitação.</p></div>';return;}
-  c.innerHTML = list.map(s=>`
+  if (!list.length) { c.innerHTML = '<div class="empty"><div class="ei">📣</div><p>Nenhuma solicitação.</p></div>'; return; }
+  c.innerHTML = list.map(s => `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bord);gap:10px">
       <div>
         <span class="osn">${s.numero}</span>
