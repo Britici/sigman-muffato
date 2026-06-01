@@ -325,6 +325,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 /* ── OEE METER ── */
 .oee-bar{height:8px;border-radius:4px;background:var(--surf3);overflow:hidden;margin-top:4px}
 .oee-fill{height:100%;border-radius:4px;transition:width .5s}
+
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{color:var(--txt)}
+th.sortable::after{content:' ⇅';opacity:.35;font-size:10px}
+th.sortable.asc::after{content:' ▲';opacity:1;color:var(--red-l)}
+th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}  
 </style>
 </head>
 <body>
@@ -482,7 +488,14 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
      <input type="date" id="fe-dt-fim" title="Data final" onchange="renderExec()">
     </div>
     <div class="tw"><table><thead><tr>
-     <th>OS #</th><th>Data</th><th>Sala</th><th>Máquina</th><th>Tipo</th><th>Prioridade</th><th>Manutentor</th><th>Tempo</th><th>Ações</th>
+    <th class="sortable" id="sh-numero" onclick="sortExec('numero')">OS #</th>
+    <th class="sortable" id="sh-data"   onclick="sortExec('data')">Data</th>
+    <th class="sortable" id="sh-sala"   onclick="sortExec('sala')">Sala</th>
+    <th class="sortable" id="sh-maq"    onclick="sortExec('maq')">Máquina</th>
+    <th class="sortable" id="sh-tipo"   onclick="sortExec('tipo')">Tipo</th>
+    <th class="sortable" id="sh-prioridade" onclick="sortExec('prioridade')">Prioridade</th>
+    <th class="sortable" id="sh-manut"  onclick="sortExec('manut')">Manutentor</th>
+    <th>Tempo</th><th>Ações</th>
     </tr></thead><tbody id="tb-exec"></tbody></table></div>
    </div>
 
@@ -2206,9 +2219,19 @@ function delPlan(id) {
 // ══════════════════════════════════════════════════════════════════════
 // O.S. EXECUTADAS
 // ══════════════════════════════════════════════════════════════════════
+var execSort = { col: 'data', dir: 'desc' };
+function sortExec(col) {
+  if (execSort.col === col) {
+    execSort.dir = execSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    execSort.col = col;
+    execSort.dir = col === 'data' ? 'desc' : 'asc';
+  }
+  renderExec();
+}
+
 function renderExec() {
   populateSalaFilter('fe-sl');
-  // Popula filtro de manutentor dinamicamente
   const mnSel = document.getElementById('fe-mn');
   if (mnSel) {
     const cur = mnSel.value;
@@ -2222,13 +2245,32 @@ function renderExec() {
   const mn  = v('fe-mn');
   const dtI = v('fe-dt-ini');
   const dtF = v('fe-dt-fim');
-  let data = [...db.ordens].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  let data = [...db.ordens];
   if (tx) data = data.filter(o => [o.numero,o.sala,o.maq,o.manut,o.tipo].some(x=>x&&x.toLowerCase().includes(tx)));
   if (tp) data = data.filter(o => o.tipo === tp);
   if (sl) data = data.filter(o => o.sala === sl);
   if (mn) data = data.filter(o => o.manut === mn);
   if (dtI) data = data.filter(o => o.data >= dtI);
   if (dtF) data = data.filter(o => o.data <= dtF);
+
+  // Ordenação
+  const { col, dir } = execSort;
+  const prioMap = { 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
+  data.sort((a, b) => {
+    let va = a[col] || '', vb = b[col] || '';
+    if (col === 'prioridade') { va = prioMap[va] || 9; vb = prioMap[vb] || 9; return dir === 'asc' ? va - vb : vb - va; }
+    const cmp = va.localeCompare(vb, 'pt-BR', { numeric: true });
+    return dir === 'asc' ? cmp : -cmp;
+  });
+
+  // Atualiza ícones dos cabeçalhos
+  ['numero','data','sala','maq','tipo','prioridade','manut'].forEach(c => {
+    const el = document.getElementById('sh-' + c);
+    if (!el) return;
+    el.classList.remove('asc','desc');
+    if (c === col) el.classList.add(dir);
+  });
+
   const tb = document.getElementById('tb-exec');
   if (!data.length) { tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(o => `<tr>
