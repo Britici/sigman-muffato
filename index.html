@@ -1663,9 +1663,23 @@ function fd(d) {
   return p.length === 3 && p[0].length === 4 ? `${p[2]}/${p[1]}/${p[0]}` : s;
 }
 
-function genOS()   { return 'OS-'  + String(db.osC).padStart(4,'0'); }
-function genPL()   { return 'PL-'  + String(db.plC).padStart(4,'0'); }
-function genSOL()  { return 'SOL-' + String(db.solC).padStart(4,'0'); }
+function genOS() {
+  const existentes = new Set(db.ordens.map(o => o.numero));
+  while (existentes.has('OS-' + String(db.osC).padStart(4,'0'))) db.osC++;
+  return 'OS-' + String(db.osC).padStart(4,'0');
+}
+
+function genPL() {
+  const existentes = new Set(db.planejadas.map(p => p.numero));
+  while (existentes.has('PL-' + String(db.plC).padStart(4,'0'))) db.plC++;
+  return 'PL-' + String(db.plC).padStart(4,'0');
+}
+
+function genSOL() {
+  const existentes = new Set(db.solicitacoes.map(s => s.numero));
+  while (existentes.has('SOL-' + String(db.solC).padStart(4,'0'))) db.solC++;
+  return 'SOL-' + String(db.solC).padStart(4,'0');
+}
 
 function updStats() {
   const t = today();
@@ -2455,6 +2469,10 @@ async function salvarOS() {
     if (!paradaMin) paradaMin = durMin;
   }
   const numero = genOS(), agora = new Date().toISOString();
+  if (db.ordens.find(o => o.numero === numero)) {
+    showAlert('al-ab', `Erro: ${numero} já existe. Recarregue a página e tente novamente.`, 'er');
+    return;
+  }
   const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
                durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
   db.osC++; db.ordens.push(os); saveDB(); updStats();
@@ -2494,7 +2512,10 @@ async function salvarPlan() {
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
   if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
-  const numero=genPL(), agora=new Date().toISOString();
+  if (db.planejadas.find(p => p.numero === numero)) {
+    showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
+    return;
+  }
   db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
     status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
   db.plC++; saveDB();
@@ -2544,7 +2565,10 @@ async function salvarSol() {
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
-  const numero=genSOL(),agora=new Date().toISOString();
+  if (db.solicitacoes.find(s => s.numero === numero)) {
+    showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
+    return;
+  }
     const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
     status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:''};
   db.solicitacoes.push(solItem);
