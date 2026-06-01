@@ -979,10 +979,73 @@ async function apiPost(body) {
       body: JSON.stringify(body)
     });
     const json = await res.json();
-    if (!json.ok) console.error('[API POST] Erro:', json.error);
+    if (!json.ok) {
+      console.error('[API POST] Erro:', json.error);
+      apiQueueFailed(body);
+      return null;
+    }
     return json;
   } catch(e) {
-    console.error('[API POST]', e.message); return null;
+    console.error('[API POST]', e.message);
+    apiQueueFailed(body);
+    return null;
+  }
+}
+
+// Fila de operações que falharam
+function apiQueueFailed(body) {
+  try {
+    const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
+    fila.push({ body, ts: Date.now() });
+    localStorage.setItem('sigman_fila', JSON.stringify(fila));
+    showApiStatus('offline');
+  } catch(e) {}
+}
+
+async function apiFlushQueue() {
+  try {
+    const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
+    if (!fila.length) return;
+    const restante = [];
+    for (const item of fila) {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(item.body)
+      }).then(r => r.json()).catch(() => null);
+      if (!res || !res.ok) restante.push(item);
+    }
+    localStorage.setItem('sigman_fila', JSON.stringify(restante));
+    if (!restante.length) showApiStatus('online');
+  } catch(e) {}
+}
+
+// Tenta reenviar fila a cada 30 segundos
+setInterval(async () => {
+  const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
+  if (fila.length > 0) await apiFlushQueue();
+}, 30000);
+  
+function showApiStatus(status) {
+  let el = document.getElementById('api-status-bar');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'api-status-bar';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:10px 16px;border-radius:8px;font-family:var(--fw);font-size:12px;font-weight:700;font-variant:small-caps;letter-spacing:.04em;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:all .3s';
+    document.body.appendChild(el);
+  }
+  if (status === 'offline') {
+    el.style.background = 'rgba(196,18,48,.92)';
+    el.style.color = '#fff';
+    el.style.border = '1px solid rgba(196,18,48,.5)';
+    el.innerHTML = '⚠️ Sheets indisponível — dado salvo localmente. Tentando reconectar...';
+    el.style.display = 'flex';
+  } else {
+    el.style.background = 'rgba(31,217,136,.92)';
+    el.style.color = '#000';
+    el.style.border = '1px solid rgba(31,217,136,.4)';
+    el.innerHTML = '✅ Reconectado — dados sincronizados.';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 }
 
