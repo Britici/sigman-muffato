@@ -3,7 +3,7 @@
 <head>
   <link rel="icon" href="https://muffatosupermercados.vteximg.com.br/arquivos/muffatosupermercados-favicon-2.ico">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SIGMAN · Muffato Foods</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -27,8 +27,8 @@
   --shad:0 4px 20px rgba(0,0,0,.12);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);overflow-x:hidden;transition:background .3s,color .3s}
+html{height:100%;overflow-x:hidden}
+body{font-family:var(--fb);font-size:14px;background:var(--bg);color:var(--txt);height:100%;transition:background .3s,color .3s}
 .sc{font-variant:small-caps;font-weight:700;letter-spacing:.04em}
 
 /* ── LOGIN ── */
@@ -164,7 +164,7 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.65
 .c-r{color:#ff3d5a}.c-g{color:var(--grn)}.c-go{color:var(--gold-l)}.c-b{color:var(--blu)}.c-o{color:var(--org)}.c-p{color:var(--pur)}
 
 /* TABLE */
-.tw{overflow-x:auto;border-radius:var(--r);border:1px solid var(--bord);-webkit-overflow-scrolling:touch}
+.tw{overflow-x:auto;border-radius:var(--r);border:1px solid var(--bord);touch-action:pan-x pan-y}
 table{width:100%;border-collapse:collapse}
 thead{background:var(--surf2)}
 thead th{padding:10px 12px;text-align:left;font-family:var(--fw);font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--bord);white-space:nowrap;font-variant:small-caps}
