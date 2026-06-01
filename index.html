@@ -963,10 +963,13 @@ async function apiGet(params) {
   if (!USE_API) return null;
   try {
     const q   = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    const res = await fetch(API_URL + '?' + q);
+    const res = await fetch(API_URL + '?' + q, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     return await res.json();
   } catch(e) {
-    console.warn('[API GET]', e.message); return null;
+    if (e.name === 'TimeoutError') console.warn('[API GET] Timeout — Sheets demorou >15s');
+    else console.warn('[API GET]', e.message);
+    return null;
   }
 }
 
@@ -976,7 +979,8 @@ async function apiPost(body) {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20000)
     });
     const json = await res.json();
     if (!json.ok) {
@@ -1094,7 +1098,10 @@ async function apiLoadAll(silent = false) {
   if (!USE_API) return;
   const json = await apiGet({ action: 'readAll' });
   if (!json || !json.ok) {
-    if (!silent) console.warn('[SIGMAN] Sheets indisponível, usando cache local');
+    if (!silent) {
+      showToast('⚠️ Sheets indisponível — exibindo dados do cache local.', 'er', 5000);
+      console.warn('[SIGMAN] Sheets indisponível, usando cache local');
+    }
     return;
   }
   const d = json.data;
@@ -1283,7 +1290,9 @@ async function doLogin() {
   // Tenta recarregar do Sheets se ainda não há usuários (ex: API lenta no startup)
   if (!db.usuarios.length && typeof USE_API !== 'undefined' && USE_API) {
     lAlert('Sincronizando…', 'ok');
-    try { await apiLoadAll(); } catch(e) { /* segue */ }
+    try { await apiLoadAll(); } catch(e) {
+      lAlert('Não foi possível conectar ao Sheets. Usando cache local.', 'err');
+    }
   }
 
   if (!db.usuarios.length) {
@@ -1468,10 +1477,10 @@ function showPage(pid) {
     renderDash();
     if (_dashAutoRf) startDashTimer();
   }
-  if (pid === 'planejadas')  { renderPlan(); apiLoadAll(true).then(renderPlan); }
-  if (pid === 'executadas')  { renderExec(); apiLoadAll(true).then(renderExec); }
-  if (pid === 'solicitacao') { renderSol();  apiLoadAll(true).then(renderSol); }
-  if (pid === 'ativos')      { renderAtivos(); apiLoadAll(true).then(renderAtivos); }
+  if (pid === 'planejadas')  { renderPlan();    apiLoadAll(true).then(renderPlan).catch(()=>showToast('Erro ao sincronizar Planejadas.','er')); }
+  if (pid === 'executadas')  { renderExec();    apiLoadAll(true).then(renderExec).catch(()=>showToast('Erro ao sincronizar Executadas.','er')); }
+  if (pid === 'solicitacao') { renderSol();     apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
+  if (pid === 'ativos')      { renderAtivos();  apiLoadAll(true).then(renderAtivos).catch(()=>showToast('Erro ao sincronizar Ativos.','er')); }
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      buildInsp();
   if (pid === 'inspecao-tmpl') initInspTmpl();
