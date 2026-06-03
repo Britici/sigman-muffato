@@ -435,7 +435,6 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   <div class="card"><div class="card-t">Meta PCM — % Preventiva</div><div id="d-pcm-ring"></div></div>
   <div class="card"><div class="card-t">Tendência — OS por Mês (últimos 6 meses)</div><div id="d-trend"></div></div>
 </div>
-
 <div class="two-col">
   <div class="card"><div class="card-t">O.S. Planejadas em Aberto</div><div id="d-plan"></div></div>
   <div class="card"><div class="card-t">Solicitações da Produção — Pendentes</div><div id="d-sol"></div></div>
@@ -448,8 +447,12 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   <div id="d-insp"></div>
 </div>
 <div class="two-col">
+  <div class="card"><div class="card-t">🔔 Próximas Preventivas</div><div id="d-proximas"></div></div>
   <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
-  <div class="card"><div class="card-t">Top Salas — Corretivas (mês)</div><div id="d-top-salas"></div></div>
+</div>
+<div class="two-col">
+  <div class="card"><div class="card-t">🏭 Top Salas — Corretivas</div><div id="d-top-salas"></div></div>
+  <div class="card"><div class="card-t">🔧 Top Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
 </div>
 
    </div><!-- /pg-dashboard -->
@@ -1809,7 +1812,15 @@ function renderDash() {
   
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
-  const metaPrev = 60;
+    const metaPrev = 60;
+
+  // ICP — Índice de Cumprimento do Plano
+  const plPer = db.planejadas.filter(p => p.prazo && p.prazo >= startDate);
+  const plConclNoPrazo = plPer.filter(p =>
+    p.status === 'Concluída' && p.concluidoEm && p.concluidoEm.slice(0,10) <= p.prazo
+  );
+  const icp = plPer.length ? Math.round(plConclNoPrazo.length / plPer.length * 100) : 0;
+  const metaICP = 85;
 
     // Banner de alertas
   const banner = document.getElementById('dash-banner');
@@ -1879,10 +1890,11 @@ function renderDash() {
       <div class="sc-val">${proxCount}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">${proxAtras > 0 ? proxAtras+' atrasada(s)' : 'Pendentes'}</div>
     </div>
-    <div class="sc-card ${topMaqN > 3 ? 'c-r' : topMaqN > 1 ? 'c-o' : 'c-g'}">
-      <div class="sc-lbl">Top Corretiva</div>
-      <div class="sc-val" style="font-size:${topMaqNome.length > 8 ? '16px' : '24px'};line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${topMaqNome}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${topMaqN ? topMaqN+' OS · '+topMaqSala : 'Sem corretivas'}</div>
+    <div class="sc-card" style="color:${icp>=metaICP?'var(--grn)':icp>=metaICP-15?'var(--org)':'var(--red)'}">
+      <div class="sc-lbl">ICP — Cump. Plano</div>
+      <div class="sc-val">${plPer.length ? icp+'%' : '—'}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta: ${metaICP}% · ${plConclNoPrazo.length}/${plPer.length}</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${icp>=metaICP?'var(--grn)':icp>=metaICP-15?'var(--org)':'var(--red)'};opacity:.5;border-radius:0 0 var(--r) var(--r)"></div>
     </div>`;
 
   // Gauge + PCM Ring + Trend + Próximas + Top Máquinas
