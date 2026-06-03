@@ -3573,21 +3573,14 @@ function carregarTarefasPreventiva() {
   document.getElementById('prev-body').innerHTML=body;
 }
 
-const rows=[];
-  Object.entries(PREV_TAREFAS).forEach(([grp,tarefas],gi)=>{
+Object.entries(PREV_TAREFAS).forEach(([grp,tarefas],gi)=>{
     tarefas.forEach((t,ti)=>{
       const st=v('pvst-'+gi+'-'+ti);
       if(!st)return;
-      rows.push({ID:agora,Data_Execucao:data,Maquina:maqVal[1],Tag:maqVal[2],
-        Manutentor:manut,Periodicidade:per,Tarefa:grp+' — '+t,
-        Status:st,Duracao_Min:v('pvmin-'+gi+'-'+ti)||0,
-        Materiais:v('pvobs-'+gi+'-'+ti),Observacoes:'',Criado_Em:agora});
+      apiAppend('preventiva',{...});
     });
   });
-  if(!rows.length){showToast('Nenhuma tarefa avaliada.','war');return;}
-  showToast('Salvando...','inf');
-  const r=await apiPost({action:'appendBatch',sheet:'preventiva',rows});
-  showToast(r&&r.ok?'Preventiva salva!':'Erro ao salvar.',r&&r.ok?'ok':'er');
+  showToast('Preventiva salva no banco de dados!');
 }
 
 function imprimirPreventiva() {
