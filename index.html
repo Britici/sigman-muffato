@@ -955,7 +955,22 @@ let _pollTimer = null; // timer de atualização automática
 let _dashTimer = null; // timer específico do dashboard (15s)
 let _curDet = null;
 let _dashAutoRf = false; // auto-refresh dashboard ativo?
-
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(_pollTimer);
+    clearInterval(_dashTimer);
+  } else if (CU) {
+    if (CU.tipo !== 'producao') {
+      _pollTimer = setInterval(async () => {
+        await apiLoadAll(true);
+        updStats();
+        updateNavDots();
+      }, POLL_MS);
+    }
+    if (_dashAutoRf) startDashTimer();
+  }
+});
+  
 // ══════════════════════════════════════════════════════════════════════
 // API — comunicação com Google Sheets
 // ══════════════════════════════════════════════════════════════════════
@@ -1082,8 +1097,7 @@ function normTime(v) {
     return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0');
   }
   const s = String(v);
-  if (s.includes('T')) {
-    // Usa horário LOCAL, não UTC
+  if (s.includes('T')) {  // Usa horário LOCAL, não UTC
     const d = new Date(s);
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   }
@@ -2437,11 +2451,13 @@ function delOS(id) {
 function exportCSV() {
   const tp  = v('fe-tp');
   const sl  = v('fe-sl');
+  const mn  = v('fe-mn');
   const dtI = v('fe-dt-ini');
   const dtF = v('fe-dt-fim');
   let data = [...db.ordens];
   if (tp) data = data.filter(o => o.tipo === tp);
   if (sl) data = data.filter(o => o.sala === sl);
+  if (mn) data = data.filter(o => o.manut === mn);
   if (dtI) data = data.filter(o => o.data >= dtI);
   if (dtF) data = data.filter(o => o.data <= dtF);
   if (!data.length) { showToast('Sem dados para exportar com os filtros selecionados.'); return; }
@@ -3046,7 +3062,7 @@ function renderAtivos() {
           <span style="font-size:13px;font-weight:500">${s}</span>
           <div class="edit-acts">
             <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
-            <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
+            <button class="btn btn-d" onclick="delSala(${db.salas.indexOf(s)})">✕</button>
           </div>
         </div>`).join('');
 
@@ -3210,14 +3226,15 @@ function addMaq() {
     Criticidade:crit,Periodicidade_Preventiva:per,Descricao:'',Ativo:'sim',Criado_Em:new Date().toISOString()});
 }
 
-function delSala(nome) {
-  if(!confirm(`Remover sala "${nome}" e suas máquinas?`))return;
-  db.salas=db.salas.filter(s=>s!==nome);
+function delSala(idx) {
+  const nome = db.salas[idx];
+  if(!nome||!confirm(`Remover sala "${nome}" e suas máquinas?`))return;
+  db.salas.splice(idx,1);
   db.maquinas=db.maquinas.filter(m=>m.sala!==nome);
   saveDB();populateAll();renderAtivos();
   apiDelete('salas',nome,'Nome');
 }
-
+  
 function delMaq(i) {
   if(!confirm('Remover máquina?'))return;
   const m=db.maquinas[i];
@@ -3388,25 +3405,31 @@ async function salvarInspTmpl() {
   const agora=new Date().toISOString();
   let maqInfo={sala:'',nome:'',tag:''};
   if(tipo==='maquina'){const mv=v('insp-tmpl-maq').split('|');maqInfo={sala:mv[0]||'',nome:mv[1]||'',tag:mv[2]||''};}
+  const rows=[];
   items.forEach((grp,gi)=>{
     grp.itens.forEach((item,ii)=>{
       const hid=document.getElementById('itst-'+gi+'-'+ii);
       const st=hid?hid.value:'';
+      if(!st)return;
       const val=v('itval-'+gi+'-'+ii);
       const obs=v('itobs-'+gi+'-'+ii);
       if(tipo==='rota'){
-        apiAppend('insp_rota',{ID:agora,Data:data,Turno: v('insp-tmpl-tn')||'',Manutentor:manut,
+        rows.push({ID:agora,Data:data,Turno:v('insp-tmpl-tn')||'',Manutentor:manut,
           Sala:maqInfo.sala||v('insp-tmpl-sala')||'',Ponto_Inspecao:grp.sistema,Item:item,
           Status:st,Hora:'',Valor_Medido:val,Limite_Min:'',Limite_Max:'',
           Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
       } else {
-        apiAppend('insp_maquina',{ID:agora,Data:data,Maquina:maqInfo.nome,Tag:maqInfo.tag,
+        rows.push({ID:agora,Data:data,Maquina:maqInfo.nome,Tag:maqInfo.tag,
           Manutentor:manut,Sistema:grp.sistema,Item_Verificado:item,Status:st,
           Valor_Medido:val,Unidade:'',Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
       }
     });
   });
-  showToast('Inspeção salva no banco de dados!');
+  if(!rows.length){showToast('Nenhum item avaliado.','war');return;}
+  showToast('Salvando...','inf');
+  const sheet=tipo==='rota'?'insp_rota':'insp_maquina';
+  const r=await apiPost({action:'appendBatch',sheet,rows});
+  showToast(r&&r.ok?'Inspeção salva!':'Erro ao salvar.',r&&r.ok?'ok':'er');
 }
 
 function imprimirInspecao(tipo) {
@@ -3549,24 +3572,21 @@ function carregarTarefasPreventiva() {
   document.getElementById('prev-body').innerHTML=body;
 }
 
-async function salvarPreventiva() {
-  const maqVal=v('prev-maq').split('|');
-  const data=v('prev-dt'),manut=v('prev-mn').trim(),per=v('prev-periodo');
-  if(!maqVal[1]||!data||!manut){showToast('Selecione máquina, data e manutentor.');return;}
-  const agora=new Date().toISOString();
+const rows=[];
   Object.entries(PREV_TAREFAS).forEach(([grp,tarefas],gi)=>{
     tarefas.forEach((t,ti)=>{
       const st=v('pvst-'+gi+'-'+ti);
       if(!st)return;
-      apiAppend('preventiva',{
-        ID:agora,Data_Execucao:data,Maquina:maqVal[1],Tag:maqVal[2],
+      rows.push({ID:agora,Data_Execucao:data,Maquina:maqVal[1],Tag:maqVal[2],
         Manutentor:manut,Periodicidade:per,Tarefa:grp+' — '+t,
         Status:st,Duracao_Min:v('pvmin-'+gi+'-'+ti)||0,
-        Materiais:v('pvobs-'+gi+'-'+ti),Observacoes:'',Criado_Em:agora
-      });
+        Materiais:v('pvobs-'+gi+'-'+ti),Observacoes:'',Criado_Em:agora});
     });
   });
-  showToast('Preventiva salva no banco de dados!');
+  if(!rows.length){showToast('Nenhuma tarefa avaliada.','war');return;}
+  showToast('Salvando...','inf');
+  const r=await apiPost({action:'appendBatch',sheet:'preventiva',rows});
+  showToast(r&&r.ok?'Preventiva salva!':'Erro ao salvar.',r&&r.ok?'ok':'er');
 }
 
 function imprimirPreventiva() {
