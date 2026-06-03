@@ -2328,6 +2328,7 @@ function editarPlan(id) {
     <div class="fg"><label>Status</label>
       <select id="ep-status">
         <option${p.status==='Pendente'?' selected':''}>Pendente</option>
+        <option${p.status==='Atrasada'?' selected':''}>Atrasada</option>
         <option${p.status==='Concluída'?' selected':''}>Concluída</option>
       </select>
     </div>
@@ -2521,6 +2522,7 @@ async function salvarPlan() {
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
   if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
+  const numero = genPL(), agora = new Date().toISOString();
   if (db.planejadas.find(p => p.numero === numero)) {
     showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
@@ -2574,6 +2576,7 @@ async function salvarSol() {
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
+  const numero = genSOL(), agora = new Date().toISOString();
   if (db.solicitacoes.find(s => s.numero === numero)) {
     showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
@@ -2676,11 +2679,11 @@ async function concluir() {
   try {
   const manut=v('mc-mn').trim(), data=v('mc-dt'), ini=v('mc-in'),
         fim=v('mc-fm'), desc=v('mc-ds').trim(), parada=parseInt(v('mc-parada'))||0;
-  if (!manut||!desc){showToast('Preencha manutentor e descrição. (manut:"'+manut+'" desc:"'+desc+'")','er',7000);return;}
+  if (!manut||!desc){showToast('Preencha o manutentor e a descrição do serviço executado.','er');return;}
   const item = _ctp==='plan'
     ? db.planejadas.find(x=>x.numero===_cid)
     : db.solicitacoes.find(x=>x.numero===_cid);
-  if (!item) { showToast('Erro interno: _cid="'+_cid+'" _ctp="'+_ctp+'" não encontrado.','er',7000); return; }
+  if (!item) { showToast('Item não encontrado. Recarregue a página e tente novamente.','er'); return; }
   const agora=new Date().toISOString();
   let durMin=0,paradaMin=parada;
   if(ini&&fim){const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);durMin=Math.max(0,(h2*60+m2)-(h1*60+m1));if(!paradaMin)paradaMin=durMin;}
