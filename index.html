@@ -1796,26 +1796,17 @@ function renderDash() {
   const topMaqNome = _topMaq?.maq || '—';
   const topMaqN    = _topMaq?.n   || 0;
   const topMaqSala = _topMaq?.sala || '';
-// Disponibilidade — soma apenas os turnos ativos
 
-// Disponibilidade — soma apenas os turnos ativos
-const ht1 = db.configuracoes.horas_turno_1 || 10;  // T1: 7h–17h
-const ht2 = db.configuracoes.horas_turno_2 || 0;  // T2: 17h–03h
-const ht3 = db.configuracoes.horas_turno_3 || 0;   // T3: inativo
-// Dias corridos do período (não só dias com OS)
-const dtStart = new Date(startDate);
-const dtHoje  = new Date(t);
-const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
-const horasTurnoTotal = ht1 + ht2 + ht3;           // 20h/dia
-const minDisp   = diasPer * horasTurnoTotal * 60;
-
-// Dias corridos do período (não só dias com OS)
-const dtStart = new Date(startDate);
-const dtHoje  = new Date(t);
-const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
-
-const horasTurnoTotal = ht1 + ht2 + ht3;           // 20h/dia
-const minDisp   = diasPer * horasTurnoTotal * 60;
+  // Disponibilidade — soma apenas os turnos ativos
+  const ht1 = db.configuracoes.horas_turno_1 || 10;  // T1: 7h–17h
+  const ht2 = db.configuracoes.horas_turno_2 || 0;  // T2: 17h–03h
+  const ht3 = db.configuracoes.horas_turno_3 || 0;   // T3: inativo
+  // Dias corridos do período (não só dias com OS)
+  const dtStart = new Date(startDate);
+  const dtHoje  = new Date(t);
+  const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
+  const horasTurnoTotal = ht1 + ht2 + ht3;           // 20h/dia
+  const minDisp   = diasPer * horasTurnoTotal * 60;
 
   // MTTR / MTBF
   const ordTempo = ordPer.filter(o => o.durMin > 0);
