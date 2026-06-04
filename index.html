@@ -563,7 +563,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
       <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico</option><option value="2">🟠 2 – Alta</option><option value="3">🟡 3 – Média</option><option value="4">🟢 4 – Baixa</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
-      <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="8" min="1" max="24"></div>
+      <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="10" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
      </div>
      <div class="fa">
@@ -627,7 +627,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      <div class="fg-row">
       <div class="fg"><label>Data</label><input type="date" id="insp-dt"></div>
       <div class="fg"><label>Turno</label><select id="insp-tn"><option>1º Turno</option><option>2º Turno</option><option>3º Turno</option></select></div>
-      <div class="fg"><label>Horas do Turno</label><input type="number" id="insp-horas" value="8" min="1" max="24"></div>
+      <div class="fg"><label>Horas do Turno</label><input type="number" id="insp-horas" value="10" min="1" max="24"></div>
       <div class="fg"><label>Manutentor</label><input type="text" id="insp-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -927,7 +927,7 @@ let db = {
   inspecoes:    [],
   usuarios:     [],
   configuracoes: {
-    horas_turno_1: 8, horas_turno_2: 8, horas_turno_3: 8,
+    horas_turno_1: 10, horas_turno_2: 10, horas_turno_3: 10,
     meta_disponibilidade: 85, meta_performance: 90, meta_qualidade: 99
   },
   osC:1, plC:1, solC:1, inspC:1,
@@ -1145,7 +1145,7 @@ async function apiLoadAll(silent = false) {
       tipo:       normStr(r.Tipo),
       prioridade: normStr(r.Prioridade),
       prazo:      normDate(r.Prazo_Limite),
-      horasTurno: Number(r.Horas_Turno) || 8,
+      horasTurno: Number(r.Horas_Turno) || 10,
       desc:       normStr(r.Descricao_Planejada),
       status:     normStr(r.Status) || 'Pendente',
       manut:      normStr(r.Manutentor_Exec),
@@ -1191,7 +1191,7 @@ async function apiLoadAll(silent = false) {
         id:     normStr(r.ID_Inspecao) || key,
         data:   normDate(r.Data),
         turno:  normStr(r.Turno),
-        horasTurno: Number(r.Horas_Turno) || 8,
+        horasTurno: Number(r.Horas_Turno) || 10,
         manut:  normStr(r.Manutentor),
         itens:  []
       };
@@ -1797,7 +1797,7 @@ function renderDash() {
   const topMaqN    = _topMaq?.n   || 0;
   const topMaqSala = _topMaq?.sala || '';
   // Disponibilidade
-  const horasTurno = db.configuracoes.horas_turno_1 || 8;
+  const horasTurno = db.configuracoes.horas_turno_1 || 10;
   const diasPer    = Math.max(1, new Set(ordPer.map(o => o.data)).size);
   const minDisp    = diasPer * horasTurno * 60;
   const minParada  = ordPer.reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
@@ -2032,7 +2032,7 @@ function exportDashPDF() {
   const cor2 = ordP.filter(o=>o.tipo==='Corretiva').length;
   const prv  = ordP.filter(o=>o.tipo==='Preventiva').length;
   const tot  = ordP.length;
-  const ht   = db.configuracoes.horas_turno_1 || 8;
+  const ht   = db.configuracoes.horas_turno_1 || 10;
   const dp   = Math.max(1, new Set(ordP.map(o=>o.data)).size);
   const mP   = ordP.reduce((s,o)=>s+(o.paradaMin||o.durMin||0),0);
   const disp = Math.min(100,Math.max(0,Math.round((1-mP/(dp*ht*60))*100)));
@@ -2933,7 +2933,7 @@ function imprimirInspDiaria() {
     insp = {
       data:       v('insp-dt'),
       turno:      v('insp-tn'),
-      horasTurno: parseInt(v('insp-horas')) || 8,
+      horasTurno: parseInt(v('insp-horas')) || 10,
       manut:      v('insp-mn'),
       itens:      collectInsp()
     };
