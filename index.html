@@ -1804,7 +1804,7 @@ function renderDash() {
   const dtStart = new Date(startDate);
   const dtHoje  = new Date(t);
   const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
-  const minDisp    = diasPer * (horasTurno1 + horasTurno2 + horasTurno) * 60;
+  const minDisp    = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
   const minParada  = ordPer.reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const disponib   = Math.min(100, Math.max(0, Math.round((1 - minParada/minDisp) * 100)));
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
@@ -1813,7 +1813,7 @@ function renderDash() {
   const ordTempo = ordPer.filter(o => o.durMin > 0);
   const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
   const nCorr = cor;
-  const mtbfH = nCorr > 0 ? Math.round((diasPer * (horasTurno1 + horasTurno2 + horasTurno) * 60 - (mttr * nCorr)) / nCorr) : 0;
+  const mtbfH = nCorr > 0 ? Math.round((diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60 - (mttr * nCorr)) / nCorr) : 0;
   
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
