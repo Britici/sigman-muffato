@@ -331,6 +331,10 @@ th.sortable:hover{color:var(--txt)}
 th.sortable::after{content:' ⇅';opacity:.35;font-size:10px}
 th.sortable.asc::after{content:' ▲';opacity:1;color:var(--red-l)}
 th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}  
+@keyframes pulse-rac{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.rac-dot{width:9px;height:9px;border-radius:50%;background:var(--red);cursor:pointer;
+  display:inline-block;animation:pulse-rac 1.1s ease-in-out infinite;
+  vertical-align:middle;margin-left:6px;}
 </style>
 </head>
 <body>
@@ -931,7 +935,8 @@ let db = {
     meta_disponibilidade: 85, meta_performance: 90, meta_qualidade: 99
   },
   osC:1, plC:1, solC:1, inspC:1,
-  historico: []
+  historico: [],
+  racs: []
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1256,7 +1261,27 @@ async function apiLoadAll(silent = false) {
       if (r.Chave) db.configuracoes[r.Chave] = isNaN(r.Valor) ? r.Valor : Number(r.Valor);
     });
   }
-
+   if (d.racs && d.racs.length) {
+    db.racs = d.racs.map(r => ({
+      id:           normStr(r.ID),
+      osNumero:     normStr(r.OS_Numero),
+      maquina:      normStr(r.Maquina),
+      sala:         normStr(r.Sala),
+      criticidade:  Number(r.Criticidade) || 3,
+      tempoParada:  Number(r.Tempo_Parada_Min) || 0,
+      limiteMin:    Number(r.Limite_Min) || 0,
+      causaRaiz:    normStr(r.Causa_Raiz),
+      acaoImediata: normStr(r.Acao_Imediata),
+      acaoCorretiva:normStr(r.Acao_Corretiva),
+      responsavel:  normStr(r.Responsavel),
+      prazo:        normDate(r.Prazo),
+      status:       normStr(r.Status) || 'Aberto',
+      dataAbertura: normDate(r.Data_Abertura),
+      dataBaixa:    normDate(r.Data_Baixa),
+      fechadoPor:   normStr(r.Fechado_Por),
+      criadoEm:     normStr(r.Criado_Em)
+    }));
+  }
   saveDB();
   if (!silent) console.log('[SIGMAN] ✅ Dados carregados do Sheets');
 }
@@ -1269,7 +1294,8 @@ function saveDB() {
       ordens: db.ordens, planejadas: db.planejadas,
       solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,
       osC: db.osC, plC: db.plC, solC: db.solC, inspC: db.inspC,
-      historico: db.historico
+      historico: db.historico,
+      racs: db.racs
     }));
   } catch(e) {}
 }
@@ -2371,6 +2397,23 @@ function delPlan(id) {
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
 }
 
+// ── RAC — helpers ────────────────────────────────────────────────────
+function getCriticidadeMaq(maqNome) {
+  const m = db.maquinas.find(x => normStr(x.nome) === normStr(maqNome));
+  return parseInt(m?.criticidade) || 3;
+}
+function limiteRAC(crit) {
+  return {1:60, 2:90, 3:105, 4:120}[crit] ?? 120;
+}
+function precisaRAC(o) {
+  if (o.tipo !== 'Corretiva') return false;
+  const parada = o.paradaMin || o.durMin || 0;
+  if (parada <= 0) return false;
+  const crit  = getCriticidadeMaq(o.maq);
+  if (parada <= limiteRAC(crit)) return false;
+  const rac = (db.racs||[]).find(r => r.osNumero === o.numero);
+  return !rac || rac.status !== 'Concluído';
+}
 // ══════════════════════════════════════════════════════════════════════
 // O.S. EXECUTADAS
 // ══════════════════════════════════════════════════════════════════════
@@ -2394,6 +2437,96 @@ function renderExec() {
     mnSel.innerHTML = '<option value="">Todos os Manut.</option>' + manuts.map(m=>`<option value="${m}">${m}</option>`).join('');
     if (cur) mnSel.value = cur;
   }
+
+  function abrirRAC(osNumero) {
+  const o = db.ordens.find(x => x.numero === osNumero);
+  if (!o) return;
+  const crit   = getCriticidadeMaq(o.maq);
+  const limite = limiteRAC(crit);
+  const parada = o.paradaMin || o.durMin || 0;
+  const rac    = (db.racs||[]).find(r => r.osNumero === osNumero);
+  lAlert(`
+    <div style="font-weight:700;font-size:15px;color:var(--red);margin-bottom:10px">🔴 RAC — Relatório de Análise Crítica</div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">
+      OS <b style="color:var(--txt)">${o.numero}</b> · 
+      <b style="color:var(--txt)">${o.maq}</b> · 
+      Criticidade <b style="color:var(--txt)">${crit}</b> · 
+      Parada <b style="color:var(--red)">${parada}min</b> (limite ${limite}min)
+    </div>
+    ${rac?`<div style="background:rgba(196,18,48,.08);border:1px solid rgba(196,18,48,.2);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px">
+      Status atual: <b>${rac.status}</b> · Aberto em ${fd(rac.dataAbertura)}
+      ${rac.status==='Concluído'?` · Concluído em ${fd(rac.dataBaixa)}`:''}
+    </div>`:''}
+    <div class="fg"><label>Causa Raiz *</label>
+      <textarea id="rac-causa" rows="2" placeholder="Por que a falha ocorreu?">${rac?.causaRaiz||''}</textarea></div>
+    <div class="fg"><label>Ação Imediata (já executada)</label>
+      <input id="rac-imediata" value="${rac?.acaoImediata||o.acao||''}" placeholder="O que foi feito na hora"></div>
+    <div class="fg"><label>Ação Corretiva (evitar reincidência)</label>
+      <input id="rac-corretiva" value="${rac?.acaoCorretiva||''}" placeholder="O que será feito para não repetir"></div>
+    <div class="fg"><label>Responsável</label>
+      <input id="rac-resp" value="${rac?.responsavel||o.manut||''}"></div>
+    <div class="fg"><label>Prazo</label>
+      <input type="date" id="rac-prazo" value="${rac?.prazo||''}"></div>
+    <div class="fa">
+      <button class="btn btn-gh" onclick="document.getElementById('lal').style.display='none'">Cancelar</button>
+      ${rac&&rac.status!=='Concluído'?`<button class="btn" style="background:var(--grn);color:#fff" onclick="darBaixaRAC('${osNumero}')">✅ Dar Baixa</button>`:''}
+      <button class="btn btn-p" onclick="salvarRAC('${osNumero}')">${rac?'Atualizar':'Criar'} RAC</button>
+    </div>
+  `,'ok');
+}
+
+function salvarRAC(osNumero) {
+  const o = db.ordens.find(x => x.numero === osNumero);
+  if (!o) return;
+  const causa = document.getElementById('rac-causa')?.value?.trim();
+  if (!causa) { showToast('Informe a causa raiz.','er'); return; }
+  const imediata  = document.getElementById('rac-imediata')?.value?.trim();
+  const corretiva = document.getElementById('rac-corretiva')?.value?.trim();
+  const resp      = document.getElementById('rac-resp')?.value?.trim();
+  const prazo     = document.getElementById('rac-prazo')?.value;
+  const agora     = new Date().toISOString();
+  const crit      = getCriticidadeMaq(o.maq);
+  if (!db.racs) db.racs = [];
+  const idx = db.racs.findIndex(r => r.osNumero === osNumero);
+  const racId = idx >= 0 ? db.racs[idx].id : 'RAC-' + agora.replace(/\D/g,'').slice(0,14);
+  const rac = {
+    id: racId, osNumero, maquina: o.maq, sala: o.sala, criticidade: crit,
+    tempoParada: o.paradaMin||o.durMin||0, limiteMin: limiteRAC(crit),
+    causaRaiz: causa, acaoImediata: imediata, acaoCorretiva: corretiva,
+    responsavel: resp, prazo, status: idx>=0?db.racs[idx].status:'Aberto',
+    dataAbertura: idx>=0?db.racs[idx].dataAbertura:agora.slice(0,10),
+    criadoEm: idx>=0?db.racs[idx].criadoEm:agora
+  };
+  if (idx >= 0) db.racs[idx] = rac; else db.racs.push(rac);
+  saveDB();
+  document.getElementById('lal').style.display='none';
+  renderExec();
+  showToast('RAC salvo.','ok');
+  if (idx < 0) apiAppend('racs',{ID:rac.id,Data_Abertura:rac.dataAbertura,OS_Numero:osNumero,
+    Maquina:rac.maquina,Sala:rac.sala,Criticidade:rac.criticidade,
+    Tempo_Parada_Min:rac.tempoParada,Limite_Min:rac.limiteMin,
+    Causa_Raiz:rac.causaRaiz,Acao_Imediata:rac.acaoImediata,Acao_Corretiva:rac.acaoCorretiva,
+    Responsavel:rac.responsavel,Prazo:rac.prazo,Status:rac.status,Criado_Em:rac.criadoEm});
+  else apiUpdate('racs',rac.id,'ID',{Causa_Raiz:rac.causaRaiz,Acao_Imediata:rac.acaoImediata,
+    Acao_Corretiva:rac.acaoCorretiva,Responsavel:rac.responsavel,Prazo:rac.prazo});
+}
+
+function darBaixaRAC(osNumero) {
+  if (!db.racs) return;
+  const idx = db.racs.findIndex(r => r.osNumero === osNumero);
+  if (idx < 0) return;
+  const agora = new Date().toISOString();
+  db.racs[idx].status     = 'Concluído';
+  db.racs[idx].dataBaixa  = agora.slice(0,10);
+  db.racs[idx].fechadoPor = CU?.nome || '';
+  saveDB();
+  document.getElementById('lal').style.display='none';
+  renderExec();
+  showToast('RAC concluído.','ok');
+  apiUpdate('racs',db.racs[idx].id,'ID',{
+    Status:'Concluído',Data_Baixa:db.racs[idx].dataBaixa,Fechado_Por:db.racs[idx].fechadoPor});
+}
+  
   const tx  = v('fe-tx').toLowerCase();
   const tp  = v('fe-tp');
   const sl  = v('fe-sl');
@@ -2429,7 +2562,10 @@ function renderExec() {
   const tb = document.getElementById('tb-exec');
   if (!data.length) { tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(o => `<tr>
-    <td><span class="osn">${o.numero}</span></td>
+    <td>
+      <span class="osn">${o.numero}</span>
+      ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório — parada acima do limite p/ criticidade ${getCriticidadeMaq(o.maq)}" onclick="abrirRAC('${o.numero}')"></span>`:''}
+    </td>
     <td style="font-size:12px">${fd(o.data)}</td>
     <td>${o.sala}</td><td>${o.maq}</td>
     <td>${tipoBadge(o.tipo)}</td><td>${prio(o.prioridade)}</td>
