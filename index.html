@@ -1887,7 +1887,19 @@ function renderDash() {
   const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
   // Disponibilidade por sala (crítico = 1)
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
-  const disponib = Math.round(dispPorSala.reduce((sum, s) => sum + s.disp, 0) / dispPorSala.length);
+  console.log('[DEBUG] dispPorSala:', dispPorSala);
+  console.log('[DEBUG] dispPorSala.length:', dispPorSala.length);
+  
+  let disponib = 0;
+  if (dispPorSala.length > 0) {
+    const soma = dispPorSala.reduce((sum, s) => sum + (s.disp || 0), 0);
+    disponib = Math.round(soma / dispPorSala.length);
+  } else {
+    disponib = 100; // Se vazio, considera 100%
+    console.warn('[DEBUG] Nenhuma sala encontrada');
+  }
+  
+  console.log('[DEBUG] disponib final:', disponib);
   const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
 
