@@ -1881,8 +1881,6 @@ function renderDash() {
   const horasTurno1 = parseFloat(db.configuracoes.horas_turno_1) || 7.1;
   const horasTurno2 = parseFloat(db.configuracoes.horas_turno_2) || 0;
   const horasTurno3 = parseFloat(db.configuracoes.horas_turno_3) || 0;
-
-  console.log('[DEBUG HORAS] h1:', horasTurno1, 'h2:', horasTurno2, 'h3:', horasTurno3);
   
   // Dias corridos do período (não só dias com OS)
   const dtStart = new Date(startDate);
@@ -1890,8 +1888,6 @@ function renderDash() {
   const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
   // Disponibilidade por sala (crítico = 1)
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
-  console.log('[DEBUG] dispPorSala:', dispPorSala);
-  console.log('[DEBUG] dispPorSala.length:', dispPorSala.length);
   
   let disponib = 0;
   if (dispPorSala.length > 0) {
@@ -1902,8 +1898,7 @@ function renderDash() {
     console.warn('[DEBUG] Nenhuma sala encontrada');
   }
   
-  console.log('[DEBUG] disponib final:', disponib);
-  const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
+    const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
 
   // MTTR — tempo médio de reparo
@@ -1915,14 +1910,6 @@ function renderDash() {
   const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva').reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
-  
-  console.log('[DEBUG MTBF]');
-  console.log('nCorr:', nCorr);
-  console.log('tempoParadaTotal:', tempoParadaTotal);
-  console.log('diasPer:', diasPer);
-  console.log('horasTurno total:', (horasTurno1 + horasTurno2 + horasTurno3));
-  console.log('tempoFuncionando:', tempoFuncionando);
-  console.log('mtbfH:', mtbfH);
   
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
