@@ -1905,16 +1905,18 @@ function renderDash() {
     console.warn('[DEBUG] Nenhuma sala encontrada');
   }
   
-    const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
+  const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
-
+  const ordTempo = ordPer.filter(o => o.durMin > 0);
+  const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
+  
   // MTTR — tempo médio de reparo
   const nCorr = ordPer.filter(o => o.tipo === 'Corretiva').length;
   const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva')
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
-  
+    
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
     const metaPrev = 60;
