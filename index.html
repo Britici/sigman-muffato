@@ -1945,10 +1945,9 @@ function renderDash() {
         ).join('')}
         ${salaComAlerta.length > 3 ? `<div style=\"color:var(--txt3);font-size:11px;margin-top:4px\">+${salaComAlerta.length - 3} mais</div>` : ''}
       </div>` : ''}
-      <button class=\"btn btn-sm btn-gh\" onclick=\"goToPage('salas-status')\" style=\"margin-top:4px;width:100%\">Ver Detalhes →</button>
-    </div>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5"></div>
-    </div>
+        <button class=\"btn btn-sm btn-gh\" onclick=\"goToPage('salas-status')\" style=\"margin-top:4px;width:100%\">Ver Detalhes →</button>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5\"></div>
+      </div>
     <div class="sc-card" style="color:${icp>=metaICP?'var(--grn)':icp>=metaICP-15?'var(--org)':'var(--red)'}">
       <div class="sc-lbl">ICP — Cump. Plano</div>
       <div class="sc-val">${plPer.length ? icp+'%' : '—'}</div>
