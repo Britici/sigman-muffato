@@ -2198,6 +2198,10 @@ function exportDashPDF() {
 function renderGauge(containerId, value, meta) {
   const cont = document.getElementById(containerId);
   if (!cont) return;
+  if (!value || isNaN(value)) {
+    value = 0;
+    console.warn('[renderGauge] value é NaN, setando 0');
+  }
   const color = value >= meta ? 'var(--grn)' : value >= meta-10 ? 'var(--org)' : 'var(--red)';
   const pct = Math.min(100, Math.max(0, value));
   const r = 40, cx = 52, cy = 46, sw = 13;
