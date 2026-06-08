@@ -1914,13 +1914,6 @@ function renderDash() {
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
-
-console.log('[DEBUG MTBF TODAY]');
-console.log('data:', t);
-console.log('nCorr (falhas hoje):', nCorr);
-console.log('tempoParadaTotal:', tempoParadaTotal);
-console.log('tempoFuncionando:', tempoFuncionando);
-console.log('mtbfH:', mtbfH);
   
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
