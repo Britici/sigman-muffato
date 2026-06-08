@@ -417,9 +417,11 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     <div class="ph" style="flex-wrap:wrap;align-items:center;gap:8px">
      <div class="pt"><small>Visão Geral</small>Dashboard</div>
      <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:12px;font-family:var(--fw);font-weight:600;cursor:pointer">
-       <option value="mes">Este Mês</option>
-       <option value="3m">Últimos 3 Meses</option>
-       <option value="ano">Este Ano</option>
+      <option value="dia">Hoje</option>
+      <option value="semana">Últimos 7 dias</option>
+      <option value="mes">Mês</option>
+      <option value="3m">Últimos 3 meses</option>
+      <option value="ano">Ano</option>
      </select>
      <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;flex-shrink:0">
        <span class="rf-dot off" id="rf-dot"></span>
@@ -1843,7 +1845,12 @@ function renderDash() {
   const sel = document.getElementById('dash-periodo');
   const per = sel ? sel.value : 'mes';
   let startDate;
-  if (per === '3m') {
+  if (per === 'dia') {
+    startDate = t;
+  } else if (per === 'semana') {
+    const d = new Date(); d.setDate(d.getDate()-7);
+    startDate = d.toISOString().slice(0,10);
+  } else if (per === '3m') {
     const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
     startDate = d.toISOString().slice(0,10);
   } else if (per === 'ano') {
