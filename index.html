@@ -1913,6 +1913,14 @@ function renderDash() {
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
   
+  console.log('[DEBUG MTBF]');
+  console.log('nCorr:', nCorr);
+  console.log('tempoParadaTotal:', tempoParadaTotal);
+  console.log('diasPer:', diasPer);
+  console.log('horasTurno total:', (horasTurno1 + horasTurno2 + horasTurno3));
+  console.log('tempoFuncionando:', tempoFuncionando);
+  console.log('mtbfH:', mtbfH);
+  
   // % Preventiva
   const pctPrev = total ? Math.round(prev/total*100) : 0;
     const metaPrev = 60;
