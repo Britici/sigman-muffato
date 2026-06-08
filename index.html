@@ -1874,7 +1874,7 @@ function renderDash() {
   const topMaqN    = _topMaq?.n   || 0;
   const topMaqSala = _topMaq?.sala || '';
   // Disponibilidade
-  const horasTurno1 = db.configuracoes.horas_turno_1 || 10;
+  .const horasTurno1 = db.configuracoes.horas_turno_1 || 7.1;
   const horasTurno2 = db.configuracoes.horas_turno_2 || 0;
   const horasTurno3 = db.configuracoes.horas_turno_3 || 0;
   // Dias corridos do período (não só dias com OS)
@@ -2135,7 +2135,7 @@ function exportDashPDF() {
   const cor2 = ordP.filter(o=>o.tipo==='Corretiva').length;
   const prv  = ordP.filter(o=>o.tipo==='Preventiva').length;
   const tot  = ordP.length;
-  const ht   = db.configuracoes.horas_turno_1 || 10;
+  const ht   = db.configuracoes.horas_turno_1 || 7.1;
   const dp   = Math.max(1, new Set(ordP.map(o=>o.data)).size);
   const mP   = ordP.reduce((s,o)=>s+(o.paradaMin||o.durMin||0),0);
   const disp = Math.min(100,Math.max(0,Math.round((1-mP/(dp*ht*60))*100)));
