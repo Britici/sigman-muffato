@@ -450,6 +450,11 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     <span style="flex:1">Inspeção Diária — Último Relatório</span>
     <button class="btn btn-sm btn-gh" onclick="verRelatorio()">Ver Completo</button>
   </div>
+  <!-- PÁGINA: STATUS DE SALAS -->
+  <div class="pg" id="pg-salas-status">
+    <div class="ph"><div class="pt"><small>Operação</small>Status de Salas</div></div>
+    <div class="stats" id="salas-grid"></div>
+  </div>
   <div id="d-insp"></div>
 </div>
 <div class="two-col">
@@ -1818,6 +1823,7 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
 
 function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
+  
   const html = dispPorSala.map(s => {
     const cor = s.disp >= 85 ? 'var(--grn)' : s.disp >= 75 ? 'var(--org)' : 'var(--red)';
     return `
@@ -1825,7 +1831,7 @@ function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPe
         <div class="sc-lbl">${s.sala}</div>
         <div class="sc-val">${s.disp}%</div>
         <div style="font-size:10px;color:var(--txt3);margin-top:4px">Parada: ${s.minParada}min</div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${cor};opacity:.5\"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${cor};opacity:.5"></div>
       </div>
     `;
   }).join('');
@@ -2022,6 +2028,7 @@ function renderDash() {
   renderGauge('d-gauge', disponib, metaDisp);
   renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
   renderPCMRing('d-pcm-ring', pctPrev, metaPrev);
+  renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
   renderTrend('d-trend');
   renderProximas('d-proximas');
   renderTopMaquinas('d-top-maq', ordPer);
