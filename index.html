@@ -14,7 +14,7 @@
   --bord:#2a3050;--bord2:#3a4568;
   --txt:#f4f6ff;--txt2:#b0bcd8;--txt3:#6b7aa0;
   --sb-bg:#0d0f18;--hd-bg:#0d0f18;--inp:#191c26;
-  --grn:#1fd988;--blu:#4096ff;--org:#f59e0b;--pur:#9b6dff;
+  --grn:#1fd988;--blu:#4096ff;--org:#f59e0b;--pur:#9b6dff;f
   --fw:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;--fm:'JetBrains Mono',monospace;
   --sw:248px;--sw2:64px;--hh:56px;--r:10px;--rs:6px;
   --shad:0 8px 32px rgba(0,0,0,.6);
@@ -1907,7 +1907,7 @@ function renderDash() {
   
   // MTBF — tempo entre falhas (correto)
   const nCorr = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva').length;
-    const tempoParadaTotal = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva')
+    const tempoFuncionando = ((horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva').reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = ((horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
