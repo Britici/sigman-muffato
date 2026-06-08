@@ -1904,12 +1904,11 @@ function renderDash() {
   // MTTR — tempo médio de reparo
   const ordTempo = ordPer.filter(o => o.durMin > 0);
   const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
-  
-  // MTBF — tempo entre falhas (correto)
+
+  // MTBF — tempo entre falhas (hoje)
   const nCorr = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva').length;
-    const tempoFuncionando = ((horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
+  const tempoParadaTotal = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva')
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
-  const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva').reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = ((horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
   
