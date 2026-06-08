@@ -1818,7 +1818,6 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
 
 function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
-  
   const html = dispPorSala.map(s => {
     const cor = s.disp >= 85 ? 'var(--grn)' : s.disp >= 75 ? 'var(--org)' : 'var(--red)';
     return `
