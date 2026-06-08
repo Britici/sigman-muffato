@@ -1776,6 +1776,27 @@ function logEdit(acao, numero, detalhe) {
     Detalhe:    detalhe || ''
   });
 }
+
+function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
+  const salas = [...new Set(db.maquinas.map(m => m.sala))];
+  
+  return salas.map(sala => {
+    const maqsCrit = db.maquinas.filter(m => m.sala === sala && (m.criticidade === '1' || m.criticidade === 1));
+    
+    const minParada = ordPer
+      .filter(o => 
+        o.sala === sala && 
+        o.tipo === 'Corretiva' &&
+        maqsCrit.some(m => m.nome === o.maq)
+      )
+      .reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
+    
+    const minDisp = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
+    const disp = Math.min(100, Math.max(0, Math.round((1 - minParada / minDisp) * 100)));
+    
+    return { sala, disp, minParada };
+  });
+}
   
 // ══════════════════════════════════════════════════════════════════════
 // DASHBOARD — OEE + TPM
@@ -1830,9 +1851,10 @@ function renderDash() {
   const dtStart = new Date(startDate);
   const dtHoje  = new Date(t);
   const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
-  const minDisp    = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
-  const minParada = ordPer .filter(o => o.tipo === 'Corretiva') .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
-  const disponib   = Math.min(100, Math.max(0, Math.round((1 - minParada/minDisp) * 100)));
+  // Disponibilidade por sala (crítico = 1)
+  const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
+  const disponib = Math.round(dispPorSala.reduce((sum, s) => sum + s.disp, 0) / dispPorSala.length);
+  const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
 
   // MTTR / MTBF
@@ -1875,9 +1897,10 @@ function renderDash() {
   // KPI Cards
   const corColor = disponib >= metaDisp ? 'var(--grn)' : disponib >= metaDisp-10 ? 'var(--org)' : 'var(--red)';
     document.getElementById('d-stats').innerHTML = `
-    <div class="sc-card" style="color:${corColor}">
-      <div class="sc-lbl">Disponibilidade</div>
-      <div class="sc-val">${disponib}%</div>
+    <div class=\"sc-card\" style=\"color:${corColor}\">
+      <div class=\"sc-lbl\">Disponibilidade</div>
+      <div class=\"sc-val\">${disponib}%</div>
+      <div style=\"font-size:10px;color:var(--txt3);margin-top:4px\">${salaComAlerta.length > 0 ? '🔴 ' + salaComAlerta.length + ' sala(s) alerta' : '🟢 Todas operando'}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta: ${metaDisp}%</div>
       <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5"></div>
     </div>
