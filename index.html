@@ -2712,12 +2712,18 @@ function exportCSV() {
 async function salvarOS() {
   const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
-        ini  = v('ab-in'), fim  = v('ab-fm'),
+        ini  = v('ab-in').trim(), fim  = v('ab-fm').trim(),
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
         acaoPrev = v('ab-ap').trim(),
         parada = v('ab-parada');
   if (!sala||!maq||!tipo||!pr||!manut||!data) {
+    if (ini && !fim) { showAlert('al-ab','Se informar hora início, informe também fim.','er'); return; }
+    if (fim && !ini) { showAlert('al-ab','Se informar hora fim, informe também início.','er'); return; }
     showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er'); return;
+  }
+  if (ini && fim) {
+    const [h1,m1]=ini.split(':').map(Number), [h2,m2]=fim.split(':').map(Number);
+    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) { showAlert('al-ab','Horas inválidas. Use HH:MM','er'); return; }
   }
   let durMin = 0, paradaMin = parseInt(parada)||0;
   if (ini && fim) {
