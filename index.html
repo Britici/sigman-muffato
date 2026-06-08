@@ -1902,10 +1902,10 @@ function renderDash() {
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
 
   // MTTR — tempo médio de reparo
-  const nCorr = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva').length;
-  const tempoParadaTotal = db.ordens.filter(o => o.data === t && o.tipo === 'Corretiva')
+  const nCorr = ordPer.filter(o => o.tipo === 'Corretiva').length;
+  const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva')
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
-  const tempoFuncionando = ((horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
+  const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
 
 console.log('[DEBUG MTBF TODAY]');
