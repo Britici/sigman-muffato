@@ -1860,7 +1860,7 @@ function renderDash() {
 
   // Dados filtrados pelo período
   const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
-  const cor     = nCorr;
+  const cor     = ordPer.filter(o => o.tipo === 'Corretiva').length;
   const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
   const total   = ordPer.length;
   const hj      = db.ordens.filter(o => o.data === t).length;
@@ -1910,9 +1910,9 @@ function renderDash() {
   const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
   
   // MTTR — tempo médio de reparo
-  const ordCorr = ordPer.filter(o => o.tipo === 'Corretiva');
-  const nCorr = ordCorr.length;
-  const tempoParadaTotal = ordCorr.reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
+  const nCorr = ordPer.filter(o => o.tipo === 'Corretiva').length;
+  const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva')
+    .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
     
