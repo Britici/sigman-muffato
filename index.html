@@ -2855,24 +2855,21 @@ function darBaixaRAC(osNumero) {
 
   const tb = document.getElementById('tb-exec');
   if (!data.length) { tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`; return; }
-  tb.innerHTML = data.map(o => {
-  const temRACR = o.prioridade === '1' || o.prioridade === 'Urgente';
-  return `<tr>
+  tb.innerHTML = data.map(o => `<tr>
     <td>
       <span class="osn">${o.numero}</span>
-      ${temRACR ? '<span class="nv-dot nd-red" style="margin-left:6px;position:relative;top:0"></span>' : ''}
+      ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório — parada acima do limite p/ criticidade ${getCriticidadeMaq(o.maq)}" onclick="abrirRAC('${o.numero}')"></span>`:''}
     </td>
-    <td style="font-size:12px;color:var(--txt2)">${fd(o.data)}</td>
+    <td style="font-size:12px">${fd(o.data)}</td>
     <td>${o.sala}</td><td>${o.maq}</td>
     <td>${tipoBadge(o.tipo)}</td><td>${prio(o.prioridade)}</td>
     <td style="font-size:12px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn btn-sm btn-gh" onclick="verDet('${o.id}','os')">Ver</button>
-      <button class="btn btn-d" onclick="delOS('${o.id}')">✕</button>
+      <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
+      <button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>
     </div></td>
-  </tr>`;
-}).join('');
+  </tr>`).join('');
 }
 
 function delOS(id) {
