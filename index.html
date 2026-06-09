@@ -1866,8 +1866,7 @@ function renderDash() {
   const { startDate, per, t } = calcularPeriodo();
   const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
   updStats();
-  const t = today();
-
+  
   // Filtro de período
   const sel = document.getElementById('dash-periodo');
   const per = sel ? sel.value : 'mes';
