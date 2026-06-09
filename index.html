@@ -1837,38 +1837,17 @@ function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPe
   
   document.getElementById('salas-grid').innerHTML = html;
 }
-  
-function calcularPeriodo() {
-  const t = today();
-  const sel = document.getElementById('dash-periodo');
-  const per = sel ? sel.value : 'mes';
-  let startDate;
-  if (per === 'dia') {
-    startDate = t;
-  } else if (per === 'semana') {
-    const d = new Date(); d.setDate(d.getDate()-7);
-    startDate = d.toISOString().slice(0,10);
-  } else if (per === '3m') {
-    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
-    startDate = d.toISOString().slice(0,10);
-  } else if (per === 'ano') {
-    startDate = t.slice(0,4) + '-01-01';
-  } else {
-    startDate = t.slice(0,7) + '-01';
-  }
-  return { startDate, per, t };
-}
-  
+
 // ══════════════════════════════════════════════════════════════════════
 // DASHBOARD — OEE + TPM
 // ══════════════════════════════════════════════════════════════════════
 function renderDash() {
-  const { startDate, per, t } = calcularPeriodo();
-  const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
   updStats();
-  
+  const t = today();
+
   // Filtro de período
   const sel = document.getElementById('dash-periodo');
+  const per = sel ? sel.value : 'mes';
   let startDate;
   if (per === 'dia') {
     startDate = t;
