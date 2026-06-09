@@ -597,6 +597,17 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     </div>
    </div>
 
+<!-- ══ ANÁLISE DE CAUSA RAIZ ══ -->
+<div class="nv-grp-hd" onclick="toggleNVGrp(this)" data-label="Análise Causa Raiz">
+  <div class="nv-ic">📊</div>
+  <div class="nv-lbl">Análise Causa Raiz</div>
+  <div class="nv-grp-chev">›</div>
+</div>
+<div class="nv-sub-items">
+  <div class="nv-sub-item" onclick="abrirPagina('racr-abertos')">RACRs Abertos</div>
+  <div class="nv-sub-item" onclick="abrirPagina('racr-fechados')">RACRs Fechados</div>
+</div>
+    
 <!-- ══ PÁGINA: RACR ABERTOS ══ -->
 <div class="pg" id="pg-racr-abertos">
   <div class="ph">
@@ -2982,19 +2993,6 @@ async function salvarPlan() {
 }
 function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
   
-// ══════════════════════════════════════════════════════════════════════
-// ANÁLISE DE CAUSA RAIZ
-// ══════════════════════════════════════════════════════════════════════
-<div class="nv-grp-hd" onclick="toggleNVGrp(this)" data-label="Análise Causa Raiz">
-  <div class="nv-ic">📊</div>
-  <div class="nv-lbl">Análise Causa Raiz</div>
-  <div class="nv-grp-chev">›</div>
-</div>
-<div class="nv-sub-items">
-  <div class="nv-sub-item" onclick="abrirPagina('racr-abertos')">RACRs Abertos</div>
-  <div class="nv-sub-item" onclick="abrirPagina('racr-fechados')">RACRs Fechados</div>
-</div>
-
 // ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
 // ══════════════════════════════════════════════════════════════════════
