@@ -1574,6 +1574,11 @@ let _photoBase64 = null;
 function previewPhoto(input) {
   const file = input.files[0];
   if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Foto maior que 5MB. Redimensione.');
+    input.value = '';
+    return;
+  }
   _photoFile = file;
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -1860,7 +1865,8 @@ function renderDash() {
 
   // Dados filtrados pelo período
   const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
-  const cor     = ordPer.filter(o => o.tipo === 'Corretiva').length;
+  const ordCorr = ordPer.filter(o => o.tipo === 'Corretiva');
+  const cor     = ordCorr.length;
   const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
   const total   = ordPer.length;
   const hj      = db.ordens.filter(o => o.data === t).length;
@@ -1874,7 +1880,7 @@ function renderDash() {
 
   // Top Máquina — mais corretivas no período
   const _byMaq = {};
-  ordPer.filter(o => o.tipo === 'Corretiva').forEach(o => {
+  ordCorr.forEach(o => {
     const k = o.maq + '||' + o.sala;
     if (!_byMaq[k]) _byMaq[k] = { maq: o.maq, sala: o.sala, n: 0 };
     _byMaq[k].n++;
@@ -1910,8 +1916,8 @@ function renderDash() {
   const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
   
   // MTTR — tempo médio de reparo
-  const nCorr = ordPer.filter(o => o.tipo === 'Corretiva').length;
-  const tempoParadaTotal = ordPer.filter(o => o.tipo === 'Corretiva')
+  const nCorr = ordCorr.length;
+  const tempoParadaTotal = ordCorr 
     .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
   const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
