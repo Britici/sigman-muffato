@@ -172,8 +172,8 @@ tbody tr{border-bottom:1px solid var(--bord);transition:background .1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--surf2)}
 td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
-.osn{font-family:var(--fm);font-size:12px;color:var(--txt);font-weight:600}
-  
+.osn{font-family:var(--fm);font-size:11px;color:var(--red);font-weight:600}
+
 /* BADGES */
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-family:var(--fw);font-size:11px;font-weight:700;font-variant:small-caps;letter-spacing:.03em;white-space:nowrap}
 .b-cor{background:rgba(196,18,48,.15);color:#ff4d65}
@@ -867,9 +867,9 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
  <div class="wa-prev" id="md-wa" style="display:none"></div>
  <button class="wa-cp" id="md-wa-btn" onclick="copyWA()" style="display:none">📋 Copiar para WhatsApp</button>
  <button class="wa-cp" id="md-print-btn" onclick="imprimirDetOS()" style="display:none;background:#444;margin-top:6px">🖨️ Imprimir O.S.</button>
-   <button class="btn btn-p btn-sm" id="md-rac-btn" onclick="abrirRAC()" style="display:none">
-    🔴 GERAR RCA
-  </button>
+ <button class="btn btn-p btn-sm" onclick="gerarRACR()">
+  🔴 GERAR RCA
+ </button>
 </div></div>
 
 <!-- MODAL CONCLUIR -->
@@ -1028,7 +1028,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
 // ║  CONFIGURAÇÃO — altere apenas estas linhas                       ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-const API_URL    = 'https://script.google.com/macros/s/AKfycbwvesTj5p6R5P8oSbl6EqS5GCXT222rEgCQQM_F2oWUc_srjU0ZX4EwzZatCT-1oAAp0g/exec';
+const API_URL    = 'https://script.google.com/macros/s/AKfycbxQ-okD4Ya5AAwlnnTJiW24B3_OD67N8BXMdB23ubLA68j0srmZA-Kw48BqDqqkWLv8Ng/exec';
 const USE_API    = true;   // false = modo offline (só localStorage)
 const POLL_MS    = 180000;  // Atualização automática a cada 3 minutos
 
@@ -4123,13 +4123,6 @@ function verDet(id,tipo) {
   document.getElementById('md-b').innerHTML=rows;
   _curDet={item,tipo};
   document.getElementById('md-print-btn').style.display='inline-block';
-  // Mostrar botão GERAR RCA apenas se precisaRAC()
-  const racBtn = document.getElementById('md-rac-btn');
-  if (tipo === 'os' && precisaRAC(item)) {
-    racBtn.style.display = 'inline-block';
-  } else {
-    racBtn.style.display = 'none';
-  }
   openM('m-det');
 }
 function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>showToast('Copiado!'));}
