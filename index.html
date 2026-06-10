@@ -841,6 +841,26 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     </div>
    </div>
 
+ <!-- PÁGINA RACR — ANÁLISE DE CAUSA RAIZ -->
+   <div class="pg" id="pg-racr">
+    <div class="ph">
+     <div class="pt"><small>PCM · Qualidade</small>Análise de Causa Raiz</div>
+     <button class="btn btn-sm btn-p" onclick="abrirModalRACR()">+ Novo RACR</button>
+    </div>
+    <div class="alert" id="al-racr"></div>
+    <div class="card">
+     <div class="card-t">RACRs Abertos — Pendentes de Análise</div>
+     <div class="tw"><table><thead><tr>
+      <th>ID</th><th>Data</th><th>Equipamento</th><th>Falha</th><th>Causa Raiz</th><th>Status</th><th>Ações</th>
+     </tr></thead><tbody id="tb-racr-abertos"></tbody></table></div>
+    </div>
+    <div class="card" style="margin-top:20px">
+     <div class="card-t">RACRs Fechados — Arquivados</div>
+     <div class="tw"><table><thead><tr>
+      <th>ID</th><th>Data</th><th>Equipamento</th><th>Falha</th><th>Data Fechamento</th><th>Ações</th>
+     </tr></thead><tbody id="tb-racr-fechados"></tbody></table></div>
+    </div>
+   </div>   
   </main>
  </div>
 </div>
@@ -886,128 +906,67 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
 <button class="wa-cp" onclick="imprimirInspDiaria()" style="background:#444;margin-top:6px">🖨️ Imprimir Inspeção</button>
 </div></div>
   
-<!-- ══ MODAL RACR ══ -->
+<!-- MODAL RACR -->
 <div class="mb" id="mb-racr">
-  <div class="modal" style="max-width:900px">
-    <div class="mhd">
-      <div class="mtit">🔴 RCA - Análise de Causa Raiz</div>
-      <div class="mcl" onclick="fecharRACR()">✕</div>
-    </div>
-
-    <!-- SEÇÃO 1: IDENTIFICAÇÃO -->
-    <div class="card">
-      <div class="card-t">1 - Identificação do Problema</div>
-      <div class="fg-row">
-        <div class="fg">
-          <label>TAG/EQUIPAMENTO</label>
-          <input type="text" id="racr-equip" readonly>
-        </div>
-        <div class="fg">
-          <label>DATA</label>
-          <input type="date" id="racr-data" readonly>
-        </div>
-        <div class="fg">
-          <label>HORA DA PARADA</label>
-          <input type="time" id="racr-hora" readonly>
-        </div>
-      </div>
-    </div>
-
-    <!-- SEÇÃO 2: FALHA/DEFEITO -->
-    <div class="card">
-      <div class="card-t">2 - Falha / Defeito Identificado</div>
-      <div class="fg">
-        <label>Descrição da Falha</label>
-        <textarea id="racr-falha" placeholder="Descrever falha identificada..."></textarea>
-      </div>
-    </div>
-
-    <!-- SEÇÃO 3: CAUSA -->
-    <div class="card">
-      <div class="card-t">3 - Causa</div>
-      <div class="fg">
-        <label>Detalhamento da Causa</label>
-        <textarea id="racr-causa" placeholder="Análise detalhada da causa..."></textarea>
-      </div>
-    </div>
-
-    <!-- SEÇÃO 4: 5 PORQUÊS -->
-    <div class="card">
-      <div class="card-t">4 - Análise dos 5 Porquês</div>
-      <div class="fg">
-        <label>1º Porquê</label>
-        <input type="text" id="racr-p1">
-      </div>
-      <div class="fg">
-        <label>2º Porquê</label>
-        <input type="text" id="racr-p2">
-      </div>
-      <div class="fg">
-        <label>3º Porquê</label>
-        <input type="text" id="racr-p3">
-      </div>
-      <div class="fg">
-        <label>4º Porquê</label>
-        <input type="text" id="racr-p4">
-      </div>
-      <div class="fg">
-        <label>5º Porquê (Raiz)</label>
-        <input type="text" id="racr-p5">
-      </div>
-    </div>
-
-    <!-- SEÇÃO 5: AÇÃO IMEDIATA -->
-    <div class="card">
-      <div class="card-t">5 - Ação Imediata</div>
-      <div class="fg">
-        <textarea id="racr-imediata" placeholder="Ação imediata realizada..."></textarea>
-      </div>
-    </div>
-
-    <!-- SEÇÃO 6: AÇÃO PREVENTIVA -->
-    <div class="card">
-      <div class="card-t">6 - Ação Preventiva</div>
-      <div class="fg">
-        <textarea id="racr-preventiva" placeholder="Ação preventiva para evitar recorrência..."></textarea>
-      </div>
-    </div>
-
-    <!-- SEÇÃO 7: EQUIPE RESPONSÁVEL -->
-    <div class="card">
-      <div class="card-t">7 - Equipe Responsável</div>
-      <div class="fg">
-        <label>Resp. Produção</label>
-        <input type="text" id="racr-resp-prod">
-      </div>
-      <div class="fg">
-        <label>Resp. Manutenção</label>
-        <input type="text" id="racr-resp-manu">
-      </div>
-      <div class="fg">
-        <label>Executantes</label>
-        <input type="text" id="racr-exec">
-      </div>
-    </div>
-
-    <!-- BOTÕES -->
-    <div class="fa">
-      <button class="btn btn-gh" onclick="fecharRACR()">Cancelar</button>
-      <button class="btn btn-gold" onclick="salvarRACRRascunho()">💾 Salvar Rascunho</button>
-      <button class="btn btn-p" onclick="imprimirRACR()">🖨️ Imprimir</button>
-    </div>
-  </div>
-</div>
-  
-<!-- MODAL EDITAR -->
-<div class="mb" id="m-edit"><div class="modal" style="max-width:400px">
- <div class="mhd"><div class="mtit" id="me-t">Editar</div><button class="mcl" onclick="closeM('m-edit')">×</button></div>
- <div id="me-b"></div>
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('m-edit')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarEdit()">Salvar</button>
+<div class="modal" style="max-width:700px">
+ <div class="mhd">
+  <div class="mtit">Análise de Causa Raiz — RACR</div>
+  <button class="mcl" onclick="fecharModalRACR()">×</button>
  </div>
-</div></div>
 
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">1. Identificação</div>
+  <div class="fg-row fg-3">
+   <div class="fg"><label>Data</label><input type="date" id="racr-data"></div>
+   <div class="fg"><label>Hora</label><input type="time" id="racr-hora"></div>
+   <div class="fg"><label>OS Número (ref)</label><input type="text" id="racr-os" placeholder="OS-0000"></div>
+  </div>
+  <div class="fg-row">
+   <div class="fg"><label>Equipamento / Máquina</label><input type="text" id="racr-equip" placeholder="Ex: WEBER 905"></div>
+   <div class="fg"><label>Sala</label><input type="text" id="racr-sala" placeholder="Ex: LÁCTEOS"></div>
+  </div>
+ </div>
+
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">2. Descrição da Falha</div>
+  <div class="fg"><label>Falha Identificada</label><textarea id="racr-falha" placeholder="Descreva em detalhes..."></textarea></div>
+ </div>
+
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">3. Análise de Causa Raiz — 5 Por Quês</div>
+  <div class="fg"><label>Resumo: Qual é a Causa Raiz?</label><textarea id="racr-causa" placeholder="Causa raiz identificada..."></textarea></div>
+  <div style="margin-top:12px;border-top:1px solid var(--bord);padding-top:12px">
+   <div style="font-size:12px;color:var(--txt3);font-weight:600;margin-bottom:8px">Aprofundamento (opcional)</div>
+   <div class="fg"><label>Por que 1?</label><input type="text" id="racr-p1" placeholder=""></div>
+   <div class="fg"><label>Por que 2?</label><input type="text" id="racr-p2" placeholder=""></div>
+   <div class="fg"><label>Por que 3?</label><input type="text" id="racr-p3" placeholder=""></div>
+   <div class="fg"><label>Por que 4?</label><input type="text" id="racr-p4" placeholder=""></div>
+   <div class="fg"><label>Por que 5?</label><input type="text" id="racr-p5" placeholder=""></div>
+  </div>
+ </div>
+
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">4. Ações Corretivas</div>
+  <div class="fg"><label>Ação Imediata (curto prazo)</label><textarea id="racr-imediata" placeholder="O que foi feito imediatamente..."></textarea></div>
+  <div class="fg" style="margin-top:10px"><label>Ação Preventiva (longo prazo)</label><textarea id="racr-preventiva" placeholder="Ação para evitar repetição..."></textarea></div>
+ </div>
+
+ <div class="card">
+  <div class="card-t">5. Equipe Responsável</div>
+  <div class="fg-row">
+   <div class="fg"><label>Responsável Produção</label><input type="text" id="racr-resp-prod" placeholder="Nome"></div>
+   <div class="fg"><label>Responsável Manutenção</label><input type="text" id="racr-resp-manu" placeholder="Nome"></div>
+  </div>
+  <div class="fg"><label>Executantes / Envolvidos</label><input type="text" id="racr-exec" placeholder="Nomes separados por vírgula"></div>
+ </div>
+
+ <div class="fa" style="margin-top:20px">
+  <button class="btn btn-gh" onclick="fecharModalRACR()">Cancelar</button>
+  <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
+  <button class="btn btn-gold" id="btn-gerar-rca" onclick="imprimirRACR()" style="display:none">🖨️ Gerar Relatório</button>
+ </div>
+</div>
+</div>
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  SIGMAN Enterprise — JavaScript v4                               ║
@@ -4293,6 +4252,5 @@ async function init() {
 
 init();
 </script>
-<script src="sigman-racr.js"></script>
 </body>
 </html>
