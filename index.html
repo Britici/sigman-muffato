@@ -1590,10 +1590,10 @@ function buildNav() {
         <span class="nv-grp-chev">▶</span>
       </div>
       <div class="nv-sub-items">
-        ${n.sub.filter(s => !s.admin || CU.tipo==='Administração').map(s=>`
+        ${n.sub.filter(s => !s.admin || CU.tipo==='administracao').map(s=>`     
           <div class="nv-sub-item" data-page="${s.id}" onclick="showPage('${s.id}');closeSB()">
             <span>${s.ic}</span><span>${s.lbl}</span>
-          </div>`).join('')}
+          </div>`).join('')}  
       </div>`;
       nav.appendChild(grp);
     } else {
