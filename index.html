@@ -595,17 +595,6 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      </div>
     </div>
    </div>
-
-<!-- ══ ANÁLISE DE CAUSA RAIZ ══ -->
-<div class="nv-grp-hd" onclick="toggleNVGrp(this)" data-label="Análise Causa Raiz">
-  <div class="nv-ic">📊</div>
-  <div class="nv-lbl">Análise Causa Raiz</div>
-  <div class="nv-grp-chev">›</div>
-</div>
-<div class="nv-sub-items">
-  <div class="nv-sub-item" onclick="abrirPagina('racr-abertos')">RACRs Abertos</div>
-  <div class="nv-sub-item" onclick="abrirPagina('racr-fechados')">RACRs Fechados</div>
-</div>
     
 <!-- ══ PÁGINA: RACR ABERTOS ══ -->
 <div class="pg" id="pg-racr-abertos">
@@ -1606,6 +1595,7 @@ const NAV = [
   { id:'inspecao',     ic:'🔍', lbl:'Inspeção Diária'     },
   { id:'pcm', ic:'📋', lbl:'PCM', sub:[
       { id:'planejamento', ic:'📋', lbl:'Planejamento de O.S.' },
+      { id:'analise-causa-raiz', ic:'📊', lbl:'Análise Causa Raiz', admin:true },
       { id:'inspecao-tmpl',ic:'📄', lbl:'Inspeção de Rota'   },
       { id:'preventiva',   ic:'🔩', lbl:'Manutenção Preventiva'},      
     ]
@@ -1618,6 +1608,7 @@ const NAV = [
 const LBLS = {
   dashboard:'Dashboard', planejadas:'O.S. Planejadas', executadas:'O.S. Executadas',
   abertura:'Abertura de O.S.', planejamento:'PCM — Planejamento de O.S.',
+  'analise-causa-raiz':'PCM — Análise de Causa Raiz',
   solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
   ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'PCM — Templates de Inspeção',
   preventiva:'PCM — Manutenção Preventiva'
@@ -1640,7 +1631,7 @@ function buildNav() {
         <span class="nv-grp-chev">▶</span>
       </div>
       <div class="nv-sub-items">
-        ${n.sub.map(s=>`
+        ${n.sub.filter(s => !s.admin || CU.tipo==='Administração').map(s=>`
           <div class="nv-sub-item" data-page="${s.id}" onclick="showPage('${s.id}');closeSB()">
             <span>${s.ic}</span><span>${s.lbl}</span>
           </div>`).join('')}
@@ -4302,5 +4293,6 @@ async function init() {
 
 init();
 </script>
+<script src="sigman-racr.js"></script>
 </body>
 </html>
