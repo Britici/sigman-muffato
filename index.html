@@ -866,7 +866,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
  <div class="wa-prev" id="md-wa" style="display:none"></div>
  <button class="wa-cp" id="md-wa-btn" onclick="copyWA()" style="display:none">📋 Copiar para WhatsApp</button>
  <button class="wa-cp" id="md-print-btn" onclick="imprimirDetOS()" style="display:none;background:#444;margin-top:6px">🖨️ Imprimir O.S.</button>
- <button class="btn btn-p btn-sm" onclick="gerarRACR()">
+ <button class="btn btn-p btn-sm" id="md-rac-btn" onclick="abrirRAC()" style="display:none">
   🔴 GERAR RCA
  </button>
 </div></div>
@@ -4122,6 +4122,13 @@ function verDet(id,tipo) {
   document.getElementById('md-b').innerHTML=rows;
   _curDet={item,tipo};
   document.getElementById('md-print-btn').style.display='inline-block';
+  // Mostrar botão GERAR RCA apenas se precisaRAC()
+  const racBtn = document.getElementById('md-rac-btn');
+  if (tipo === 'os' && precisaRAC(item)) {
+    racBtn.style.display = 'inline-block';
+  } else {
+    racBtn.style.display = 'none';
+  }
   openM('m-det');
 }
 function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>showToast('Copiado!'));}
