@@ -2633,7 +2633,6 @@ function delPlan(id) {
   db.planejadas = db.planejadas.filter(p => p.numero !== id);
   saveDB(); renderPlan();
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
-}
 
 // ── RAC — helpers ────────────────────────────────────────────────────
 function getCriticidadeMaq(maqNome) {
