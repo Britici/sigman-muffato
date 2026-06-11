@@ -3628,21 +3628,18 @@ function delMaq(i) {
 
 // Editar sala/máquina
 function openEdit(type,idx) {
-  _editType=type;_editIdx=idx;
-  if(type==='sala') {
-    document.getElementById('me-t').textContent='Editar Sala';
-    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
-  } else if(type==='maq') {
-    const m=db.maquinas[idx];
-    document.getElementById('me-t').textContent='Editar Máquina';
-    document.getElementById('me-b').innerHTML=`
-      <div class="fg"><label>Sala</label><select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select></div>
-      <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
-      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
-      <div class="fg"><label>Criticidade</label><select id="me-crit"><option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option><option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option><option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option><option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option></select></div>
-      <div class="fg"><label>Periodicidade</label><select id="me-per"><option${m.periodicidade==='Diária'?' selected':''}>Diária</option><option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option><option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option><option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option><option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option><option${m.periodicidade==='Anual'?' selected':''}>Anual</option></select></div>`;
-  }
-  openM('m-edit');
+  const tipos = {sala:db.salas, maq:db.maquinas};
+  if(!tipos[type]||!tipos[type][idx]) return;
+  const item = tipos[type][idx];
+  const fields = type==='sala' ? ['Nome','Descricao','Ativo'] : ['Nome','Tag','Criticidade','Periodicidade_Preventiva','Ativo'];
+  const modal = document.getElementById(type==='sala'?'mb-edit-sala':'mb-edit-maq');
+  fields.forEach(f=>{
+    const inp = document.getElementById(`edit-${f.toLowerCase()}`);
+    if(inp) inp.value = item[f]||'';
+  });
+  window.editIdx = idx;
+  window.editType = type;
+  openM(modal);
 }
   
 function salvarEdit() {
