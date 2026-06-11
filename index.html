@@ -862,49 +862,6 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
  </div>
 </div>
 
-<!-- MODAL NOVO RACR -->
-<div class="mb" id="mb-racr"><div class="modal" style="max-width:700px">
- <div class="mhd">
-  <div class="mtit">Novo RACR — Análise de Causa Raiz</div>
-  <button class="mcl" onclick="closeM('mb-racr')">×</button>
- </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">Identificação</div>
-  <div class="fg-row fg-3">
-   <div class="fg"><label>Data</label><input type="date" id="racr-data"></div>
-   <div class="fg"><label>Hora</label><input type="time" id="racr-hora"></div>
-   <div class="fg"><label>OS Ref</label><input type="text" id="racr-os" placeholder="OS-0000"></div>
-  </div>
-  <div class="fg-row">
-   <div class="fg"><label>Equipamento</label><input type="text" id="racr-equip"></div>
-   <div class="fg"><label>Sala</label><input type="text" id="racr-sala"></div>
-  </div>
- </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">Falha e Causa</div>
-  <div class="fg"><label>Falha Identificada</label><textarea id="racr-falha"></textarea></div>
-  <div class="fg"><label>Causa Raiz (Resumo)</label><textarea id="racr-causa"></textarea></div>
- </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">5 Por Quês (opcional)</div>
-  <div class="fg"><label>Por que 1?</label><input type="text" id="racr-p1"></div>
-  <div class="fg"><label>Por que 2?</label><input type="text" id="racr-p2"></div>
-  <div class="fg"><label>Por que 3?</label><input type="text" id="racr-p3"></div>
-  <div class="fg"><label>Por que 4?</label><input type="text" id="racr-p4"></div>
-  <div class="fg"><label>Por que 5?</label><input type="text" id="racr-p5"></div>
- </div>
- <div class="card">
-  <div class="card-t">Ações Corretivas</div>
-  <div class="fg"><label>Ação Imediata</label><textarea id="racr-imediata"></textarea></div>
-  <div class="fg"><label>Ação Preventiva</label><textarea id="racr-preventiva"></textarea></div>
-  <div class="fg"><label>Responsáveis</label><input type="text" id="racr-resp" placeholder="Nomes"></div>
- </div>
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('mb-racr')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
- </div>
-</div></div>
-
 <!-- MODAL DETALHE -->
 <div class="mb" id="m-det"><div class="modal">
  <div class="mhd">
