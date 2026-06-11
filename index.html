@@ -355,6 +355,8 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     Carregando...
   </div>
 </div>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
 
 /* RACR customizado */
 #mb-racr .card-t {
@@ -859,6 +861,49 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   </tr></thead><tbody id="tb-racr-fechados"></tbody></table></div>
  </div>
 </div>
+
+<!-- MODAL NOVO RACR -->
+<div class="mb" id="mb-racr"><div class="modal" style="max-width:700px">
+ <div class="mhd">
+  <div class="mtit">Novo RACR — Análise de Causa Raiz</div>
+  <button class="mcl" onclick="closeM('mb-racr')">×</button>
+ </div>
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">Identificação</div>
+  <div class="fg-row fg-3">
+   <div class="fg"><label>Data</label><input type="date" id="racr-data"></div>
+   <div class="fg"><label>Hora</label><input type="time" id="racr-hora"></div>
+   <div class="fg"><label>OS Ref</label><input type="text" id="racr-os" placeholder="OS-0000"></div>
+  </div>
+  <div class="fg-row">
+   <div class="fg"><label>Equipamento</label><input type="text" id="racr-equip"></div>
+   <div class="fg"><label>Sala</label><input type="text" id="racr-sala"></div>
+  </div>
+ </div>
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">Falha e Causa</div>
+  <div class="fg"><label>Falha Identificada</label><textarea id="racr-falha"></textarea></div>
+  <div class="fg"><label>Causa Raiz (Resumo)</label><textarea id="racr-causa"></textarea></div>
+ </div>
+ <div class="card" style="margin-bottom:14px">
+  <div class="card-t">5 Por Quês (opcional)</div>
+  <div class="fg"><label>Por que 1?</label><input type="text" id="racr-p1"></div>
+  <div class="fg"><label>Por que 2?</label><input type="text" id="racr-p2"></div>
+  <div class="fg"><label>Por que 3?</label><input type="text" id="racr-p3"></div>
+  <div class="fg"><label>Por que 4?</label><input type="text" id="racr-p4"></div>
+  <div class="fg"><label>Por que 5?</label><input type="text" id="racr-p5"></div>
+ </div>
+ <div class="card">
+  <div class="card-t">Ações Corretivas</div>
+  <div class="fg"><label>Ação Imediata</label><textarea id="racr-imediata"></textarea></div>
+  <div class="fg"><label>Ação Preventiva</label><textarea id="racr-preventiva"></textarea></div>
+  <div class="fg"><label>Responsáveis</label><input type="text" id="racr-resp" placeholder="Nomes"></div>
+ </div>
+ <div class="fa">
+  <button class="btn btn-gh" onclick="closeM('mb-racr')">Cancelar</button>
+  <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
+ </div>
+</div></div>
 
 <!-- MODAL DETALHE -->
 <div class="mb" id="m-det"><div class="modal">
@@ -2633,6 +2678,7 @@ function delPlan(id) {
   db.planejadas = db.planejadas.filter(p => p.numero !== id);
   saveDB(); renderPlan();
   if (pl) apiDelete('planejadas', pl.numero, 'PL_Numero');
+}
 
 // ── RAC — helpers ────────────────────────────────────────────────────
 function getCriticidadeMaq(maqNome) {
@@ -3439,11 +3485,11 @@ function renderAtivos() {
   // Salas em ordem alfabética
   document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
-    : [...db.salas].sort().map((s,i)=>`
+    : [...db.salas].sort().map((s)=>`
         <div class="edit-row">
           <span style="font-size:13px;font-weight:500">${s}</span>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('sala','${s}')">✎</button>
             <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
           </div>
         </div>`).join('');
@@ -3468,8 +3514,8 @@ function renderAtivos() {
   document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
-      ${bySala[sala].map((m,_i)=>{
-        const gi=db.maquinas.indexOf(m);
+      ${bySala[sala].map((m)=>{
+        const mKey=`${m.nome}|${m.sala}`;
         const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
@@ -3480,8 +3526,8 @@ function renderAtivos() {
             </div>
           </div>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
-            <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('maq','${mKey}')">✎</button>
+            <button class="btn btn-d" onclick="delMaq('${mKey}')">✕</button>
           </div>
         </div>`;
       }).join('')}
@@ -3616,48 +3662,45 @@ function delSala(nome) {
   apiDelete('salas',nome,'Nome');
 }
 
-function delMaq(i) {
+function delMaq(key) {
   if(!confirm('Remover máquina?'))return;
-  const m=db.maquinas[i];
+  let m,i;
+  if(typeof key === 'string' && key.includes('|')) {
+    const [nome,sala]=key.split('|');
+    i=db.maquinas.findIndex(x=>x.nome===nome&&x.sala===sala);
+    m=db.maquinas[i];
+  } else {
+    i=key; m=db.maquinas[i];
+  }
+  if(i<0||!m)return;
   db.maquinas.splice(i,1);saveDB();populateAll();renderAtivos();
-  if(m)apiDelete('maquinas',m.nome,'Nome');
+  apiDelete('maquinas',m.nome,'Nome');
 }
 
 // Editar sala/máquina
 function openEdit(type,idx) {
   _editType=type;_editIdx=idx;
-  if(type==='sala'){
+  if(type==='sala') {
+    const nomeAtual = typeof idx === 'number' ? db.salas[idx] : idx;
     document.getElementById('me-t').textContent='Editar Sala';
-    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
+    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome</label><input type="text" id="me-v" value="${nomeAtual}"></div>`;
   } else if(type==='maq') {
-    const m=db.maquinas[idx];
+    // idx pode ser 'Nome|Sala' (chave) ou número (legado)
+    let m;
+    if(typeof idx === 'string' && idx.includes('|')) {
+      const [nome,sala]=idx.split('|');
+      m=db.maquinas.find(x=>x.nome===nome&&x.sala===sala);
+    } else {
+      m=db.maquinas[idx];
+    }
+    if(!m){showToast('Máquina não encontrada. Recarregue a página.','er');return;}
     document.getElementById('me-t').textContent='Editar Máquina';
     document.getElementById('me-b').innerHTML=`
-      <div class="fg"><label>Sala</label>
-        <select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
-      </div>
+      <div class="fg"><label>Sala</label><select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select></div>
       <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
-      <div class="fg"><label>Criticidade</label>
-        <select id="me-crit">
-          <option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option>
-          <option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option>
-          <option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option>
-          <option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option>
-        </select>
-      </div>
-      <div class="fg"><label>Periodicidade Preventiva</label>
-        <select id="me-per">
-          <option${m.periodicidade==='Diária'?' selected':''}>Diária</option>
-          <option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option>
-          <option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option>
-          <option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option>
-          <option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option>
-          <option${m.periodicidade==='Anual'?' selected':''}>Anual</option>
-        </select>
-      </div>`;
-  } else if(type==='plan') {
-    // editarPlan já preenche me-b antes de abrir
+      <div class="fg"><label>Criticidade</label><select id="me-crit"><option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option><option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option><option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option><option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option></select></div>
+      <div class="fg"><label>Periodicidade</label><select id="me-per"><option${m.periodicidade==='Diária'?' selected':''}>Diária</option><option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option><option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option><option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option><option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option><option${m.periodicidade==='Anual'?' selected':''}>Anual</option></select></div>`;
   }
   openM('m-edit');
 }
@@ -3665,15 +3708,28 @@ function openEdit(type,idx) {
 function salvarEdit() {
   if(_editType==='sala'){
     const nv=v('me-v').trim().toUpperCase();if(!nv)return;
-    const old=db.salas[_editIdx];
-    db.salas[_editIdx]=nv;db.maquinas.forEach(m=>{if(m.sala===old)m.sala=nv;});
+    // suporte a chave por nome (string) ou índice (number, legado)
+    const old = typeof _editIdx === 'number' ? db.salas[_editIdx] : _editIdx;
+    const i = db.salas.indexOf(old);
+    if(i>=0) db.salas[i]=nv;
+    db.maquinas.forEach(m=>{if(m.sala===old)m.sala=nv;});
     saveDB();populateAll();renderAtivos();closeM('m-edit');
     apiUpdate('salas',old,'Nome',{Nome:nv});
   } else if(_editType==='maq') {
-    const old=db.maquinas[_editIdx];
+    // suporte a chave 'Nome|Sala' (string) ou índice (number, legado)
+    let old,i;
+    if(typeof _editIdx === 'string' && _editIdx.includes('|')) {
+      const [nome,sala]=_editIdx.split('|');
+      i=db.maquinas.findIndex(x=>x.nome===nome&&x.sala===sala);
+      old=db.maquinas[i];
+    } else {
+      i=_editIdx;
+      old=db.maquinas[i];
+    }
+    if(i<0||!old){showToast('Máquina não encontrada.','er');return;}
     const nv={nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
                criticidade:v('me-crit'),periodicidade:v('me-per')};
-    db.maquinas[_editIdx]=nv;
+    db.maquinas[i]=nv;
     db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
     saveDB();populateAll();renderAtivos();closeM('m-edit');
     apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
