@@ -946,6 +946,16 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
 <button class="wa-cp" onclick="imprimirInspDiaria()" style="background:#444;margin-top:6px">🖨️ Imprimir Inspeção</button>
 </div></div>
   
+<!-- MODAL EDITAR -->
+<div class="mb" id="m-edit"><div class="modal" style="max-width:420px">
+ <div class="mhd"><div class="mtit" id="me-t">Editar</div><button class="mcl" onclick="closeM('m-edit')">×</button></div>
+ <div id="me-b"></div>
+ <div class="fa">
+  <button class="btn btn-gh" onclick="closeM('m-edit')">Cancelar</button>
+  <button class="btn btn-p" onclick="salvarEdit()">Salvar</button>
+ </div>
+</div></div>
+
 <!-- MODAL RACR -->
 <div class="mb" id="mb-racr">
 <div class="modal" style="max-width:700px">
