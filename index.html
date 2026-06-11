@@ -173,6 +173,7 @@ tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--surf2)}
 td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .osn{font-family:var(--fm);font-size:12px;color:var(--txt);font-weight:600}
+  
 /* BADGES */
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-family:var(--fw);font-size:11px;font-weight:700;font-variant:small-caps;letter-spacing:.03em;white-space:nowrap}
 .b-cor{background:rgba(196,18,48,.15);color:#ff4d65}
@@ -188,6 +189,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .b-alt{background:rgba(196,18,48,.13);color:#ff5570}
 .b-med{background:rgba(245,158,11,.13);color:var(--org)}
 .b-bai{background:rgba(31,217,136,.13);color:var(--grn)}
+  
 /* Criticidade / Prioridade numérica 1-4 */
 .b-c1{background:rgba(196,18,48,.22);color:#ff2244;border:1px solid rgba(196,18,48,.4)}
 .b-c2{background:rgba(196,18,48,.13);color:#ff5570}
@@ -196,16 +198,17 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .b-adm{background:rgba(196,18,48,.12);color:#ff4d65}
 .b-man{background:rgba(64,150,255,.12);color:var(--blu)}
 .b-pro{background:rgba(31,217,136,.12);color:var(--grn)}
-
 .pdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
 .d-u{background:#ff2244}.d-a{background:#ff5570}.d-m{background:var(--org)}.d-b{background:var(--grn)}
 .d-1{background:#ff2244}.d-2{background:#ff5570}.d-3{background:var(--org)}.d-4{background:var(--grn)}
+  
 /* Nav status dots */
 .nv-dot{width:9px;height:9px;border-radius:50%;position:absolute;right:10px;top:50%;transform:translateY(-50%);flex-shrink:0}
 .nv-dot.nd-grn{background:var(--grn)}
 .nv-dot.nd-org{background:var(--org);animation:navblink .9s ease-in-out infinite}
 .nv-dot.nd-red{background:#ff2244;animation:navblink .7s ease-in-out infinite}
 @keyframes navblink{0%,100%{opacity:1}50%{opacity:.2}}
+  
 /* Nav submenu (PCM) */
 .nv-grp-hd{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--txt2);margin-bottom:2px;position:relative;width:100%}
 .nv-grp-hd:hover{background:var(--surf2);color:var(--txt)}
@@ -217,10 +220,12 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .nv-sub-item{display:flex;align-items:center;gap:8px;padding:7px 10px 7px 28px;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--txt2);margin-bottom:1px;font-family:var(--fw);font-size:12px;font-weight:700;font-variant:small-caps;letter-spacing:.04em;position:relative}
 .nv-sub-item:hover{background:var(--surf2);color:var(--txt)}
 .nv-sub-item.act{background:rgba(196,18,48,.14);color:#ff3d5a}
+  
 /* Photo upload */
 .photo-zone{border:2px dashed var(--bord2);border-radius:var(--r);padding:16px;text-align:center;cursor:pointer;transition:border-color .2s}
 .photo-zone:hover,.photo-zone.drag{border-color:var(--red)}
 .photo-thumb{max-width:120px;max-height:120px;border-radius:var(--rs);object-fit:cover;border:2px solid var(--bord)}
+  
 /* Dashboard refresh bar */
 .dash-rf{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);margin-bottom:10px;font-size:12px;color:var(--txt3)}
 .rf-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:navblink 1.5s infinite}
@@ -237,7 +242,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .fr input,.fr select{font-family:var(--fb);font-size:13px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:8px 10px;outline:none;transition:border-color .15s}
 .fr input:focus,.fr select:focus{border-color:var(--red)}
 .fr input{flex:1;min-width:160px}
-
 .empty{text-align:center;padding:48px 20px;color:var(--txt3)}
 .empty .ei{font-size:34px;margin-bottom:10px;opacity:.5}
 .empty p{font-size:13px}
@@ -294,7 +298,6 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .edit-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bord);gap:8px}
 .edit-row:last-child{border-bottom:none}
 .edit-acts{display:flex;gap:5px}
-
 @media(max-width:600px){.insp-row{grid-template-columns:1fr;gap:5px}.insp-btns{justify-content:flex-start}}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -365,16 +368,13 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   padding: 10px 14px;
   margin-bottom: 12px;
 }
-
 #mb-racr textarea {
   min-height: 100px;
   resize: vertical;
 }
-
 #mb-racr .fa {
   gap: 8px;
-}
-  
+} 
 </style>
 
 <!-- ══ LOGIN ══ -->
@@ -473,13 +473,12 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   <div class="card"><div class="card-t">🔔 Próximas Manutenções Planejadas</div><div id="d-proximas"></div></div>
   <div class="card"><div class="card-t">Últimas O.S. Executadas</div><div id="d-rec"></div></div>
 </div>
-<div class="two-col">
-  <div class="card"><div class="card-t">🏭 Ranking Salas — Corretivas</div><div id="d-top-salas"></div></div>
-  <div class="card"><div class="card-t">🔧 Ranking Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
+    <div class="two-col">
+      <div class="card"><div class="card-t">🏭 Ranking Salas — Corretivas</div><div id="d-top-salas"></div></div>
+      <div class="card"><div class="card-t">🔧 Ranking Máquinas — Corretivas</div><div id="d-top-maq"></div></div>
+    </div>
 </div>
-
-   </div><!-- /pg-dashboard -->
-
+    
    <!-- OS PLANEJADAS -->
    <div class="pg" id="pg-planejadas">
     <div class="ph"><div class="pt"><small>Gestão</small>O.S. Planejadas</div></div>
@@ -595,56 +594,54 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      </div>
     </div>
    </div>
+
+  <!-- ══ PÁGINA: RACR ABERTOS ══ -->
+  <div class="pg" id="pg-racr-abertos">
+    <div class="ph">
+      <div><div class="pt">RACRs Abertos<small>Análise de Causa Raiz</small></div></div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>OS Número</th>
+            <th>Equipamento</th>
+            <th>Data</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tb-racr-abertos">
+          <tr><td colspan="6" style="text-align:center;color:var(--txt3)">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <!-- ══ PÁGINA: RACR FECHADOS ══ -->
+  <div class="pg" id="pg-racr-fechados">
+    <div class="ph">
+      <div><div class="pt">RACRs Fechados<small>Arquivos</small></div></div>
+    </div>
+  
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>OS Número</th>
+            <th>Equipamento</th>
+            <th>Data Fechamento</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tb-racr-fechados">
+          <tr><td colspan="5" style="text-align:center;color:var(--txt3)">Nenhum RACR fechado</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
     
-<!-- ══ PÁGINA: RACR ABERTOS ══ -->
-<div class="pg" id="pg-racr-abertos">
-  <div class="ph">
-    <div><div class="pt">RACRs Abertos<small>Análise de Causa Raiz</small></div></div>
-  </div>
-
-  <div class="tw">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>OS Número</th>
-          <th>Equipamento</th>
-          <th>Data</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tb-racr-abertos">
-        <tr><td colspan="6" style="text-align:center;color:var(--txt3)">Carregando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══ PÁGINA: RACR FECHADOS ══ -->
-<div class="pg" id="pg-racr-fechados">
-  <div class="ph">
-    <div><div class="pt">RACRs Fechados<small>Arquivos</small></div></div>
-  </div>
-
-  <div class="tw">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>OS Número</th>
-          <th>Equipamento</th>
-          <th>Data Fechamento</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tb-racr-fechados">
-        <tr><td colspan="5" style="text-align:center;color:var(--txt3)">Nenhum RACR fechado</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
    <!-- SOLICITAÇÃO OS -->
    <div class="pg" id="pg-solicitacao">
     <div class="ph"><div class="pt"><small>Produção</small>Solicitação de O.S.</div></div>
@@ -841,6 +838,10 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     </div>
    </div>
 
+  </main>
+ </div>
+</div>
+
 <!-- PÁGINA: ANÁLISE DE CAUSA RAIZ (admin) -->
 <div class="pg" id="pg-analise-causa-raiz">
  <div class="ph">
@@ -904,7 +905,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
   <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
  </div>
 </div></div>
-
+  
 <!-- MODAL DETALHE -->
 <div class="mb" id="m-det"><div class="modal">
  <div class="mhd">
@@ -946,77 +947,119 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
 <button class="wa-cp" onclick="imprimirInspDiaria()" style="background:#444;margin-top:6px">🖨️ Imprimir Inspeção</button>
 </div></div>
   
-<!-- MODAL EDITAR -->
-<div class="mb" id="m-edit"><div class="modal" style="max-width:420px">
- <div class="mhd"><div class="mtit" id="me-t">Editar</div><button class="mcl" onclick="closeM('m-edit')">×</button></div>
- <div id="me-b"></div>
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('m-edit')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarEdit()">Salvar</button>
- </div>
-</div></div>
-
-<!-- MODAL RACR -->
+<!-- ══ MODAL RACR ══ -->
 <div class="mb" id="mb-racr">
-<div class="modal" style="max-width:700px">
- <div class="mhd">
-  <div class="mtit">Análise de Causa Raiz — RACR</div>
-  <button class="mcl" onclick="fecharModalRACR()">×</button>
- </div>
-
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">1. Identificação</div>
-  <div class="fg-row fg-3">
-   <div class="fg"><label>Data</label><input type="date" id="racr-data"></div>
-   <div class="fg"><label>Hora</label><input type="time" id="racr-hora"></div>
-   <div class="fg"><label>OS Número (ref)</label><input type="text" id="racr-os" placeholder="OS-0000"></div>
+  <div class="modal" style="max-width:900px">
+    <div class="mhd">
+      <div class="mtit">🔴 RCA - Análise de Causa Raiz</div>
+      <div class="mcl" onclick="fecharRACR()">✕</div>
+    </div>
+    <!-- SEÇÃO 1: IDENTIFICAÇÃO -->
+    <div class="card">
+      <div class="card-t">1 - Identificação do Problema</div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>TAG/EQUIPAMENTO</label>
+          <input type="text" id="racr-equip" readonly>
+        </div>
+        <div class="fg">
+          <label>DATA</label>
+          <input type="date" id="racr-data" readonly>
+        </div>
+        <div class="fg">
+          <label>HORA DA PARADA</label>
+          <input type="time" id="racr-hora" readonly>
+        </div>
+      </div>
+    </div>
+    <!-- SEÇÃO 2: FALHA/DEFEITO -->
+    <div class="card">
+      <div class="card-t">2 - Falha / Defeito Identificado</div>
+      <div class="fg">
+        <label>Descrição da Falha</label>
+        <textarea id="racr-falha" placeholder="Descrever falha identificada..."></textarea>
+      </div>
+    </div>
+    <!-- SEÇÃO 3: CAUSA -->
+    <div class="card">
+      <div class="card-t">3 - Causa</div>
+      <div class="fg">
+        <label>Detalhamento da Causa</label>
+        <textarea id="racr-causa" placeholder="Análise detalhada da causa..."></textarea>
+      </div>
+    </div>
+    <!-- SEÇÃO 4: 5 PORQUÊS -->
+    <div class="card">
+      <div class="card-t">4 - Análise dos 5 Porquês</div>
+      <div class="fg">
+        <label>1º Porquê</label>
+        <input type="text" id="racr-p1">
+      </div>
+      <div class="fg">
+        <label>2º Porquê</label>
+        <input type="text" id="racr-p2">
+      </div>
+      <div class="fg">
+        <label>3º Porquê</label>
+        <input type="text" id="racr-p3">
+      </div>
+      <div class="fg">
+        <label>4º Porquê</label>
+        <input type="text" id="racr-p4">
+      </div>
+      <div class="fg">
+        <label>5º Porquê (Raiz)</label>
+        <input type="text" id="racr-p5">
+      </div>
+    </div>
+    <!-- SEÇÃO 5: AÇÃO IMEDIATA -->
+    <div class="card">
+      <div class="card-t">5 - Ação Imediata</div>
+      <div class="fg">
+        <textarea id="racr-imediata" placeholder="Ação imediata realizada..."></textarea>
+      </div>
+    </div>
+    <!-- SEÇÃO 6: AÇÃO PREVENTIVA -->
+    <div class="card">
+      <div class="card-t">6 - Ação Preventiva</div>
+      <div class="fg">
+        <textarea id="racr-preventiva" placeholder="Ação preventiva para evitar recorrência..."></textarea>
+      </div>
+    </div>
+    <!-- SEÇÃO 7: EQUIPE RESPONSÁVEL -->
+    <div class="card">
+      <div class="card-t">7 - Equipe Responsável</div>
+      <div class="fg">
+        <label>Resp. Produção</label>
+        <input type="text" id="racr-resp-prod">
+      </div>
+      <div class="fg">
+        <label>Resp. Manutenção</label>
+        <input type="text" id="racr-resp-manu">
+      </div>
+      <div class="fg">
+        <label>Executantes</label>
+        <input type="text" id="racr-exec">
+      </div>
+    </div>
+    <!-- BOTÕES -->
+    <div class="fa">
+      <button class="btn btn-gh" onclick="fecharRACR()">Cancelar</button>
+      <button class="btn btn-gold" onclick="salvarRACRRascunho()">💾 Salvar Rascunho</button>
+      <button class="btn btn-p" onclick="imprimirRACR()">🖨️ Imprimir</button>
+    </div>
   </div>
-  <div class="fg-row">
-   <div class="fg"><label>Equipamento / Máquina</label><input type="text" id="racr-equip" placeholder="Ex: WEBER 905"></div>
-   <div class="fg"><label>Sala</label><input type="text" id="racr-sala" placeholder="Ex: LÁCTEOS"></div>
-  </div>
- </div>
-
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">2. Descrição da Falha</div>
-  <div class="fg"><label>Falha Identificada</label><textarea id="racr-falha" placeholder="Descreva em detalhes..."></textarea></div>
- </div>
-
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">3. Análise de Causa Raiz — 5 Por Quês</div>
-  <div class="fg"><label>Resumo: Qual é a Causa Raiz?</label><textarea id="racr-causa" placeholder="Causa raiz identificada..."></textarea></div>
-  <div style="margin-top:12px;border-top:1px solid var(--bord);padding-top:12px">
-   <div style="font-size:12px;color:var(--txt3);font-weight:600;margin-bottom:8px">Aprofundamento (opcional)</div>
-   <div class="fg"><label>Por que 1?</label><input type="text" id="racr-p1" placeholder=""></div>
-   <div class="fg"><label>Por que 2?</label><input type="text" id="racr-p2" placeholder=""></div>
-   <div class="fg"><label>Por que 3?</label><input type="text" id="racr-p3" placeholder=""></div>
-   <div class="fg"><label>Por que 4?</label><input type="text" id="racr-p4" placeholder=""></div>
-   <div class="fg"><label>Por que 5?</label><input type="text" id="racr-p5" placeholder=""></div>
-  </div>
- </div>
-
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">4. Ações Corretivas</div>
-  <div class="fg"><label>Ação Imediata (curto prazo)</label><textarea id="racr-imediata" placeholder="O que foi feito imediatamente..."></textarea></div>
-  <div class="fg" style="margin-top:10px"><label>Ação Preventiva (longo prazo)</label><textarea id="racr-preventiva" placeholder="Ação para evitar repetição..."></textarea></div>
- </div>
-
- <div class="card">
-  <div class="card-t">5. Equipe Responsável</div>
-  <div class="fg-row">
-   <div class="fg"><label>Responsável Produção</label><input type="text" id="racr-resp-prod" placeholder="Nome"></div>
-   <div class="fg"><label>Responsável Manutenção</label><input type="text" id="racr-resp-manu" placeholder="Nome"></div>
-  </div>
-  <div class="fg"><label>Executantes / Envolvidos</label><input type="text" id="racr-exec" placeholder="Nomes separados por vírgula"></div>
- </div>
-
- <div class="fa" style="margin-top:20px">
-  <button class="btn btn-gh" onclick="fecharModalRACR()">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
-  <button class="btn btn-gold" id="btn-gerar-rca" onclick="imprimirRACR()" style="display:none">🖨️ Gerar Relatório</button>
- </div>
 </div>
-</div>
+  <!-- MODAL EDITAR -->
+  <div class="mb" id="m-edit"><div class="modal" style="max-width:400px">
+   <div class="mhd"><div class="mtit" id="me-t">Editar</div><button class="mcl" onclick="closeM('m-edit')">×</button></div>
+   <div id="me-b"></div>
+   <div class="fa">
+    <button class="btn btn-gh" onclick="closeM('m-edit')">Cancelar</button>
+    <button class="btn btn-p" onclick="salvarEdit()">Salvar</button>
+     </div>
+  </div></div>
+
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  SIGMAN Enterprise — JavaScript v4                               ║
@@ -1604,7 +1647,7 @@ const NAV = [
   { id:'inspecao',     ic:'🔍', lbl:'Inspeção Diária'     },
   { id:'pcm', ic:'📋', lbl:'PCM', sub:[
       { id:'planejamento', ic:'📋', lbl:'Planejamento de O.S.' },
-      { id:'analise-causa-raiz', ic:'📊', lbl:'Análise Causa Raiz', admin:true },
+      { id:'analise-causa-raiz', ic:'📊', lbl:'Análise Causa Raiz'},
       { id:'inspecao-tmpl',ic:'📄', lbl:'Inspeção de Rota'   },
       { id:'preventiva',   ic:'🔩', lbl:'Manutenção Preventiva'},      
     ]
@@ -1640,10 +1683,10 @@ function buildNav() {
         <span class="nv-grp-chev">▶</span>
       </div>
       <div class="nv-sub-items">
-        ${n.sub.filter(s => !s.admin || CU.tipo==='administracao').map(s=>`     
+        ${n.sub.filter(s => !s.admin || CU.tipo==='administracao').map(s=>`
           <div class="nv-sub-item" data-page="${s.id}" onclick="showPage('${s.id}');closeSB()">
             <span>${s.ic}</span><span>${s.lbl}</span>
-          </div>`).join('')}  
+          </div>`).join('')}
       </div>`;
       nav.appendChild(grp);
     } else {
@@ -1989,15 +2032,12 @@ function logEdit(acao, numero, detalhe) {
 }
 
 function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
-  const salas = [...new Set(db.maquinas.map(m => m.sala))];
-  
+  const salas = db.salas.length ? [...db.salas] : [...new Set(db.maquinas.map(m => m.sala))];
   return salas.map(sala => {
     const maqsCrit = db.maquinas.filter(m => 
       m.sala === sala && (m.criticidade === '1' || m.criticidade === 1)
     );
-    
     if (maqsCrit.length === 0) return { sala, disp: 100, minParada: 0 };
-    
     const minParada = ordPer
       .filter(o => 
         o.sala === sala && 
@@ -2005,10 +2045,8 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
         maqsCrit.some(m => m.nome === o.maq)
       )
       .reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
-    
     const minDisp = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
     const disp = Math.min(100, Math.max(0, Math.round((1 - minParada / minDisp) * 100)));
-    
     return { sala, disp: isNaN(disp) ? 100 : disp, minParada };
   }).filter(s => s !== null);
 }
@@ -3495,11 +3533,11 @@ function renderAtivos() {
   // Salas em ordem alfabética
   document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
-    : [...db.salas].sort().map((s)=>`
+    : [...db.salas].sort().map((s,i)=>`
         <div class="edit-row">
           <span style="font-size:13px;font-weight:500">${s}</span>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('sala','${s}')">✎</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
             <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
           </div>
         </div>`).join('');
@@ -3524,8 +3562,8 @@ function renderAtivos() {
   document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
-      ${bySala[sala].map((m)=>{
-        const mKey=`${m.nome}|${m.sala}`;
+      ${bySala[sala].map((m,_i)=>{
+        const gi=db.maquinas.indexOf(m);
         const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
@@ -3536,8 +3574,8 @@ function renderAtivos() {
             </div>
           </div>
           <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('maq','${mKey}')">✎</button>
-            <button class="btn btn-d" onclick="delMaq('${mKey}')">✕</button>
+            <button class="btn btn-edit btn-sm" onclick="openEdit('maq',${gi})">✎</button>
+            <button class="btn btn-d" onclick="delMaq(${gi})">✕</button>
           </div>
         </div>`;
       }).join('')}
@@ -3672,74 +3710,64 @@ function delSala(nome) {
   apiDelete('salas',nome,'Nome');
 }
 
-function delMaq(key) {
+function delMaq(i) {
   if(!confirm('Remover máquina?'))return;
-  let m,i;
-  if(typeof key === 'string' && key.includes('|')) {
-    const [nome,sala]=key.split('|');
-    i=db.maquinas.findIndex(x=>x.nome===nome&&x.sala===sala);
-    m=db.maquinas[i];
-  } else {
-    i=key; m=db.maquinas[i];
-  }
-  if(i<0||!m)return;
+  const m=db.maquinas[i];
   db.maquinas.splice(i,1);saveDB();populateAll();renderAtivos();
-  apiDelete('maquinas',m.nome,'Nome');
+  if(m)apiDelete('maquinas',m.nome,'Nome');
 }
 
 // Editar sala/máquina
 function openEdit(type,idx) {
   _editType=type;_editIdx=idx;
-  if(type==='sala') {
-    const nomeAtual = typeof idx === 'number' ? db.salas[idx] : idx;
+  if(type==='sala'){
     document.getElementById('me-t').textContent='Editar Sala';
-    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome</label><input type="text" id="me-v" value="${nomeAtual}"></div>`;
+    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
   } else if(type==='maq') {
-    // idx pode ser 'Nome|Sala' (chave) ou número (legado)
-    let m;
-    if(typeof idx === 'string' && idx.includes('|')) {
-      const [nome,sala]=idx.split('|');
-      m=db.maquinas.find(x=>x.nome===nome&&x.sala===sala);
-    } else {
-      m=db.maquinas[idx];
-    }
-    if(!m){showToast('Máquina não encontrada. Recarregue a página.','er');return;}
+    const m=db.maquinas[idx];
     document.getElementById('me-t').textContent='Editar Máquina';
     document.getElementById('me-b').innerHTML=`
-      <div class="fg"><label>Sala</label><select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg"><label>Sala</label>
+        <select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
+      </div>
       <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
       <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
-      <div class="fg"><label>Criticidade</label><select id="me-crit"><option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option><option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option><option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option><option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option></select></div>
-      <div class="fg"><label>Periodicidade</label><select id="me-per"><option${m.periodicidade==='Diária'?' selected':''}>Diária</option><option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option><option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option><option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option><option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option><option${m.periodicidade==='Anual'?' selected':''}>Anual</option></select></div>`;
+      <div class="fg"><label>Criticidade</label>
+        <select id="me-crit">
+          <option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option>
+          <option value="2"${(m.criticidade==='2'||m.criticidade==='Alta')?' selected':''}>2 – Alta</option>
+          <option value="3"${(m.criticidade==='3'||m.criticidade==='Média')?' selected':''}>3 – Média</option>
+          <option value="4"${(m.criticidade==='4'||m.criticidade==='Baixa')?' selected':''}>4 – Baixa</option>
+        </select>
+      </div>
+      <div class="fg"><label>Periodicidade Preventiva</label>
+        <select id="me-per">
+          <option${m.periodicidade==='Diária'?' selected':''}>Diária</option>
+          <option${m.periodicidade==='Semanal'?' selected':''}>Semanal</option>
+          <option${m.periodicidade==='Mensal'?' selected':''}>Mensal</option>
+          <option${m.periodicidade==='Trimestral'?' selected':''}>Trimestral</option>
+          <option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option>
+          <option${m.periodicidade==='Anual'?' selected':''}>Anual</option>
+        </select>
+      </div>`;
+  } else if(type==='plan') {
+    // editarPlan já preenche me-b antes de abrir
   }
   openM('m-edit');
 }
-  
+
 function salvarEdit() {
   if(_editType==='sala'){
     const nv=v('me-v').trim().toUpperCase();if(!nv)return;
-    // suporte a chave por nome (string) ou índice (number, legado)
-    const old = typeof _editIdx === 'number' ? db.salas[_editIdx] : _editIdx;
-    const i = db.salas.indexOf(old);
-    if(i>=0) db.salas[i]=nv;
-    db.maquinas.forEach(m=>{if(m.sala===old)m.sala=nv;});
+    const old=db.salas[_editIdx];
+    db.salas[_editIdx]=nv;db.maquinas.forEach(m=>{if(m.sala===old)m.sala=nv;});
     saveDB();populateAll();renderAtivos();closeM('m-edit');
     apiUpdate('salas',old,'Nome',{Nome:nv});
   } else if(_editType==='maq') {
-    // suporte a chave 'Nome|Sala' (string) ou índice (number, legado)
-    let old,i;
-    if(typeof _editIdx === 'string' && _editIdx.includes('|')) {
-      const [nome,sala]=_editIdx.split('|');
-      i=db.maquinas.findIndex(x=>x.nome===nome&&x.sala===sala);
-      old=db.maquinas[i];
-    } else {
-      i=_editIdx;
-      old=db.maquinas[i];
-    }
-    if(i<0||!old){showToast('Máquina não encontrada.','er');return;}
+    const old=db.maquinas[_editIdx];
     const nv={nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
                criticidade:v('me-crit'),periodicidade:v('me-per')};
-    db.maquinas[i]=nv;
+    db.maquinas[_editIdx]=nv;
     db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
     saveDB();populateAll();renderAtivos();closeM('m-edit');
     apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
