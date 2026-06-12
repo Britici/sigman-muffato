@@ -334,6 +334,7 @@ th.sortable::after{content:' ⇅';opacity:.35;font-size:10px}
 th.sortable.asc::after{content:' ▲';opacity:1;color:var(--red-l)}
 th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}  
 @keyframes pulse-rac{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+@keyframes pulse-color{0%,100%{background:var(--red)}50%{background:var(--red-d)}}
 .rac-dot{width:9px;height:9px;border-radius:50%;background:var(--red);cursor:pointer;
   display:inline-block;animation:pulse-rac 1.1s ease-in-out infinite;
   vertical-align:middle;margin-left:6px;}
@@ -595,53 +596,6 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     </div>
    </div>
 
-  <!-- ══ PÁGINA: RACR ABERTOS ══ -->
-  <div class="pg" id="pg-racr-abertos">
-    <div class="ph">
-      <div><div class="pt">RACRs Abertos<small>Análise de Causa Raiz</small></div></div>
-    </div>
-    <div class="tw">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>OS Número</th>
-            <th>Equipamento</th>
-            <th>Data</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="tb-racr-abertos">
-          <tr><td colspan="6" style="text-align:center;color:var(--txt3)">Carregando...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  <!-- ══ PÁGINA: RACR FECHADOS ══ -->
-  <div class="pg" id="pg-racr-fechados">
-    <div class="ph">
-      <div><div class="pt">RACRs Fechados<small>Arquivos</small></div></div>
-    </div>
-  
-    <div class="tw">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>OS Número</th>
-            <th>Equipamento</th>
-            <th>Data Fechamento</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="tb-racr-fechados">
-          <tr><td colspan="5" style="text-align:center;color:var(--txt3)">Nenhum RACR fechado</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-    
    <!-- SOLICITAÇÃO OS -->
    <div class="pg" id="pg-solicitacao">
     <div class="ph"><div class="pt"><small>Produção</small>Solicitação de O.S.</div></div>
@@ -838,10 +792,6 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     </div>
    </div>
 
-  </main>
- </div>
-</div>
-
 <!-- PÁGINA: ANÁLISE DE CAUSA RAIZ (admin) -->
 <div class="pg" id="pg-analise-causa-raiz">
  <div class="ph">
@@ -863,49 +813,10 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
  </div>
 </div>
 
-<!-- MODAL NOVO RACR -->
-<div class="mb" id="mb-racr"><div class="modal" style="max-width:700px">
- <div class="mhd">
-  <div class="mtit">Novo RACR — Análise de Causa Raiz</div>
-  <button class="mcl" onclick="closeM('mb-racr')">×</button>
+  </main>
  </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">Identificação</div>
-  <div class="fg-row fg-3">
-   <div class="fg"><label>Data</label><input type="date" id="racr-data"></div>
-   <div class="fg"><label>Hora</label><input type="time" id="racr-hora"></div>
-   <div class="fg"><label>OS Ref</label><input type="text" id="racr-os" placeholder="OS-0000"></div>
-  </div>
-  <div class="fg-row">
-   <div class="fg"><label>Equipamento</label><input type="text" id="racr-equip"></div>
-   <div class="fg"><label>Sala</label><input type="text" id="racr-sala"></div>
-  </div>
- </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">Falha e Causa</div>
-  <div class="fg"><label>Falha Identificada</label><textarea id="racr-falha"></textarea></div>
-  <div class="fg"><label>Causa Raiz (Resumo)</label><textarea id="racr-causa"></textarea></div>
- </div>
- <div class="card" style="margin-bottom:14px">
-  <div class="card-t">5 Por Quês (opcional)</div>
-  <div class="fg"><label>Por que 1?</label><input type="text" id="racr-p1"></div>
-  <div class="fg"><label>Por que 2?</label><input type="text" id="racr-p2"></div>
-  <div class="fg"><label>Por que 3?</label><input type="text" id="racr-p3"></div>
-  <div class="fg"><label>Por que 4?</label><input type="text" id="racr-p4"></div>
-  <div class="fg"><label>Por que 5?</label><input type="text" id="racr-p5"></div>
- </div>
- <div class="card">
-  <div class="card-t">Ações Corretivas</div>
-  <div class="fg"><label>Ação Imediata</label><textarea id="racr-imediata"></textarea></div>
-  <div class="fg"><label>Ação Preventiva</label><textarea id="racr-preventiva"></textarea></div>
-  <div class="fg"><label>Responsáveis</label><input type="text" id="racr-resp" placeholder="Nomes"></div>
- </div>
- <div class="fa">
-  <button class="btn btn-gh" onclick="closeM('mb-racr')">Cancelar</button>
-  <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
- </div>
-</div></div>
-  
+</div>
+
 <!-- MODAL DETALHE -->
 <div class="mb" id="m-det"><div class="modal">
  <div class="mhd">
@@ -916,7 +827,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
  <div class="wa-prev" id="md-wa" style="display:none"></div>
  <button class="wa-cp" id="md-wa-btn" onclick="copyWA()" style="display:none">📋 Copiar para WhatsApp</button>
  <button class="wa-cp" id="md-print-btn" onclick="imprimirDetOS()" style="display:none;background:#444;margin-top:6px">🖨️ Imprimir O.S.</button>
- <button class="btn btn-p btn-sm" id="md-rac-btn" onclick="abrirRAC()" style="display:none">
+ <button class="btn btn-p btn-sm" id="md-rac-btn" onclick="abrirRAC()" style="display:none;animation:pulse-color 1.1s ease-in-out infinite;">
   🔴 GERAR RCA
  </button>
 </div></div>
@@ -961,6 +872,10 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
         <div class="fg">
           <label>TAG/EQUIPAMENTO</label>
           <input type="text" id="racr-equip" readonly>
+        </div>
+        <div class="fg">
+          <label>SALA</label>
+          <input type="text" id="racr-sala" readonly>
         </div>
         <div class="fg">
           <label>DATA</label>
@@ -1045,7 +960,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     <!-- BOTÕES -->
     <div class="fa">
       <button class="btn btn-gh" onclick="fecharRACR()">Cancelar</button>
-      <button class="btn btn-gold" onclick="salvarRACRRascunho()">💾 Salvar Rascunho</button>
+      <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RACR</button>
       <button class="btn btn-p" onclick="imprimirRACR()">🖨️ Imprimir</button>
     </div>
   </div>
@@ -1756,6 +1671,7 @@ function showPage(pid) {
   if (pid === 'inspecao')      buildInsp();
   if (pid === 'inspecao-tmpl') initInspTmpl();
   if (pid === 'preventiva')    initPreventiva();
+  if (pid === 'analise-causa-raiz') { renderRACR(); apiLoadAll(true).then(renderRACR).catch(()=>{}); }
   if (pid === 'abertura') {
     populateSalas('ab'); sv('ab-dt', today());
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
@@ -2769,41 +2685,42 @@ function renderExec() {
     if (cur) mnSel.value = cur;
   }
 
-  function abrirRAC(osNumero) {
+function abrirRAC(osNumero) {
+  if (!osNumero && _curDet && _curDet.tipo === 'os') {
+    osNumero = _curDet.item.numero;
+  }
   const o = db.ordens.find(x => x.numero === osNumero);
-  if (!o) return;
-  const crit   = getCriticidadeMaq(o.maq);
-  const limite = limiteRAC(crit);
-  const parada = o.paradaMin || o.durMin || 0;
-  const rac    = (db.racs||[]).find(r => r.osNumero === osNumero);
-  lAlert(`
-    <div style="font-weight:700;font-size:15px;color:var(--red);margin-bottom:10px">🔴 RAC — Relatório de Análise Crítica</div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">
-      OS <b style="color:var(--txt)">${o.numero}</b> · 
-      <b style="color:var(--txt)">${o.maq}</b> · 
-      Criticidade <b style="color:var(--txt)">${crit}</b> · 
-      Parada <b style="color:var(--red)">${parada}min</b> (limite ${limite}min)
-    </div>
-    ${rac?`<div style="background:rgba(196,18,48,.08);border:1px solid rgba(196,18,48,.2);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px">
-      Status atual: <b>${rac.status}</b> · Aberto em ${fd(rac.dataAbertura)}
-      ${rac.status==='Concluído'?` · Concluído em ${fd(rac.dataBaixa)}`:''}
-    </div>`:''}
-    <div class="fg"><label>Causa Raiz *</label>
-      <textarea id="rac-causa" rows="2" placeholder="Por que a falha ocorreu?">${rac?.causaRaiz||''}</textarea></div>
-    <div class="fg"><label>Ação Imediata (já executada)</label>
-      <input id="rac-imediata" value="${rac?.acaoImediata||o.acao||''}" placeholder="O que foi feito na hora"></div>
-    <div class="fg"><label>Ação Corretiva (evitar reincidência)</label>
-      <input id="rac-corretiva" value="${rac?.acaoCorretiva||''}" placeholder="O que será feito para não repetir"></div>
-    <div class="fg"><label>Responsável</label>
-      <input id="rac-resp" value="${rac?.responsavel||o.manut||''}"></div>
-    <div class="fg"><label>Prazo</label>
-      <input type="date" id="rac-prazo" value="${rac?.prazo||''}"></div>
-    <div class="fa">
-      <button class="btn btn-gh" onclick="document.getElementById('lal').style.display='none'">Cancelar</button>
-      ${rac&&rac.status!=='Concluído'?`<button class="btn" style="background:var(--grn);color:#fff" onclick="darBaixaRAC('${osNumero}')">✅ Dar Baixa</button>`:''}
-      <button class="btn btn-p" onclick="salvarRAC('${osNumero}')">${rac?'Atualizar':'Criar'} RAC</button>
-    </div>
-  `,'ok');
+  if (!o) { showToast('OS não encontrada.', 'er'); return; }
+
+  _racrOsRef = osNumero;
+
+  const equipEl = document.getElementById('racr-equip');
+  const salaEl  = document.getElementById('racr-sala');
+  const dtEl    = document.getElementById('racr-data');
+  const hrEl    = document.getElementById('racr-hora');
+
+  if (equipEl) { equipEl.value = o.maq || ''; equipEl.setAttribute('readonly',''); }
+  if (salaEl)  { salaEl.value  = o.sala || ''; salaEl.setAttribute('readonly',''); }
+  if (dtEl)    { dtEl.value    = o.data || today(); dtEl.setAttribute('readonly',''); }
+  if (hrEl)    { hrEl.value    = o.ini  || new Date().toTimeString().slice(0,5); hrEl.setAttribute('readonly',''); }
+
+  const falhaEl = document.getElementById('racr-falha');
+  if (falhaEl) falhaEl.value = o.prob || '';
+  
+  const imediataEl = document.getElementById('racr-imediata');
+  if (imediataEl) imediataEl.value = o.acao || '';
+
+  const respManuEl = document.getElementById('racr-resp-manu');
+  if (respManuEl) respManuEl.value = o.manut || '';
+
+  ['racr-causa','racr-p1','racr-p2','racr-p3','racr-p4','racr-p5',
+   'racr-preventiva','racr-resp-prod','racr-exec'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  closeM('m-det');
+  openM('mb-racr');
 }
 
 function salvarRAC(osNumero) {
@@ -4338,6 +4255,320 @@ async function init() {
   document.getElementById('login-screen').style.display='flex';
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// RACR — Funções completas (inserir antes de init() no index.html)
+// ═══════════════════════════════════════════════════════════════════
+ 
+// ── Abre modal RACR em branco (botão "+ Novo RACR" na página) ──────
+function abrirNovoRACR() {
+  _racrOsRef = null;
+  // Limpa todos os campos do modal
+  const campos = ['racr-equip','racr-sala','racr-falha','racr-causa',
+    'racr-p1','racr-p2','racr-p3','racr-p4','racr-p5',
+    'racr-imediata','racr-preventiva','racr-resp-prod','racr-resp-manu','racr-exec'];
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Data e hora atuais
+  const dtEl = document.getElementById('racr-data');
+  const hrEl = document.getElementById('racr-hora');
+  if (dtEl) { dtEl.value = today(); dtEl.removeAttribute('readonly'); }
+  if (hrEl) { hrEl.value = new Date().toTimeString().slice(0,5); hrEl.removeAttribute('readonly'); }
+  const equipEl = document.getElementById('racr-equip');
+  const salaEl  = document.getElementById('racr-sala');
+  if (equipEl) { equipEl.value = ''; equipEl.removeAttribute('readonly'); }
+  if (salaEl)  { salaEl.value  = ''; salaEl.removeAttribute('readonly'); }
+  
+  openM('mb-racr');
+}
+ 
+// ── Fecha o modal RACR ────────────────────────────────────────────
+function fecharRACR() {
+  closeM('mb-racr');
+  _racrOsRef = null;
+}
+ 
+// ── Salva rascunho localmente (sem enviar ao Sheets) ──────────────
+function salvarRACRRascunho() {
+  const dados = _coletarDadosRACR();
+  if (!dados) return;
+  if (!db.racs) db.racs = [];
+  // Verifica se já existe rascunho para essa OS
+  const idx = _racrOsRef
+    ? db.racs.findIndex(r => r.osNumero === _racrOsRef && r.status === 'Rascunho')
+    : -1;
+  const agora = new Date().toISOString();
+  const id    = idx >= 0 ? db.racs[idx].id : 'RACR-' + agora.replace(/\D/g,'').slice(0,14);
+  if (!dados.maquina && _racrOsRef) {
+  const osRef = db.ordens.find(x => x.numero === _racrOsRef);
+  if (osRef) { dados.maquina = osRef.maq; dados.sala = osRef.sala; }
+  }
+  const racr = { ...dados, id, status: 'Rascunho', dataAbertura: agora.slice(0,10), criadoEm: agora };
+  if (idx >= 0) db.racs[idx] = racr; else db.racs.push(racr);
+  saveDB();
+  fecharRACR();
+  showToast('Rascunho salvo localmente.', 'ok');
+  renderRACR();
+}
+ 
+// ── Salva RACR definitivo + envia ao Sheets ───────────────────────
+function salvarRACR() {
+  const dados = _coletarDadosRACR();
+  if (!dados) return;
+  if (!db.racs) db.racs = [];
+  const agora = new Date().toISOString();
+  const id    = 'RACR-' + agora.replace(/\D/g,'').slice(0,14);
+  const racr  = { ...dados, id, status: 'Aberto', dataAbertura: agora.slice(0,10), criadoEm: agora };
+  // Remove rascunho anterior se existir
+  if (_racrOsRef) {
+    const idxR = db.racs.findIndex(r => r.osNumero === _racrOsRef && r.status === 'Rascunho');
+    if (idxR >= 0) db.racs.splice(idxR, 1);
+  }
+  db.racs.push(racr);
+  saveDB();
+  // Envia ao Sheets (action salvarRACR no AppScript)
+  apiPost({
+    action: 'salvarRACR',
+    racr: {
+      data:          racr.dataAbertura,
+      osNumero:      racr.osNumero,
+      equipamento:   racr.maquina,
+      sala:          racr.sala,
+      criticidade:   racr.criticidade,
+      tempoParada:   racr.tempoParada,
+      limiteMin:     racr.limiteMin,
+      falha:         racr.falha,
+      causa:         racr.causaRaiz,
+      why1:          racr.why1,
+      why2:          racr.why2,
+      why3:          racr.why3,
+      why4:          racr.why4,
+      why5:          racr.why5,
+      acaoImediata:  racr.acaoImediata,
+      acaoPreventiva:racr.acaoPreventiva,
+      respProd:      racr.respProd,
+      respManu:      racr.respManu,
+      executantes:   racr.executantes,
+      usuario:       CU?.nome || 'Sistema'
+    }
+  }).then(res => {
+    if (res?.ok) {
+      showToast('RACR salvo no Sheets.', 'ok');
+      apiLoadAll(true).then(renderRACR);
+    } else {
+      showToast('Salvo localmente — Sheets indisponível.', 'war');
+      renderRACR();
+    }
+  });
+  fecharRACR();
+  showToast('RACR criado com sucesso.', 'ok');
+}
+ 
+// ── Encerra/fecha um RACR ─────────────────────────────────────────
+function encerrarRACR(id) {
+  if (!confirm('Confirmar encerramento deste RACR?')) return;
+  const idx = (db.racs||[]).findIndex(r => r.id === id);
+  if (idx < 0) return;
+  const agora = new Date().toISOString();
+  db.racs[idx].status      = 'Fechado';
+  db.racs[idx].dataBaixa   = agora.slice(0,10);
+  db.racs[idx].fechadoPor  = CU?.nome || '';
+  saveDB();
+  renderRACR();
+  showToast('RACR encerrado.', 'ok');
+  apiPost({ action: 'encerrarRACR', id });
+}
+ 
+// ── Imprime o RACR em nova janela ─────────────────────────────────
+function imprimirRACR() {
+  const dados = _coletarDadosRACR(false); // false = não valida obrigatórios
+  const win   = window.open('', '_blank');
+  const data  = document.getElementById('racr-data')?.value  || today();
+  const hora  = document.getElementById('racr-hora')?.value  || '';
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>RACR — ${dados?.maquina || ''}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:12mm 15mm}
+    h1{font-size:16px;font-weight:800;margin-bottom:2px}
+    h2{font-size:12px;font-weight:700;background:#C41230;color:#fff;padding:4px 8px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+    .sub{font-size:10px;color:#555;margin-bottom:10px}
+    .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+    .row.two{grid-template-columns:1fr 1fr}
+    .row.one{grid-template-columns:1fr}
+    .field label{font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:1px}
+    .field p{border-bottom:1px solid #ccc;min-height:18px;padding:2px 0;font-size:11px}
+    .why{counter-reset:why}
+    .why-item{display:flex;gap:8px;margin-bottom:5px;align-items:flex-start}
+    .why-num{background:#C41230;color:#fff;font-weight:700;font-size:10px;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .why-line{flex:1;border-bottom:1px solid #ccc;min-height:16px;padding:2px 0}
+    .assinaturas{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:14px}
+    .ass{border-top:1px solid #000;padding-top:4px;font-size:10px;text-align:center}
+    .logo-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:2px solid #C41230;padding-bottom:6px}
+    @media print{body{padding:8mm 10mm}}
+  </style>
+  </head><body>
+  <div class="logo-row">
+    <div>
+      <h1>🔴 RACR — Relatório de Análise de Causa Raiz</h1>
+      <div class="sub">Muffato Foods · PCM · ${data} ${hora ? '· ' + hora : ''}</div>
+    </div>
+    <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" style="height:40px">
+  </div>
+ 
+  <h2>1 — Identificação</h2>
+  <div class="row">
+    <div class="field"><label>Equipamento / TAG</label><p>${dados?.maquina||''}</p></div>
+    <div class="field"><label>Sala</label><p>${dados?.sala||''}</p></div>
+    <div class="field"><label>OS Referência</label><p>${dados?.osNumero||''}</p></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Data</label><p>${data}</p></div>
+    <div class="field"><label>Hora da Parada</label><p>${hora}</p></div>
+    <div class="field"><label>Criticidade</label><p>${dados?.criticidade||''}</p></div>
+  </div>
+ 
+  <h2>2 — Falha / Defeito Identificado</h2>
+  <div class="row one"><div class="field"><p style="min-height:36px">${dados?.falha||''}</p></div></div>
+ 
+  <h2>3 — Causa Raiz</h2>
+  <div class="row one"><div class="field"><p style="min-height:36px">${dados?.causaRaiz||''}</p></div></div>
+ 
+  <h2>4 — Análise dos 5 Porquês</h2>
+  <div class="why">
+    ${[dados?.why1,dados?.why2,dados?.why3,dados?.why4,dados?.why5].map((w,i)=>`
+    <div class="why-item">
+      <div class="why-num">${i+1}</div>
+      <div class="why-line">${w||''}</div>
+    </div>`).join('')}
+  </div>
+ 
+  <h2>5 — Ação Imediata</h2>
+  <div class="row one"><div class="field"><p style="min-height:30px">${dados?.acaoImediata||''}</p></div></div>
+ 
+  <h2>6 — Ação Preventiva</h2>
+  <div class="row one"><div class="field"><p style="min-height:30px">${dados?.acaoPreventiva||''}</p></div></div>
+ 
+  <h2>7 — Equipe Responsável</h2>
+  <div class="row">
+    <div class="field"><label>Resp. Produção</label><p>${dados?.respProd||''}</p></div>
+    <div class="field"><label>Resp. Manutenção</label><p>${dados?.respManu||''}</p></div>
+    <div class="field"><label>Executantes</label><p>${dados?.executantes||''}</p></div>
+  </div>
+ 
+  <div class="assinaturas">
+    <div class="ass">Responsável Produção</div>
+    <div class="ass">Responsável Manutenção</div>
+    <div class="ass">Coordenador / Supervisor</div>
+  </div>
+  </body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}
+ 
+// ── Renderiza tabelas de RACRs na página pg-analise-causa-raiz ────
+function renderRACR() {
+  const tbAbertos   = document.getElementById('tb-racr-abertos');
+  const tbFechados  = document.getElementById('tb-racr-fechados');
+  if (!tbAbertos || !tbFechados) return;
+  const todosSheets = db.racs || [];
+  const rascunhosLocais = JSON.parse(localStorage.getItem('sigman_v4') || '{}').racs || [];
+  const idsSheets = new Set(todosSheets.map(r => r.id));
+  const extras = rascunhosLocais.filter(r => r.status === 'Rascunho' && !idsSheets.has(r.id));
+  const todos = [...todosSheets, ...extras];
+  const abertos = todos.filter(r => r.status !== 'Fechado');
+  const fechados = todos.filter(r => r.status === 'Fechado');
+ 
+  tbAbertos.innerHTML = abertos.length ? abertos.map(r => `
+    <tr>
+      <td class="osn">${r.id}</td>
+      <td>${fd(r.dataAbertura)}</td>
+      <td>${r.maquina||'—'}</td>
+      <td style="max-width:200px;white-space:normal">${r.falha||'—'}</td>
+      <td style="max-width:200px;white-space:normal">${r.causaRaiz||'—'}</td>
+      <td><span class="badge ${r.status==='Rascunho'?'b-pen':'b-cor'}">${r.status}</span></td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-edit btn-sm" onclick="verRACR('${r.id}')">👁 Ver</button>
+        ${r.status!=='Fechado'?`<button class="btn btn-g btn-sm" onclick="encerrarRACR('${r.id}')">✅ Encerrar</button>`:''}
+      </td>
+    </tr>`).join('')
+    : `<tr><td colspan="7" class="empty"><div class="ei">✅</div><p>Nenhum RACR aberto</p></td></tr>`;
+ 
+  tbFechados.innerHTML = fechados.length ? fechados.map(r => `
+    <tr>
+      <td class="osn">${r.id}</td>
+      <td>${fd(r.dataAbertura)}</td>
+      <td>${r.maquina||'—'}</td>
+      <td>${fd(r.dataBaixa)}</td>
+      <td><button class="btn btn-edit btn-sm" onclick="verRACR('${r.id}')">👁 Ver</button></td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--txt3);padding:16px">Nenhum RACR fechado</td></tr>`;
+}
+ 
+// ── Abre modal de visualização de um RACR existente ───────────────
+function verRACR(id) {
+  const r = (db.racs||[]).find(x => x.id === id);
+  if (!r) return;
+  // Preenche o modal com os dados do RACR
+  _racrOsRef = r.osNumero || null;
+  const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val||''; };
+  setVal('racr-equip',    r.maquina);
+  setVal('racr-sala',     r.sala);
+  setVal('racr-data',     r.dataAbertura);
+  setVal('racr-hora',     '');
+  setVal('racr-falha',    r.falha);
+  setVal('racr-causa',    r.causaRaiz);
+  setVal('racr-p1',       r.why1);
+  setVal('racr-p2',       r.why2);
+  setVal('racr-p3',       r.why3);
+  setVal('racr-p4',       r.why4);
+  setVal('racr-p5',       r.why5);
+  setVal('racr-imediata',   r.acaoImediata);
+  setVal('racr-preventiva', r.acaoPreventiva);
+  setVal('racr-resp-prod',  r.respProd);
+  setVal('racr-resp-manu',  r.respManu);
+  setVal('racr-exec',       r.executantes);
+  openM('mb-racr');
+}
+ 
+// ── Coleta dados do formulário modal RACR ────────────────────────
+function _coletarDadosRACR(validar = true) {
+  const g = id => document.getElementById(id)?.value?.trim() || '';
+  const falha = g('racr-falha');
+  if (validar && !falha) { showToast('Informe a falha identificada.', 'er'); return null; }
+  const maquina = g('racr-equip') || (_racrOsRef ? (db.ordens.find(x=>x.numero===_racrOsRef)?.maq||'') : '');
+  const crit    = getCriticidadeMaq(maquina);
+  return {
+    osNumero:      _racrOsRef || '',
+    maquina,
+    sala:          g('racr-sala'),
+    criticidade:   crit,
+    tempoParada:   0,
+    limiteMin:     limiteRAC(crit),
+    falha,
+    causaRaiz:     g('racr-causa'),
+    why1:          g('racr-p1'),
+    why2:          g('racr-p2'),
+    why3:          g('racr-p3'),
+    why4:          g('racr-p4'),
+    why5:          g('racr-p5'),
+    acaoImediata:  g('racr-imediata'),
+    acaoPreventiva:g('racr-preventiva'),
+    respProd:      g('racr-resp-prod'),
+    respManu:      g('racr-resp-manu'),
+    executantes:   g('racr-exec')
+  };
+}
+ 
+// Variável de estado: OS que originou o RACR atual
+let _racrOsRef = null;
+ 
+// Hook na função showPg para renderizar RACRs ao entrar na página
+const _origShowPg = typeof showPg === 'function' ? showPg : null;
+// (renderRACR é chamado manualmente ao navegar — ver instrução abaixo)
+   
 init();
 </script>
 </body>
