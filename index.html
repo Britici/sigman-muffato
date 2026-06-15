@@ -172,7 +172,7 @@ tbody tr{border-bottom:1px solid var(--bord);transition:background .1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--surf2)}
 td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
-.osn{font-family:var(--fm);font-size:12px;color:var(--txt);font-weight:600}
+.osn{font-family:var(--fm);font-size:12px;color:var(--txt);font-weight:600;display:inline-block;min-width:70px}
   
 /* BADGES */
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-family:var(--fw);font-size:11px;font-weight:700;font-variant:small-caps;letter-spacing:.03em;white-space:nowrap}
@@ -261,7 +261,7 @@ td{padding:10px 12px;font-size:13px;vertical-align:middle;color:var(--txt)}
 .dl{color:var(--txt3);min-width:130px;font-family:var(--fw);font-size:11px;font-weight:700;font-variant:small-caps;padding-top:2px}
 .dv{color:var(--txt);flex:1}
 .osdisp{font-family:var(--fm);font-size:12px;font-weight:600;color:var(--red);background:rgba(196,18,48,.1);border:1px solid rgba(196,18,48,.25);border-radius:var(--rs);padding:3px 10px;display:inline-block;letter-spacing:1px;margin-bottom:4px}
-.wa-prev{background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:14px;margin-top:12px;font-family:var(--fm);font-size:11px;color:var(--txt2);line-height:1.9;white-space:pre-wrap}
+.wa-prev{background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:14px;margin-top:12px;font-family:var(--fm);font-size:11px;color:var(--txt2);line-height:1.9;white-space:pre-wrap;display:none!important}
 .wa-cp{margin-top:8px;background:#25D366;color:#fff;border:none;border-radius:var(--rs);padding:8px 16px;font-size:12px;cursor:pointer;font-family:var(--fw);font-weight:700;font-variant:small-caps;letter-spacing:.04em;transition:filter .15s}
 .wa-cp:hover{filter:brightness(1.1)}
 
@@ -335,7 +335,7 @@ th.sortable.asc::after{content:' ▲';opacity:1;color:var(--red-l)}
 th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}  
 @keyframes pulse-rac{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
 @keyframes pulse-color{0%,100%{background:var(--red)}50%{background:var(--red-d)}}
-.rac-dot{width:9px;height:9px;border-radius:50%;background:var(--red);cursor:pointer;
+.rac-dot{width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;flex-shrink:0;animation:pulse-color 1.1s ease-in-out infinite}
   display:inline-block;animation:pulse-rac 1.1s ease-in-out infinite;
   vertical-align:middle;margin-left:6px;}
 </style>
@@ -496,7 +496,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      </select>
     </div>
     <div class="tw"><table><thead><tr>
-      <th class="sortable" id="ph-numero"     onclick="sortPlan('numero')">OS #</th>
+      <th class="sortable" id="ph-numero"     onclick="sortExec('numero')" style="width:100px;min-width:100px">OS #</th>
       <th class="sortable" id="ph-sala"       onclick="sortPlan('sala')">Sala</th>
       <th class="sortable" id="ph-maq"        onclick="sortPlan('maq')">Máquina</th>
       <th class="sortable" id="ph-tipo"       onclick="sortPlan('tipo')">Tipo</th>
@@ -526,14 +526,14 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
      <input type="date" id="fe-dt-fim" title="Data final" onchange="renderExec()">
     </div>
     <div class="tw"><table><thead><tr>
-    <th class="sortable" id="sh-numero" onclick="sortExec('numero')">OS #</th>
+    <th class="sortable" id="sh-numero" onclick="sortExec('numero')" style="width:100px;min-width:100px">OS #</th>
     <th class="sortable" id="sh-data"   onclick="sortExec('data')">Data</th>
     <th class="sortable" id="sh-sala"   onclick="sortExec('sala')">Sala</th>
     <th class="sortable" id="sh-maq"    onclick="sortExec('maq')">Máquina</th>
     <th class="sortable" id="sh-tipo"   onclick="sortExec('tipo')">Tipo</th>
     <th class="sortable" id="sh-prioridade" onclick="sortExec('prioridade')">Prioridade</th>
     <th class="sortable" id="sh-manut"  onclick="sortExec('manut')">Manutentor</th>
-    <th>Tempo</th><th>Ações</th>
+    <th>Tempo</th><th style="min-width:200px">Ações</th>
     </tr></thead><tbody id="tb-exec"></tbody></table></div>
    </div>
 
@@ -1120,6 +1120,10 @@ const ROLES = {
   producao: {
     label: 'Produção',
     menus: ['solicitacao']
+    },
+  diretoria: {
+    label: 'Diretoria',
+    menus: ['dashboard','executadas','solicitacao']
   }
 };
 
@@ -1669,10 +1673,7 @@ function showPage(pid) {
 
   // Dashboard: ligar/desligar timer 15s
   clearInterval(_dashTimer);
-  if (pid === 'dashboard') {
-    renderDash();
-    if (_dashAutoRf) startDashTimer();
-  }
+  if (pid === 'dashboard') { renderDash(); apiLoadAll(true).then(renderDash).catch(()=>{}); if (_dashAutoRf) startDashTimer(); }
   if (pid === 'planejadas')  { renderPlan();    apiLoadAll(true).then(renderPlan).catch(()=>showToast('Erro ao sincronizar Planejadas.','er')); }
   if (pid === 'executadas')  { renderExec();    apiLoadAll(true).then(renderExec).catch(()=>showToast('Erro ao sincronizar Executadas.','er')); }
   if (pid === 'solicitacao') { renderSol();     apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
@@ -2610,7 +2611,7 @@ function renderPlan() {
     <td>${tipoBadge(p.tipo)}</td><td>${prio(p.prioridade)}</td>
     <td style="font-family:var(--fm);font-size:11px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
     <td>${stBadge(p.status)}</td>
-    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+    <td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">
       ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
       <button class="btn btn-sm btn-gh" onclick="editarPlan('${p.numero}')">✎ Editar</button>
       <button class="btn btn-sm btn-gh" onclick="verDet('${p.numero}','pl')">Ver</button>
@@ -2660,7 +2661,7 @@ function getCriticidadeMaq(maqNome) {
   return parseInt(m?.criticidade) || 3;
 }
 function limiteRAC(crit) {
-  return {1:60, 2:90, 3:105, 4:120}[crit] ?? 120;
+  return {1:60, 2:120, 3:10080, 4:20160}[crit] ?? 120;
 }
 function precisaRAC(o) {
   if (o.tipo !== 'Corretiva') return false;
@@ -2726,10 +2727,12 @@ function renderExec() {
   const tb = document.getElementById('tb-exec');
   if (!data.length) { tb.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ei">📋</div><p>Nenhuma ordem encontrada.</p></div></td></tr>`; return; }
   tb.innerHTML = data.map(o => `<tr>
-    <td>
-      <span class="osn">${o.numero}</span>
-      ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório — parada acima do limite p/ criticidade ${getCriticidadeMaq(o.maq)}" onclick="abrirRAC('${o.numero}')"></span>`:''}
-    </td>
+     <td style="white-space:nowrap;width:110px">
+        <span style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+          ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório" style="cursor:default;flex-shrink:0"></span>`:''}
+          <span class="osn">${o.numero}</span>
+        </span>
+      </td>
     <td style="font-size:12px">${fd(o.data)}</td>
     <td>${o.sala}</td><td>${o.maq}</td>
     <td>${tipoBadge(o.tipo)}</td><td>${prio(o.prioridade)}</td>
