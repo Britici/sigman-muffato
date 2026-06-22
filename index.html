@@ -2624,15 +2624,39 @@ function editarPlan(id) {
   const p = db.planejadas.find(x => x.numero === id);
   if (!p) return;
   document.getElementById('me-t').textContent = 'Editar O.S. Planejada — ' + p.numero;
+
+  const salasOpts = db.salas.sort().map(s =>
+    `<option value="${s}"${s===p.sala?' selected':''}>${s}</option>`
+  ).join('');
+
+  const maqsFiltradas = db.maquinas.filter(m => m.sala === p.sala);
+  const maqsOpts = maqsFiltradas.sort((a,b)=>a.nome.localeCompare(b.nome)).map(m =>
+    `<option value="${m.nome}"${m.nome===p.maq?' selected':''}>${m.nome}${m.tag?' ('+m.tag+')':''}</option>`
+  ).join('');
+
   document.getElementById('me-b').innerHTML = `
-    <div class="fg"><label>Status</label>
-      <select id="ep-status">
-        <option${p.status==='Pendente'?' selected':''}>Pendente</option>
-        <option${p.status==='Atrasada'?' selected':''}>Atrasada</option>
-        <option${p.status==='Concluída'?' selected':''}>Concluída</option>
+    <div class="fg"><label>Sala / Local</label>
+      <select id="ep-sala" onchange="epFiltrarMaq()">
+        <option value="">Selecione...</option>
+        ${salasOpts}
+        <option value="__outros__"${p.sala==='__outros__'?' selected':''}>Outros</option>
       </select>
     </div>
-    <div class="fg"><label>Prazo Limite</label><input type="date" id="ep-prazo" value="${p.prazo||''}"></div>
+    <div class="fg"><label>Máquina / Ativo</label>
+      <select id="ep-maq">
+        <option value="">Selecione...</option>
+        ${maqsOpts}
+        <option value="__outros__"${p.maq==='__outros__'?' selected':''}>Outros</option>
+      </select>
+    </div>
+    <div class="fg"><label>Tipo de Serviço</label>
+      <select id="ep-tipo">
+        <option value="">Selecione...</option>
+        ${['Corretiva','Inspeção','Melhoria','Preditiva','Preventiva'].map(t=>
+          `<option${t===p.tipo?' selected':''}>${t}</option>`
+        ).join('')}
+      </select>
+    </div>
     <div class="fg"><label>Prioridade</label>
       <select id="ep-prio">
         <option value="1"${p.prioridade==='1'?' selected':''}>🔴 1 – Crítico</option>
@@ -2641,11 +2665,41 @@ function editarPlan(id) {
         <option value="4"${(p.prioridade==='4'||p.prioridade==='Baixa')?' selected':''}>🟢 4 – Baixa</option>
       </select>
     </div>
-    <div class="fg"><label>Descrição</label><textarea id="ep-desc">${p.desc||''}</textarea></div>`;
+    <div class="fg"><label>Prazo Limite</label>
+      <input type="date" id="ep-prazo" value="${p.prazo||''}">
+    </div>
+    <div class="fg"><label>Horas por Turno</label>
+      <input type="number" id="ep-horas" value="${p.horasTurno||10}" min="1" max="24">
+    </div>
+    <div class="fg"><label>Status</label>
+      <select id="ep-status">
+        <option${p.status==='Pendente'?' selected':''}>Pendente</option>
+        <option${p.status==='Atrasada'?' selected':''}>Atrasada</option>
+        <option${p.status==='Concluída'?' selected':''}>Concluída</option>
+      </select>
+    </div>
+    <div class="fg"><label>Descrição</label>
+      <textarea id="ep-desc">${p.desc||''}</textarea>
+    </div>`;
+
   _editType = 'plan'; _editIdx = id;
   openM('m-edit');
 }
 
+function epFiltrarMaq() {
+  const sala = document.getElementById('ep-sala')?.value;
+  const sel  = document.getElementById('ep-maq');
+  if (!sel) return;
+  const maqsFiltradas = db.maquinas
+    .filter(m => !sala || m.sala === sala)
+    .sort((a,b) => a.nome.localeCompare(b.nome));
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    maqsFiltradas.map(m =>
+      `<option value="${m.nome}">${m.nome}${m.tag?' ('+m.tag+')':''}</option>`
+    ).join('') +
+    '<option value="__outros__">Outros</option>';
+}
+  
 function delPlan(id) {
   if (!confirm('Excluir esta O.S. planejada?')) return;
   const pl = db.planejadas.find(p => p.numero === id);
@@ -3711,11 +3765,29 @@ function salvarEdit() {
     apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
       Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade});
   } else if(_editType==='plan') {
-    const p=db.planejadas.find(x=>x.numero===_editIdx);if(!p)return;
-    p.status=v('ep-status');p.prazo=v('ep-prazo');p.prioridade=v('ep-prio');p.desc=v('ep-desc');
-    logEdit('Editou Planejada', p.numero, 'Status: ' + p.status + ' · Prazo: ' + p.prazo);
-    saveDB();renderPlan();closeM('m-edit');
-    apiUpdate('planejadas',p.numero,'PL_Numero',{Status:p.status,Prazo_Limite:p.prazo,Prioridade:p.prioridade,Descricao_Planejada:p.desc});
+    const p = db.planejadas.find(x => x.numero === _editIdx);
+    if (!p) return;
+    p.sala       = v('ep-sala')   || p.sala;
+    p.maq        = v('ep-maq')    || p.maq;
+    p.tipo       = v('ep-tipo')   || p.tipo;
+    p.prioridade = v('ep-prio')   || p.prioridade;
+    p.prazo      = v('ep-prazo')  || p.prazo;
+    p.horasTurno = parseInt(v('ep-horas')) || p.horasTurno;
+    p.status     = v('ep-status') || p.status;
+    p.desc       = v('ep-desc');
+    logEdit('Editou Planejada', p.numero,
+      `${p.sala} · ${p.maq} · Status: ${p.status} · Prazo: ${p.prazo}`);
+    saveDB(); renderPlan(); closeM('m-edit');
+    apiUpdate('planejadas', p.numero, 'PL_Numero', {
+      Sala:               p.sala,
+      Maquina:            p.maq,
+      Tipo:               p.tipo,
+      Prioridade:         p.prioridade,
+      Prazo_Limite:       p.prazo,
+      Horas_Turno:        p.horasTurno,
+      Status:             p.status,
+      Descricao_Planejada:p.desc
+    });
   }
 }
 
