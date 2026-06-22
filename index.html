@@ -418,7 +418,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
     <div class="u-av" id="u-av">A</div>
     <div class="u-info">
      <div class="u-nm" id="u-nm">Usuário</div>
-     <div class="u-rl" id="u-rl">Administração</div>
+     <div class="u-rl" id="u-rl" style="display:none"></div>
     </div>
    </div>
   </div>
@@ -2027,6 +2027,7 @@ function renderDash() {
   const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
   const melh    = ordPer.filter(o => o.tipo === 'Melhoria').length;
   const inspe   = ordPer.filter(o => o.tipo === 'Inspeção').length;
+  const predi   = ordPer.filter(o => o.tipo === 'Preditiva').length;
   const total   = ordPer.length;
   const hj      = db.ordens.filter(o => o.data === t).length;
   const plOpen  = db.planejadas.filter(p => p.status !== 'Concluída').length;
@@ -2176,10 +2177,10 @@ function renderDash() {
       <div class="sc-val">${inspe}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(inspe/total*100) : 0}% do total</div>
     </div>
-    <div class="sc-card c-o">
-      <div class="sc-lbl">Solicitações Pend.</div>
-      <div class="sc-val">${solPend}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Da produção</div>
+    <div class="sc-card c-r">
+      <div class="sc-lbl">Preditiva</div>
+      <div class="sc-val">${predi}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(predi/total*100) : 0}% do total</div>
     </div>`;
 
   // Gauge + PCM Ring + Trend + Próximas + Top Máquinas
