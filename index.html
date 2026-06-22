@@ -2025,6 +2025,8 @@ function renderDash() {
   const ordCorr = ordPer.filter(o => o.tipo === 'Corretiva');
   const cor     = ordCorr.length;
   const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
+  const melh    = ordPer.filter(o => o.tipo === 'Melhoria').length;
+  const inspe   = ordPer.filter(o => o.tipo === 'Inspeção').length;
   const total   = ordPer.length;
   const hj      = db.ordens.filter(o => o.data === t).length;
   const plOpen  = db.planejadas.filter(p => p.status !== 'Concluída').length;
@@ -2134,17 +2136,16 @@ function renderDash() {
         <button class=\"btn btn-sm btn-gh\" onclick=\"goToPage('salas-status')\" style=\"margin-top:4px;width:100%\">Ver Detalhes →</button>
         <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5\"></div>
       </div>
-    <div class="sc-card" style="color:${icp>=metaICP?'var(--grn)':icp>=metaICP-15?'var(--org)':'var(--red)'}">
-      <div class="sc-lbl">ICP — Cump. Plano</div>
-      <div class="sc-val">${plPer.length ? icp+'%' : '—'}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta: ${metaICP}% · ${plConclNoPrazo.length}/${plPer.length}</div>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${icp>=metaICP?'var(--grn)':icp>=metaICP-15?'var(--org)':'var(--red)'};opacity:.5;border-radius:0 0 var(--r) var(--r)"></div>
-    </div>
-    <div class="sc-card c-g">
-      <div class="sc-lbl">% Preventiva</div>
-      <div class="sc-val">${pctPrev}%</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Meta PCM: ≥ ${metaPrev}%</div>
-    </div>
+      <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}">
+        <div class="sc-lbl">Backlog OS</div>
+        <div class="sc-val">${plOpen}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:4px">${plAtras} atrasadas</div>
+      </div>
+      <div class="sc-card c-go">
+        <div class="sc-lbl">OS Hoje</div>
+        <div class="sc-val">${hj}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:4px">Período: ${total}</div>
+      </div>    
     <div class="sc-card c-p">
       <div class="sc-lbl">MTBF (min)</div>
       <div class="sc-val">${mtbfH > 0 ? mtbfH : '—'}</div>
@@ -2155,25 +2156,25 @@ function renderDash() {
       <div class="sc-val">${mttr}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">Tempo médio reparo</div>
     </div>
-    <div class="sc-card c-go">
-      <div class="sc-lbl">OS Hoje</div>
-      <div class="sc-val">${hj}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">Período: ${total}</div>
+    <div class="sc-card c-r">
+      <div class="sc-lbl">Preventivas</div>
+      <div class="sc-val">${prev}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(prev/total*100) : 0}% do total</div>
     </div>
     <div class="sc-card c-r">
       <div class="sc-lbl">Corretivas</div>
       <div class="sc-val">${cor}</div>
       <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(cor/total*100) : 0}% do total</div>
     </div>
-    <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}">
-      <div class="sc-lbl">Backlog OS</div>
-      <div class="sc-val">${plOpen}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${plAtras} atrasadas</div>
+    <div class="sc-card c-r">
+      <div class="sc-lbl">Melhoria</div>
+      <div class="sc-val">${melh}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(melh/total*100) : 0}% do total</div>
     </div>
-    <div class="sc-card ${proxAtras > 0 ? 'c-r' : proxCount > 0 ? 'c-go' : 'c-g'}">
-      <div class="sc-lbl">Próx. Preventivas</div>
-      <div class="sc-val">${proxCount}</div>
-      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${proxAtras > 0 ? proxAtras+' atrasada(s)' : 'Pendentes'}</div>
+    <div class="sc-card c-r">
+      <div class="sc-lbl">Inspeção</div>
+      <div class="sc-val">${inspe}</div>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">${total ? Math.round(inspe/total*100) : 0}% do total</div>
     </div>
     <div class="sc-card c-o">
       <div class="sc-lbl">Solicitações Pend.</div>
