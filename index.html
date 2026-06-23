@@ -444,9 +444,15 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
       <option value="dia">Hoje</option>
       <option value="semana">Últimos 7 dias</option>
       <option value="mes" selected>Mês</option>
-      <option value="3m">Últimos 3 meses</option>
       <option value="ano">Ano</option>
+      <option value="custom">Período Customizado</option>
      </select>
+     <div id="dash-custom-dates" style="display:none;gap:8px;align-items:center">
+      <label style="font-size:12px;color:var(--txt3);font-weight:600">Data Inicial:</label>
+      <input type="date" id="dash-dt-ini" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:12px">
+      <label style="font-size:12px;color:var(--txt3);font-weight:600">Data Final:</label>
+      <input type="date" id="dash-dt-fim" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:12px">
+     </div>
      <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;flex-shrink:0">
        <span class="rf-dot off" id="rf-dot"></span>
        <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:4px 10px">🔄 Atualizar</button>
@@ -2005,23 +2011,35 @@ function renderDash() {
   // Filtro de período
   const sel = document.getElementById('dash-periodo');
   const per = sel ? sel.value : 'mes';
+  const customDatesDiv = document.getElementById('dash-custom-dates');
+  
+  // Mostrar/ocultar campos de data customizados
+  if (per === 'custom') {
+    customDatesDiv.style.display = 'flex';
+  } else {
+    customDatesDiv.style.display = 'none';
+  }
+  
   let startDate;
   if (per === 'dia') {
     startDate = t;
   } else if (per === 'semana') {
     const d = new Date(); d.setDate(d.getDate()-7);
     startDate = d.toISOString().slice(0,10);
-  } else if (per === '3m') {
-    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
-    startDate = d.toISOString().slice(0,10);
   } else if (per === 'ano') {
     startDate = t.slice(0,4) + '-01-01';
+  } else if (per === 'custom') {
+    startDate = document.getElementById('dash-dt-ini')?.value || t;
   } else {
     startDate = t.slice(0,7) + '-01';
   }
 
   // Dados filtrados pelo período
-  const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate);
+  let endDate = t;
+  if (per === 'custom') {
+    endDate = document.getElementById('dash-dt-fim')?.value || t;
+  }
+  const ordPer  = db.ordens.filter(o => o.data && o.data >= startDate && o.data <= endDate);
   const ordCorr = ordPer.filter(o => o.tipo === 'Corretiva');
   const cor     = ordCorr.length;
   const prev    = ordPer.filter(o => o.tipo === 'Preventiva').length;
@@ -2310,72 +2328,163 @@ function exportDashPDF() {
   const t = today();
   const sel = document.getElementById('dash-periodo');
   const per = sel ? sel.value : 'mes';
-  const perLbl = per === '3m' ? 'Últimos 3 Meses' : per === 'ano' ? 'Este Ano' : 'Este Mês';
-  let startDate;
-  if (per === '3m') { const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-2);startDate=d.toISOString().slice(0,10); }
-  else if (per === 'ano') { startDate = t.slice(0,4)+'-01-01'; }
-  else { startDate = t.slice(0,7)+'-01'; }
-  const ordP = db.ordens.filter(o => o.data && o.data >= startDate);
-  const cor2 = ordP.filter(o=>o.tipo==='Corretiva').length;
-  const prv  = ordP.filter(o=>o.tipo==='Preventiva').length;
-  const tot  = ordP.length;
-  const ht   = db.configuracoes.horas_turno_1 || 7.1;
-  const dp   = Math.max(1, new Set(ordP.map(o=>o.data)).size);
-  const mP   = ordP.reduce((s,o)=>s+(o.paradaMin||o.durMin||0),0);
-  const disp = Math.min(100,Math.max(0,Math.round((1-mP/(dp*ht*60))*100)));
-  const pP   = tot ? Math.round(prv/tot*100) : 0;
-  const mtr  = (()=>{const ot=ordP.filter(o=>o.durMin>0);return ot.length?Math.round(ot.reduce((s,o)=>s+o.durMin,0)/ot.length):0;})();
-  const plOp = db.planejadas.filter(p=>p.status!=='Concluída').length;
-  const plAt = db.planejadas.filter(p=>p.status==='Atrasada').length;
-  const solP = db.solicitacoes.filter(s=>s.status==='Não Executada').length;
-  const bySala2={};ordP.filter(o=>o.tipo==='Corretiva').forEach(o=>{bySala2[o.sala]=(bySala2[o.sala]||0)+1;});
-  const topSalas2=Object.entries(bySala2).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const proximas2=db.planejadas.filter(p=>p.status!=='Concluída'&&p.prazo).sort((a,b)=>a.prazo.localeCompare(b.prazo)).slice(0,3);
+  let perLbl, startDate, endDate;
+  if (per === 'dia') {
+    perLbl = 'Hoje'; startDate = t; endDate = t;
+  } else if (per === 'semana') {
+    const d=new Date(); d.setDate(d.getDate()-7);
+    perLbl = 'Últimos 7 dias'; startDate = d.toISOString().slice(0,10); endDate = t;
+  } else if (per === 'ano') {
+    perLbl = 'Este Ano'; startDate = t.slice(0,4)+'-01-01'; endDate = t;
+  } else if (per === 'custom') {
+    startDate = document.getElementById('dash-dt-ini')?.value || t.slice(0,7)+'-01';
+    endDate = document.getElementById('dash-dt-fim')?.value || t;
+    perLbl = `${startDate} a ${endDate}`;
+  } else {
+    perLbl = 'Este Mês'; startDate = t.slice(0,7)+'-01'; endDate = t;
+  }
+
+  const ordP = db.ordens.filter(o => o.data && o.data >= startDate && o.data <= endDate);
+  const ordCorr = ordP.filter(o => o.tipo === 'Corretiva');
+  const ordPrev = ordP.filter(o => o.tipo === 'Preventiva');
+  const ordMelh = ordP.filter(o => o.tipo === 'Melhoria');
+  const ordInsp = ordP.filter(o => o.tipo === 'Inspeção');
+  const ordPred = ordP.filter(o => o.tipo === 'Preditiva');
+  
+  const horas_turno_1 = parseFloat(db.configuracoes.horas_turno_1) || 7.1;
+  const horas_turno_2 = parseFloat(db.configuracoes.horas_turno_2) || 0;
+  const horas_turno_3 = parseFloat(db.configuracoes.horas_turno_3) || 0;
+  const horasTotaisPorDia = horas_turno_1 + horas_turno_2 + horas_turno_3;
+  
+  const dispPorSala = calcDisponibilidadePorSala(ordP, horas_turno_1, horas_turno_2, horas_turno_3, Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1));
+  const disponib = dispPorSala.length > 0 ? Math.round(dispPorSala.reduce((s, sala) => s + (sala.disp || 0), 0) / dispPorSala.length) : 100;
+  
+  const hj = db.ordens.filter(o => o.data === t).length;
+  const plOpen = db.planejadas.filter(p => p.status !== 'Concluída').length;
+  
+  const ordTempoExec = ordP.filter(o => o.durMin > 0);
+  const mttr = ordTempoExec.length ? Math.round(ordTempoExec.reduce((s, o) => s + o.durMin, 0) / ordTempoExec.length) : 0;
+  
+  const nCorr = ordCorr.length;
+  const tempoParadaTotal = ordCorr.reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
+  const tempoFuncionando = (Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1) * horasTotaisPorDia * 60) - tempoParadaTotal;
+  const mtbf = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
+  
+  const pctPrev = ordP.length ? Math.round(ordPrev.length / ordP.length * 100) : 0;
+  const metaPrev = 60;
+  
+  const byMaq = {};
+  ordCorr.forEach(o => {
+    const k = o.maq + '||' + o.sala;
+    if (!byMaq[k]) byMaq[k] = { maq: o.maq, sala: o.sala, n: 0 };
+    byMaq[k].n++;
+  });
+  const topMaqs = Object.values(byMaq).sort((a, b) => b.n - a.n).slice(0, 5);
+  
+  const bySala = {};
+  ordCorr.forEach(o => {
+    bySala[o.sala] = (bySala[o.sala] || 0) + 1;
+  });
+  const topSalas = Object.entries(bySala).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
   const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>SIGMAN — Dashboard ${fd(t)}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;padding:14mm 16mm}
-  .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:14px}
-  h1{font-size:15px;color:#C41230}h2{font-size:11px;margin:12px 0 6px;background:#f4f4f4;padding:4px 8px;border-left:3px solid #C41230;text-transform:uppercase;letter-spacing:.5px}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-  .kpi{border:1px solid #e0e0e0;border-radius:4px;padding:8px;text-align:center}
-  .kpi-l{font-size:9px;color:#888;text-transform:uppercase}
-  .kpi-v{font-size:20px;font-weight:bold;color:#C41230;margin-top:2px}
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
-  table{width:100%;border-collapse:collapse}th,td{font-size:10px;padding:4px 6px;text-align:left;border-bottom:1px solid #eee}
-  th{background:#f4f4f4;font-weight:bold}
-  .foot{margin-top:18px;border-top:1px solid #e0e0e0;padding-top:6px;font-size:9px;color:#999;display:flex;justify-content:space-between}
-  @media print{body{padding:8mm 10mm}}</style></head><body>
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>SIGMAN — Dashboard ${fd(t)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; padding: 14mm 16mm; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #C41230; padding-bottom: 8px; margin-bottom: 14px; }
+    h1 { font-size: 15px; color: #C41230; }
+    h2 { font-size: 11px; margin: 14px 0 8px; background: #f4f4f4; padding: 4px 8px; border-left: 3px solid #C41230; text-transform: uppercase; letter-spacing: .5px; }
+    .grid-10 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+    .card { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; text-align: center; }
+    .card-label { font-size: 9px; color: #888; text-transform: uppercase; font-weight: 600; }
+    .card-value { font-size: 18px; font-weight: bold; color: #C41230; margin-top: 4px; }
+    .card-sub { font-size: 9px; color: #999; margin-top: 3px; }
+    .grid-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+    .chart-box { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { font-size: 10px; padding: 4px 6px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f4f4f4; font-weight: bold; }
+    td:last-child { text-align: right; font-weight: bold; }
+    .foot { margin-top: 18px; border-top: 1px solid #e0e0e0; padding-top: 6px; font-size: 9px; color: #999; display: flex; justify-content: space-between; }
+    @media print { body { padding: 8mm 10mm; } .no-print { display: none; } }
+  </style></head><body>
+  
   <div class="header">
-    <div><b style="font-size:13px;color:#C41230">MUFFATO FOODS</b><br><span style="font-size:9px;color:#666">SIGMAN — Gestão de Manutenção</span></div>
+    <div><b style="font-size: 13px; color: #C41230;">MUFFATO FOODS</b><br><span style="font-size: 9px; color: #666;">SIGMAN — Gestão de Manutenção</span></div>
     <h1>RELATÓRIO — DASHBOARD</h1>
-    <div style="text-align:right;font-size:9px;color:#666">Período: ${perLbl}<br>Gerado em: ${fd(t)}</div>
+    <div style="text-align: right; font-size: 9px; color: #666;">Período: ${perLbl}<br>Gerado em: ${fd(t)}</div>
   </div>
+
   <h2>KPIs do Período — ${perLbl}</h2>
-  <div class="grid">
-    <div class="kpi"><div class="kpi-l">OS no Período</div><div class="kpi-v">${tot}</div></div>
-    <div class="kpi"><div class="kpi-l">Disponibilidade</div><div class="kpi-v">${disp}%</div></div>
-    <div class="kpi"><div class="kpi-l">% Preventiva</div><div class="kpi-v">${pP}%</div></div>
-    <div class="kpi"><div class="kpi-l">MTTR (min)</div><div class="kpi-v">${mtr}</div></div>
-    <div class="kpi"><div class="kpi-l">Corretivas</div><div class="kpi-v">${cor2}</div></div>
-    <div class="kpi"><div class="kpi-l">Preventivas</div><div class="kpi-v">${prv}</div></div>
-    <div class="kpi"><div class="kpi-l">Backlog OS</div><div class="kpi-v">${plOp}</div></div>
-    <div class="kpi"><div class="kpi-l">Sol. Pendentes</div><div class="kpi-v">${solP}</div></div>
+  <div class="grid-10">
+    <div class="card"><div class="card-label">Disponibilidade</div><div class="card-value">${disponib}%</div></div>
+    <div class="card"><div class="card-label">Backlog OS</div><div class="card-value">${plOpen}</div></div>
+    <div class="card"><div class="card-label">OS Hoje</div><div class="card-value">${hj}</div></div>
+    <div class="card"><div class="card-label">MTBF (min)</div><div class="card-value">${mtbf}</div></div>
+    <div class="card"><div class="card-label">MTTR (min)</div><div class="card-value">${mttr}</div></div>
+    <div class="card"><div class="card-label">Preventivas</div><div class="card-value">${ordPrev.length}</div></div>
+    <div class="card"><div class="card-label">Corretivas</div><div class="card-value">${ordCorr.length}</div></div>
+    <div class="card"><div class="card-label">Melhoria</div><div class="card-value">${ordMelh.length}</div></div>
+    <div class="card"><div class="card-label">Inspeção</div><div class="card-value">${ordInsp.length}</div></div>
+    <div class="card"><div class="card-label">Preditiva</div><div class="card-value">${ordPred.length}</div></div>
   </div>
-  <div class="two-col">
-    <div><h2>Top Salas — Corretivas</h2>
-      ${topSalas2.length
-        ? `<table><tr><th>Sala</th><th style="text-align:right">OS</th></tr>${topSalas2.map(([s,n])=>`<tr><td>${s}</td><td style="text-align:right;font-weight:bold;color:#C41230">${n}</td></tr>`).join('')}</table>`
-        : '<p style="color:#999;font-size:10px;margin-top:6px">Sem dados</p>'}
+
+  <h2>Gráficos do Período</h2>
+  <div class="grid-charts">
+    <div class="chart-box">
+      <div style="font-size: 10px; font-weight: 600; margin-bottom: 8px;">Disponibilidade do Período</div>
+      <svg width="100%" height="80" viewBox="0 0 140 80" preserveAspectRatio="xMidYMid meet">
+        <circle cx="50" cy="40" r="25" fill="none" stroke="#e0e0e0" stroke-width="8"></circle>
+        <circle cx="50" cy="40" r="25" fill="none" stroke="#C41230" stroke-width="8" stroke-dasharray="${disponib * 1.57} 157" stroke-linecap="round" transform="rotate(-90 50 40)"></circle>
+        <text x="50" y="45" text-anchor="middle" font-size="16" font-weight="bold" fill="#C41230">${disponib}%</text>
+        <text x="120" y="20" font-size="10" fill="#666">Meta: 85%</text>
+        <text x="120" y="35" font-size="10" fill="#666">Salas: ${dispPorSala.length}</text>
+      </svg>
     </div>
-    <div><h2>Próximas Preventivas</h2>
-      ${proximas2.length
-        ? `<table><tr><th>OS / Ativo</th><th style="text-align:right">Prazo</th></tr>${proximas2.map(p=>{const d=Math.ceil((new Date(p.prazo)-new Date(t))/86400000);return`<tr><td>${p.numero} — ${p.maq}</td><td style="text-align:right;font-weight:bold;color:${d<0?'#C41230':d<=3?'#f59e0b':'#16a34a'}">${d<0?Math.abs(d)+'d atr.':d+'d'}</td></tr>`;}).join('')}</table>`
-        : '<p style="color:#999;font-size:10px;margin-top:6px">Sem pendentes</p>'}
+    <div class="chart-box">
+      <div style="font-size: 10px; font-weight: 600; margin-bottom: 8px;">Meta PCM — % Preventiva</div>
+      <svg width="100%" height="80" viewBox="0 0 140 80" preserveAspectRatio="xMidYMid meet">
+        <circle cx="50" cy="40" r="25" fill="none" stroke="#e0e0e0" stroke-width="8"></circle>
+        <circle cx="50" cy="40" r="25" fill="none" stroke="${pctPrev >= metaPrev ? '#16a34a' : '#C41230'}" stroke-width="8" stroke-dasharray="${pctPrev * 1.57} 157" stroke-linecap="round" transform="rotate(-90 50 40)"></circle>
+        <text x="50" y="45" text-anchor="middle" font-size="16" font-weight="bold" fill="${pctPrev >= metaPrev ? '#16a34a' : '#C41230'}">${pctPrev}%</text>
+        <text x="120" y="20" font-size="10" fill="#666">Meta: ${metaPrev}%</text>
+        <text x="120" y="35" font-size="10" fill="#666">Status: ${pctPrev >= metaPrev ? '✅' : '⚠'}</text>
+      </svg>
+    </div>
+    <div class="chart-box">
+      <div style="font-size: 10px; font-weight: 600; margin-bottom: 8px;">Tendência — OS por Mês</div>
+      <svg width="100%" height="80" viewBox="0 0 140 90" preserveAspectRatio="xMidYMid meet">
+        <text x="70" y="50" text-anchor="middle" font-size="10" fill="#666">Últimos 6 meses</text>
+        <text x="70" y="65" text-anchor="middle" font-size="10" fill="#999">Corr: ${ordCorr.length} | Prev: ${ordPrev.length}</text>
+      </svg>
     </div>
   </div>
+
+  <h2>Rankings — Corretivas</h2>
+  <div class="grid-2">
+    <div>
+      <div style="font-size: 10px; font-weight: 600; color: #C41230; margin-bottom: 6px;">Ranking Salas — Corretivas</div>
+      <table>
+        <tr><th>Sala</th><th>OS</th></tr>
+        ${topSalas.map(([sala, n]) => `<tr><td>${sala}</td><td>${n}</td></tr>`).join('')}
+        ${topSalas.length === 0 ? `<tr><td colspan="2" style="text-align: center; color: #999;">Sem dados</td></tr>` : ''}
+      </table>
+    </div>
+    <div>
+      <div style="font-size: 10px; font-weight: 600; color: #C41230; margin-bottom: 6px;">Ranking Máquinas — Corretivas</div>
+      <table>
+        <tr><th>Máquina</th><th>OS</th></tr>
+        ${topMaqs.map(m => `<tr><td>${m.maq}</td><td>${m.n}</td></tr>`).join('')}
+        ${topMaqs.length === 0 ? `<tr><td colspan="2" style="text-align: center; color: #999;">Sem dados</td></tr>` : ''}
+      </table>
+    </div>
+  </div>
+
   <div class="foot"><span>SIGMAN — Muffato Foods</span><span>Confidencial</span><span>${fd(t)}</span></div>
-  <script>setTimeout(()=>window.print(),400);<\/script></body></html>`);
+  <script>setTimeout(()=>window.print(),400);<\/script>
+  </body></html>`);
   win.document.close();
 }
 
@@ -2661,10 +2770,10 @@ function editarPlan(id) {
     </div>
     <div class="fg"><label>Prioridade</label>
       <select id="ep-prio">
-        <option value="1"${p.prioridade==='1'?' selected':''}>🔴 1 – Crítico</option>
-        <option value="2"${(p.prioridade==='2'||p.prioridade==='Alta')?' selected':''}>🟠 2 – Alta</option>
-        <option value="3"${(p.prioridade==='3'||p.prioridade==='Média')?' selected':''}>🟡 3 – Média</option>
-        <option value="4"${(p.prioridade==='4'||p.prioridade==='Baixa')?' selected':''}>🟢 4 – Baixa</option>
+        <option value="1"${p.prioridade==='1'?' selected':''}>🔴 Crítico (Parada de Máquina)</option>
+        <option value="2"${(p.prioridade==='2'||p.prioridade==='Alta')?' selected':''}>🟠 Alta (Risco de Parada)</option>
+        <option value="3"${(p.prioridade==='3'||p.prioridade==='Média')?' selected':''}>🟡 Média (Importante - Planejamento)</option>
+        <option value="4"${(p.prioridade==='4'||p.prioridade==='Baixa')?' selected':''}>🟢 Baixo (Melhoria - Planejamento)</option>
       </select>
     </div>
     <div class="fg"><label>Prazo Limite</label>
@@ -2715,6 +2824,12 @@ function delPlan(id) {
 function getCriticidadeMaq(maqNome) {
   const m = db.maquinas.find(x => normStr(x.nome) === normStr(maqNome));
   return parseInt(m?.criticidade) || 3;
+}
+function getCriticidadeBadge(maqNome) {
+  const crit = getCriticidadeMaq(maqNome);
+  const critMap = {'1':'Criticidade 1','2':'Criticidade 2','3':'Criticidade 3','4':'Criticidade 4'};
+  const critColor = {'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)'}[String(crit)] || 'var(--txt3)';
+  return `<span style="font-size:10px;color:${critColor};font-weight:600">${critMap[String(crit)] || '—'}</span>`;
 }
 function limiteRAC(crit) {
   return {1:60, 2:120, 3:10080, 4:20160}[crit] ?? 120;
@@ -2790,7 +2905,7 @@ function renderExec() {
         </span>
       </td>
     <td style="font-size:12px">${fd(o.data)}</td>
-    <td>${o.sala}</td><td>${o.maq}</td>
+    <td>${o.sala}</td><td><div>${o.maq}</div><div style="font-size:10px;color:var(--txt3)">${getCriticidadeBadge(o.maq)}</div></td>
     <td>${tipoBadge(o.tipo)}</td><td>${prio(o.prioridade)}</td>
     <td style="font-size:12px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:11px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
@@ -3623,7 +3738,7 @@ function renderCritChart() {
 
   // ── Barras verticais ──────────────────────────────────────
   const allBars = [...Object.entries(counts), ['T', total]];
-  const barCols = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988','T':'#5aa8ff'};
+  const barCols = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988','T':'#999999'};
   const barLbls = {'1':'1','2':'2','3':'3','4':'4','T':'Total'};
   const maxVal  = Math.max(...allBars.map(([,n]) => n), 1);
   const chartH  = 90, barW = 26, gap = 10, startX = 10, topPad = 16;
