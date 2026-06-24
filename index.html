@@ -1967,8 +1967,7 @@ function logEdit(acao, numero, detalhe) {
 function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
   const salas = db.salas.length ? [...db.salas] : [...new Set(db.maquinas.map(m => m.sala))];
   return salas.map(sala => {
-    const maqsCrit = db.maquinas.filter(m => 
-      m.sala === sala && (m.criticidade === '1' || m.criticidade === 1)
+    const maqsSala = db.maquinas.filter(m => m.sala === sala);
     );
     if (maqsCrit.length === 0) return { sala, disp: 100, minParada: 0 };
     const minParada = ordPer
