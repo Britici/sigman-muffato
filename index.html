@@ -1968,20 +1968,21 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
   const salas = db.salas.length ? [...db.salas] : [...new Set(db.maquinas.map(m => m.sala))];
   return salas.map(sala => {
     const maqsSala = db.maquinas.filter(m => m.sala === sala);
-    if (maqsCrit.length === 0) return { sala, disp: 100, minParada: 0 };
+    if (maqsSala.length === 0) return { sala, disp: 100, minParada: 0 };
     const minParada = ordPer
       .filter(o => 
         o.sala === sala && 
         o.tipo === 'Corretiva' &&
-        maqsCrit.some(m => m.nome === o.maq)
+        maqsSala.some(m => m.nome === o.maq)
       )
-      .reduce((s, o) => s + (o.paradaMin || o.durMin || 0), 0);
+      .reduce((s, o) => s + (o.paradaMin || 0), 0);
     const minDisp = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
+    if (minDisp === 0) return { sala, disp: 0, minParada };
     const disp = Math.min(100, Math.max(0, Math.round((1 - minParada / minDisp) * 100)));
-    return { sala, disp: isNaN(disp) ? 100 : disp, minParada };
+    return { sala, disp: isNaN(disp) ? 0 : disp, minParada };
   }).filter(s => s !== null);
 }
-
+  
 function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
   const html = dispPorSala.map(s => {
