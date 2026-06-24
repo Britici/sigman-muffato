@@ -2080,23 +2080,25 @@ function renderDash() {
   
   let disponib = 0;
   if (dispPorSala.length > 0) {
-    const soma = dispPorSala.reduce((sum, s) => sum + (s.disp || 0), 0);
-    disponib = Math.round(soma / dispPorSala.length);
+    const minParadaTotal = dispPorSala.reduce((s, sala) => s + sala.minParada, 0);
+    const minDispTotal = dispPorSala.length * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
+    disponib = minDispTotal > 0 ? Math.round((1 - minParadaTotal / minDispTotal) * 100) : 0;
   } else {
-    disponib = 100; // Se vazio, considera 100%
-    console.warn('[DEBUG] Nenhuma sala encontrada');
+    disponib = 0;
+    console.warn('[AVISO] Nenhuma sala cadastrada para o período');
   }
   
   const salaComAlerta = dispPorSala.filter(s => s.disp < 85);
   const metaDisp   = db.configuracoes.meta_disponibilidade || 85;
-  const ordTempo = ordPer.filter(o => o.durMin > 0);
-  const mttr = ordTempo.length ? Math.round(ordTempo.reduce((s,o)=>s+o.durMin,0)/ordTempo.length) : 0;
+  const ordCorrComTempo = ordCorr.filter(o => o.durMin > 0);
+  const mttr = ordCorrComTempo.length ? Math.round(ordCorrComTempo.reduce((s,o)=>s+o.durMin,0)/ordCorrComTempo.length) : 0;
   
   // MTTR — tempo médio de reparo
   const nCorr = ordCorr.length;
   const tempoParadaTotal = ordCorr 
-    .reduce((s,o) => s + (o.paradaMin || o.durMin || 0), 0);
-  const tempoFuncionando = (diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60) - tempoParadaTotal;
+    .reduce((s,o) => s + (o.paradaMin || 0), 0);
+  const minDispTotal = diasPer * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
+  const tempoFuncionando = Math.max(0, minDispTotal - tempoParadaTotal);
   const mtbfH = nCorr > 0 ? Math.round(tempoFuncionando / nCorr) : 0;
     
   // % Preventiva
@@ -2104,7 +2106,7 @@ function renderDash() {
     const metaPrev = 60;
 
   // ICP — Índice de Cumprimento do Plano
-  const plPer = db.planejadas.filter(p => p.prazo && p.prazo >= startDate);
+  const plPer = db.planejadas.filter(p => p.prazo && p.prazo >= startDate && p.prazo <= endDate);
   const plConclNoPrazo = plPer.filter(p =>
     p.status === 'Concluída' && p.concluidoEm && p.concluidoEm.slice(0,10) <= p.prazo
   );
