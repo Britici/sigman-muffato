@@ -1968,7 +1968,6 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
   const salas = db.salas.length ? [...db.salas] : [...new Set(db.maquinas.map(m => m.sala))];
   return salas.map(sala => {
     const maqsSala = db.maquinas.filter(m => m.sala === sala);
-    );
     if (maqsCrit.length === 0) return { sala, disp: 100, minParada: 0 };
     const minParada = ordPer
       .filter(o => 
