@@ -2068,7 +2068,7 @@ function renderDash() {
   const topMaqSala = _topMaq?.sala || '';
   // Disponibilidade
   const horasTurno1 = parseFloat(db.configuracoes.horas_turno_1) || 7.1;
-  const horasTurno2 = parseFloat(db.configuracoes.horas_turno_2) || 0;
+  const horasTurno2 = parseFloat(db.configuracoes.horas_turno_2) || 7.1;
   const horasTurno3 = parseFloat(db.configuracoes.horas_turno_3) || 0;
   
   // Dias corridos do período (não só dias com OS)
@@ -2351,7 +2351,7 @@ function exportDashPDF() {
   const ordPred = ordP.filter(o => o.tipo === 'Preditiva');
   
   const horas_turno_1 = parseFloat(db.configuracoes.horas_turno_1) || 7.1;
-  const horas_turno_2 = parseFloat(db.configuracoes.horas_turno_2) || 0;
+  const horas_turno_2 = parseFloat(db.configuracoes.horas_turno_2) || 7.1;
   const horas_turno_3 = parseFloat(db.configuracoes.horas_turno_3) || 0;
   const horasTotaisPorDia = horas_turno_1 + horas_turno_2 + horas_turno_3;
   
