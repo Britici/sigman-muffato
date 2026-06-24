@@ -618,7 +618,7 @@ th.sortable.desc::after{content:' ▼';opacity:1;color:var(--red-l)}
       <div class="fg"><label>Sala / Local</label><select id="sol-sl" onchange="fMaq('sol')"><option value="">Selecione...</option></select></div>
       <div class="fg"><label>Máquina / Ativo</label><select id="sol-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
-      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico</option><option value="2">🟠 2 – Alta</option><option value="3">🟡 3 – Média</option><option value="4">🟢 4 – Baixa</option></select></div>
+      <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico (Parada de Máquina)</option><option value="2">🟡 2 – Alta (Risco de Parada)</option><option value="3">🔵 3 – Média (Preventica)</option><option value="4">🟢 4 – Baixa (Melhoria)</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
       <div class="fg fg-full"><label>Foto do Problema (opcional)</label>
         <div id="sol-photo-area" onclick="document.getElementById('sol-photo-input').click()" style="border:2px dashed var(--bord);border-radius:var(--rs);padding:14px;text-align:center;cursor:pointer;background:var(--surf2);display:flex;align-items:center;gap:14px;justify-content:center" onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--bord)'">
