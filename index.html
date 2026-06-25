@@ -2080,9 +2080,8 @@ function renderDash() {
   
   let disponib = 0;
   if (dispPorSala.length > 0) {
-    const minParadaTotal = dispPorSala.reduce((s, sala) => s + sala.minParada, 0);
-    const minDispTotal = dispPorSala.length * (horasTurno1 + horasTurno2 + horasTurno3) * 60;
-    disponib = minDispTotal > 0 ? Math.round((1 - minParadaTotal / minDispTotal) * 100) : 0;
+    const soma = dispPorSala.reduce((sum, s) => sum + (s.disp || 0), 0);
+    disponib = Math.round(soma / dispPorSala.length);
   } else {
     disponib = 0;
     console.warn('[AVISO] Nenhuma sala cadastrada para o período');
