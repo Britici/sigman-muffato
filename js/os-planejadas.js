@@ -61,12 +61,16 @@ function renderPlan() {
   });
 
   const tb = document.getElementById('tb-plan');
-  if (!data.length) { tb.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="ei">📅</div><p>Nenhuma O.S. planejada.</p></div></td></tr>`; return; }
-  tb.innerHTML = data.map(p => `<tr>
-    <td><span class="osn">${p.numero}</span></td>
+  const tbC = document.getElementById('tb-plan-concluidas');
+  const rowHtml = p => {
+    const osGerada = p.status==='Concluída'
+      ? (db.ordens.find(o => o.origem==='plan' && o.origemNum===p.numero)||{}).numero
+      : null;
+    return `<tr>
+    <td><span class="osn">${p.numero}</span>${osGerada?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${osGerada})</div>`:''}</td>
     <td>${p.sala}</td><td>${p.maq}</td>
     <td>${tipoBadge(p.tipo)}</td><td>${prio(p.prioridade)}</td>
-    <td style="font-family:var(--fm);font-size:11px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
+    <td style="font-family:var(--fm);font-size:13px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
     <td>${stBadge(p.status)}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">
       ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
@@ -74,7 +78,18 @@ function renderPlan() {
       <button class="btn btn-sm btn-gh" onclick="verDet('${p.numero}','pl')">Ver</button>
       <button class="btn btn-d" onclick="delPlan('${p.numero}')">✕</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`;
+  };
+
+  const naoConcl = data.filter(p => p.status !== 'Concluída');
+  const concl    = data.filter(p => p.status === 'Concluída');
+
+  tb.innerHTML = naoConcl.length ? naoConcl.map(rowHtml).join('')
+    : `<tr><td colspan="8" class="empty"><div class="ei">✅</div><p>Nenhuma O.S. não concluída.</p></td></tr>`;
+  if (tbC) {
+    tbC.innerHTML = concl.length ? concl.map(rowHtml).join('')
+      : `<tr><td colspan="8" class="empty"><div class="ei">✅</div><p>Nenhuma O.S. concluída.</p></td></tr>`;
+  }
 }
 
 // Debounce para o campo de busca
@@ -158,7 +173,8 @@ function editarPlan(id) {
       </select>
     </div>
     <div class="fg"><label>Prazo Limite</label>
-      <input type="date" id="ep-prazo" value="${p.prazo||''}">
+      <input type="hidden" id="ep-prazo" value="${p.prazo||''}">
+      <input type="text" id="ep-prazo_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" value="${p.prazo?fd(p.prazo):''}">
     </div>
     <div class="fg"><label>Horas por Turno</label>
       <input type="number" id="ep-horas" value="${p.horasTurno||10}" min="1" max="24">
@@ -174,6 +190,7 @@ function editarPlan(id) {
       <textarea id="ep-desc">${p.desc||''}</textarea>
     </div>`;
 
+  initDateIcons(document.getElementById('me-b'));
   _editType = 'plan'; _editIdx = id;
   openM('m-edit');
 }
@@ -210,7 +227,7 @@ function getCriticidadeBadge(maqNome) {
   const crit = getCriticidadeMaq(maqNome);
   const critMap = {'1':'Criticidade 1','2':'Criticidade 2','3':'Criticidade 3','4':'Criticidade 4'};
   const critColor = {'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)'}[String(crit)] || 'var(--txt3)';
-  return `<span style="font-size:10px;color:${critColor};font-weight:600">${critMap[String(crit)] || '—'}</span>`;
+  return `<span style="font-size:11px;color:${critColor};font-weight:600">${critMap[String(crit)] || '—'}</span>`;
 }
 function limiteRAC(crit) {
   return {1:60, 2:120, 3:10080, 4:20160}[crit] ?? 120;

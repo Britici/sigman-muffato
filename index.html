@@ -3,7 +3,7 @@
 <head>
   <link rel="icon" href="https://muffatosupermercados.vteximg.com.br/arquivos/muffatosupermercados-favicon-2.ico">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
 <title>SIGMAN · Muffato Foods</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/sigman.css">
@@ -22,7 +22,7 @@
     border-top-color:var(--red);
     animation:spin .8s linear infinite;
   "></div>
-  <div style="font-family:var(--fw);font-size:13px;color:var(--txt3);font-variant:small-caps;letter-spacing:1px;">
+  <div style="font-family:var(--fw);font-size:15px;color:var(--txt3);font-variant:small-caps;letter-spacing:1px;">
     Carregando...
   </div>
 </div>
@@ -72,7 +72,7 @@
    <button class="tb-tog" onclick="toggleSB()">☰</button>
    <div class="tb-title" id="tb-t">Dashboard</div>
    <div class="tb-r">
-    <div class="tb-stat" id="tb-stat"><span id="th-hj">0</span> OS hoje</div>
+    <div class="tb-stat" id="tb-stat" onclick="showPage('abertura');closeSB()"><span id="th-hj">0</span> OS hoje</div>
     <button class="tb-btn" onclick="toggleTheme()" id="th-btn">🌙</button>
     <button class="tb-btn" onclick="doLogout()" title="Sair">⎋</button>   </div>
   </header>
@@ -83,7 +83,7 @@
    <div class="pg" id="pg-dashboard">
     <div class="ph" style="flex-wrap:wrap;align-items:center;gap:8px">
      <div class="pt"><small>Visão Geral</small>Dashboard</div>
-     <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:12px;font-family:var(--fw);font-weight:600;cursor:pointer">
+     <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:14px;font-family:var(--fw);font-weight:600;cursor:pointer">
       <option value="dia">Hoje</option>
       <option value="semana">Últimos 7 dias</option>
       <option value="mes" selected>Mês</option>
@@ -91,16 +91,18 @@
       <option value="custom">Período Customizado</option>
      </select>
      <div id="dash-custom-dates" style="display:none;gap:8px;align-items:center">
-      <label style="font-size:12px;color:var(--txt3);font-weight:600">Data Inicial:</label>
-      <input type="date" id="dash-dt-ini" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:12px">
-      <label style="font-size:12px;color:var(--txt3);font-weight:600">Data Final:</label>
-      <input type="date" id="dash-dt-fim" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:12px">
+      <label style="font-size:14px;color:var(--txt3);font-weight:600">Data Inicial:</label>
+      <input type="hidden" id="dash-dt-ini">
+      <input type="text" id="dash-dt-ini_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:14px;width:100px">
+      <label style="font-size:14px;color:var(--txt3);font-weight:600">Data Final:</label>
+      <input type="hidden" id="dash-dt-fim">
+      <input type="text" id="dash-dt-fim_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:14px;width:100px">
      </div>
      <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:5px 10px;flex-shrink:0">
        <span class="rf-dot off" id="rf-dot"></span>
        <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:4px 10px">🔄 Atualizar</button>
-       <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;cursor:pointer;font-size:11px;font-family:var(--fw);font-weight:700">▶ 15s</button>
-       <span id="rf-lbl" style="font-size:11px;color:var(--txt3);white-space:nowrap">Desligada</span>
+       <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;cursor:pointer;font-size:13px;font-family:var(--fw);font-weight:700">▶ 15s</button>
+       <span id="rf-lbl" style="font-size:13px;color:var(--txt3);white-space:nowrap">Desligada</span>
      </div>
      <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:5px 12px">📄 PDF</button>
     </div>
@@ -152,10 +154,12 @@
       <option value="">Todos os Status</option>
       <option>Pendente</option><option>Concluída</option><option>Atrasada</option>
      </select>
-     <input type="date" id="fp-dt-ini" title="Prazo inicial" onchange="renderPlan()">
-     <input type="date" id="fp-dt-fim" title="Prazo final" onchange="renderPlan()">
+     <input type="hidden" id="fp-dt-ini"><input type="text" id="fp-dt-ini_disp" class="date-mask" title="Prazo inicial" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderPlan()">
+     <input type="hidden" id="fp-dt-fim"><input type="text" id="fp-dt-fim_disp" class="date-mask" title="Prazo final" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderPlan()">
     </div>
-    <div class="tw"><table><thead><tr>
+    <div class="card">
+     <div class="card-t">Não Concluídas</div>
+     <div class="tw"><table><thead><tr>
       <th class="sortable" id="ph-numero"     onclick="sortPlan('numero')" style="width:100px;min-width:100px">OS #</th>
       <th class="sortable" id="ph-sala"       onclick="sortPlan('sala')">Sala</th>
       <th class="sortable" id="ph-maq"        onclick="sortPlan('maq')">Máquina</th>
@@ -164,7 +168,16 @@
       <th class="sortable" id="ph-prazo"      onclick="sortPlan('prazo')">Prazo</th>
       <th class="sortable" id="ph-status"     onclick="sortPlan('status')">Status</th>
       <th>Ações</th>
-    </tr></thead><tbody id="tb-plan"></tbody></table></div>
+     </tr></thead><tbody id="tb-plan"></tbody></table></div>
+    </div>
+    <div class="card" style="margin-top:20px">
+     <div class="card-t">Concluídas</div>
+     <div class="tw"><table><thead><tr>
+      <th style="width:100px;min-width:100px">OS #</th>
+      <th>Sala</th><th>Máquina</th><th>Tipo</th><th>Prioridade</th>
+      <th>Prazo</th><th>Status</th><th>Ações</th>
+     </tr></thead><tbody id="tb-plan-concluidas"></tbody></table></div>
+    </div>
    </div>
 
    <!-- OS EXECUTADAS -->
@@ -182,8 +195,8 @@
      </select>
      <select id="fe-sl" onchange="renderExec()"><option value="">Todas as Salas</option></select>
      <select id="fe-mn" onchange="renderExec()"><option value="">Todos os Manut.</option></select>
-     <input type="date" id="fe-dt-ini" title="Data inicial" onchange="renderExec()">
-     <input type="date" id="fe-dt-fim" title="Data final" onchange="renderExec()">
+     <input type="hidden" id="fe-dt-ini"><input type="text" id="fe-dt-ini_disp" class="date-mask" title="Data inicial" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderExec()">
+     <input type="hidden" id="fe-dt-fim"><input type="text" id="fe-dt-fim_disp" class="date-mask" title="Data final" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderExec()">
     </div>
     <div class="tw"><table><thead><tr>
     <th class="sortable" id="sh-numero" onclick="sortExec('numero')" style="width:100px;min-width:100px">OS #</th>
@@ -216,7 +229,10 @@
     <div class="card">
      <div class="card-t">Tempo de Intervenção</div>
      <div class="fg-row fg-3">
-      <div class="fg"><label>Data</label><input type="date" id="ab-dt"></div>
+      <div class="fg"><label>Data</label>
+        <input type="hidden" id="ab-dt">
+        <input type="text" id="ab-dt_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)">
+      </div>
       <div class="fg"><label>Hora Início</label><input type="time" id="ab-in"></div>
       <div class="fg"><label>Hora Fim</label><input type="time" id="ab-fm"></div>
       <div class="fg"><label>Tempo de Parada (min)</label><input type="number" id="ab-parada" placeholder="0" min="0"></div>
@@ -231,7 +247,7 @@
       <div class="photo-zone" id="ab-photo-zone" onclick="document.getElementById('ab-photo-input').click()">
        <input type="file" id="ab-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this)">
        <div id="ab-photo-preview" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>
+        <span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>
        </div>
       </div>
      </div>
@@ -253,7 +269,7 @@
       <div class="fg"><label>Máquina / Ativo</label><select id="pl-mq"><option value="">Selecione a sala</option></select></div>
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
       <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Emergencial (Parada)</option><option value="2">🟡 2 – Urgente (Corretiva Programada)</option><option value="3">🔵 3 – Média (Preventiva)</option><option value="4">🟢 4 – Baixa (Melhoria)</option></select></div>
-      <div class="fg"><label>Prazo Limite</label><input type="date" id="pl-pz"></div>
+      <div class="fg"><label>Prazo Limite</label><input type="hidden" id="pl-pz"><input type="text" id="pl-pz_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)"></div>
       <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="10" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
      </div>
@@ -279,7 +295,7 @@
       <div class="fg fg-full"><label>Foto do Problema (opcional)</label>
         <div id="sol-photo-area" onclick="document.getElementById('sol-photo-input').click()" style="border:2px dashed var(--bord);border-radius:var(--rs);padding:14px;text-align:center;cursor:pointer;background:var(--surf2);display:flex;align-items:center;gap:14px;justify-content:center" onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--bord)'">
           <input type="file" id="sol-photo-input" accept="image/*" style="display:none" onchange="previewSolPhoto(this)">
-          <div id="sol-photo-preview"><span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span></div>
+          <div id="sol-photo-preview"><span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span></div>
         </div>
       </div>
      </div>
@@ -290,8 +306,8 @@
     </div>
       <div class="card">
       <div class="card-t" style="justify-content:space-between">
-        Solicitações Registradas
-        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:11px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer">
+        Solicitações Não Concluídas
+        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:13px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer">
           <option value="numero-desc">OS # ↓ (mais recente)</option>
           <option value="numero-asc">OS # ↑ (mais antiga)</option>
           <option value="prioridade-asc">Prioridade (crítica primeiro)</option>
@@ -301,6 +317,10 @@
       </div>
       <div id="sol-lista"></div>
     </div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-t">Solicitações Concluídas</div>
+      <div id="sol-lista-concluidas"></div>
+    </div>
     </div>
 
    <!-- INSPEÇÃO DIÁRIA -->
@@ -309,6 +329,7 @@
      <div class="pt"><small>Operação</small>Inspeção Diária</div>
      <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-sm btn-gh" onclick="gerarRel()">📋 Relatório WhatsApp</button>
+      <button class="btn btn-sm btn-gh" onclick="imprimirInspDiaria()">🖨️ Imprimir Ordem</button>
       <button class="btn btn-sm btn-p" onclick="salvarInsp()">💾 Salvar Inspeção</button>
      </div>
     </div>
@@ -316,7 +337,7 @@
     <div class="card" style="margin-bottom:14px">
      <div class="card-t">Dados da Inspeção</div>
      <div class="fg-row">
-      <div class="fg"><label>Data</label><input type="date" id="insp-dt"></div>
+      <div class="fg"><label>Data</label><input type="hidden" id="insp-dt"><input type="text" id="insp-dt_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)"></div>
       <div class="fg"><label>Turno</label><select id="insp-tn"><option>1º Turno</option><option>2º Turno</option><option>3º Turno</option></select></div>
       <div class="fg"><label>Horas do Turno</label><input type="number" id="insp-horas" value="10" min="1" max="24"></div>
       <div class="fg"><label>Manutentor</label><input type="text" id="insp-mn" placeholder="Nome"></div>
@@ -365,12 +386,15 @@
          <option>Semestral</option><option>Anual</option>
         </select>
        </div>
+       <div class="fg"><label>Modelo de Manutenção Padrão</label>
+        <select id="at-mmp"><option value="">Nenhum (seleciona manual na OS)</option></select>
+       </div>
        <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
       </div>
       <div class="card">
         <div class="card-t" style="justify-content:space-between">
           <span>Máquinas Cadastradas</span>
-          <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:12px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:160px">
+          <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:160px">
             <option value="">Todas as Salas</option>
           </select>
         </div>
@@ -398,64 +422,40 @@
       <div class="stats" id="salas-grid"></div>
     </div>
     
-   <!-- PÁGINA: INSPEÇÃO (templates - admin only) -->
-   <div class="pg" id="pg-inspecao-tmpl">
-    <div class="ph">
-     <div class="pt"><small>PCM · Qualidade</small>Templates de Inspeção</div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-gh" id="btn-insp-rota-print" onclick="imprimirInspecao('rota')">🖨️ Imprimir Rota</button>
-      <button class="btn btn-sm btn-gh" id="btn-insp-maq-print" onclick="imprimirInspecao('maquina')">🖨️ Imprimir Mecânica/Elétrica</button>
-     </div>
-    </div>
-    <div class="card">
-     <div class="card-t">Selecionar Template</div>
-     <div class="fg-row">
-      <div class="fg"><label>Tipo de Inspeção</label>
-       <select id="insp-tmpl-tipo" onchange="renderInspTmpl()">
-        <option value="rota">Inspeção de Rota</option>
-        <option value="maquina">Inspeção Mecânica / Elétrica</option>
-       </select>
-      </div>
-      <div class="fg"><label>Sala (filtro)</label>
-       <select id="insp-tmpl-sala" onchange="renderInspTmpl()">
-        <option value="">Todas as Salas</option>
-       </select>
-      </div>
-      <div class="fg"><label>Data</label><input type="date" id="insp-tmpl-dt"></div>
-      <div class="fg"><label>Manutentor</label><input type="text" id="insp-tmpl-mn" placeholder="Nome"></div>
-     </div>
-    </div>
-    <div id="insp-tmpl-body"></div>
-    <div class="fa">
-     <button class="btn btn-p" onclick="salvarInspTmpl()">💾 Salvar Inspeção</button>
-    </div>
-   </div>
-
    <!-- PÁGINA: PREVENTIVA (template - admin only) -->
    <div class="pg" id="pg-preventiva">
     <div class="ph">
      <div class="pt"><small>PCM · Manutenção</small>Ordem de Manutenção Preventiva</div>
-     <button class="btn btn-sm btn-gh" onclick="imprimirPreventiva()">🖨️ Imprimir Ordem</button>
+     <button class="btn btn-sm btn-gh" onclick="imprimirPreventiva()">🖨️ Imprimir Ordem de Manutenção Preventiva</button>
+     <button class="btn btn-sm btn-gh" onclick="imprimirInspecaoEquipamento()">🖨️ Imprimir Ordem de Inspeção de Equipamento</button>
     </div>
     <div class="card">
      <div class="card-t">Dados da Preventiva</div>
      <div class="fg-row">
+      <div class="fg"><label>Sala / Local</label>
+       <select id="prev-sala" onchange="filtrarPrevMaq()"><option value="">Todas as Salas</option></select>
+      </div>
       <div class="fg"><label>Máquina / Ativo</label>
-       <select id="prev-maq" onchange="carregarTarefasPreventiva()"><option value="">Selecione...</option></select>
+       <select id="prev-maq" onchange="selecionarPrevMaquina()"><option value="">Selecione...</option></select>
       </div>
-      <div class="fg"><label>Data Execução</label><input type="date" id="prev-dt"></div>
+      <div class="fg"><label>Modelo de Manutenção</label>
+       <select id="prev-modelo" onchange="carregarTarefasPreventiva()"><option value="">Selecione...</option></select>
+      </div>
+      <div class="fg"><label>Data Execução</label>
+        <input type="text" id="prev-dt_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)">
+        <input type="date" id="prev-dt" onchange="sv('prev-dt',this.value)" style="display:none">
+      </div>
       <div class="fg"><label>Manutentor</label><input type="text" id="prev-mn" placeholder="Nome"></div>
-      <div class="fg"><label>Periodicidade</label>
-       <select id="prev-periodo">
-        <option>Diária</option><option>Semanal</option><option>Mensal</option>
-        <option>Trimestral</option><option>Semestral</option><option>Anual</option>
-       </select>
-      </div>
      </div>
+     <div class="fg-row fg-3">
+      <div class="fg"><label>Hora Início</label><input type="time" id="prev-hi"></div>
+      <div class="fg"><label>Hora Fim</label><input type="time" id="prev-hf"></div>
+     </div>
+     <input type="hidden" id="prev-periodo" value="Mensal">
     </div>
     <div id="prev-body"></div>
     <div class="fa">
-     <button class="btn btn-p" onclick="salvarPreventiva()">💾 Salvar Preventiva</button>
+     <button class="btn btn-p" onclick="salvarPreventiva()" style="display:none">💾 Salvar Preventiva</button>
     </div>
    </div>
 
@@ -516,7 +516,7 @@
  <div id="mc-inf"></div>
  <div class="fg-row" style="margin-top:14px">
   <div class="fg"><label>Manutentor</label><input type="text" id="mc-mn" placeholder="Nome"></div>
-  <div class="fg"><label>Data</label><input type="date" id="mc-dt"></div>
+  <div class="fg"><label>Data</label><input type="hidden" id="mc-dt"><input type="text" id="mc-dt_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)"></div>
   <div class="fg"><label>Hora Início</label><input type="time" id="mc-in"></div>
   <div class="fg"><label>Hora Fim</label><input type="time" id="mc-fm"></div>
   <div class="fg"><label>Tempo de Parada (min)</label><input type="number" id="mc-parada" placeholder="0" min="0"></div>
@@ -561,7 +561,8 @@
         </div>
         <div class="fg">
           <label>DATA</label>
-          <input type="date" id="racr-data">
+          <input type="hidden" id="racr-data">
+          <input type="text" id="racr-data_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)">
         </div>
         <div class="fg">
           <label>HORA DA PARADA</label>
@@ -671,7 +672,6 @@
   <script src="js/usuarios.js"></script>
   <script src="js/preventiva.js"></script>
   <script src="js/racr.js"></script>
-  <script src="js/inspecao-template.js"></script>
   <script src="js/modulo-compras-solicitacao.js"></script>
   <script src="js/modulo-compras-acompanhamento.js"></script>
   
@@ -783,7 +783,6 @@ const NAV = [
       { id:'compras-acompanhamento', ic:'📦', lbl:'Acompanhamento de Compras'},
       { id:'planejamento',           ic:'📋', lbl:'Planejamento de O.S.' },
       { id:'analise-causa-raiz',     ic:'📊', lbl:'Análise Causa Raiz'},
-      { id:'inspecao-tmpl',          ic:'📄', lbl:'Inspeção de Rota'   },
       { id:'preventiva',             ic:'🔩', lbl:'Manutenção Preventiva'},      
     ]
   },
@@ -797,7 +796,7 @@ const LBLS = {
   abertura:'Abertura de O.S.', planejamento:'PCM — Planejamento de O.S.',
   'analise-causa-raiz':'PCM — Análise de Causa Raiz',
   solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
-  ativos:'Ativos', usuarios:'Usuários', 'inspecao-tmpl':'PCM — Templates de Inspeção',
+  ativos:'Ativos', usuarios:'Usuários',
   preventiva:'PCM — Manutenção Preventiva',
   'compras-solicitacao':'PCM — Solicitação de Compras',
   'compras-acompanhamento':'PCM — Acompanhamento de Compras'
@@ -888,7 +887,6 @@ function showPage(pid) {
   if (pid === 'ativos')      { renderAtivos();  apiLoadAll(true).then(renderAtivos).catch(()=>showToast('Erro ao sincronizar Ativos.','er')); }
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      buildInsp();
-  if (pid === 'inspecao-tmpl') initInspTmpl();
   if (pid === 'preventiva')    initPreventiva();
   if (pid === 'analise-causa-raiz') { renderRACR(); apiLoadAll(true).then(renderRACR).catch(()=>{}); }
   if (pid === 'abertura') {
@@ -997,7 +995,7 @@ function previewPhoto(input) {
       const prev = document.getElementById('ab-photo-preview');
       prev.innerHTML = `
         <img src="${dataUrl}" class="photo-thumb" alt="Foto OS">
-        <div style="font-size:12px;color:var(--txt2)">
+        <div style="font-size:14px;color:var(--txt2)">
           <strong>${file.name}</strong><br>
           <span style="color:var(--txt3)">${byteSize} KB (redimensionado)</span><br>
           <button class="btn btn-sm" onclick="removePhoto(event)"
@@ -1019,7 +1017,7 @@ function removePhoto(e) {
   e.stopPropagation();
   _photoFile = null; _photoBase64 = null;
   document.getElementById('ab-photo-input').value = '';
-  document.getElementById('ab-photo-preview').innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
+  document.getElementById('ab-photo-preview').innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
 }
 
 async function uploadFotoOS(numero) {

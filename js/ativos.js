@@ -2,24 +2,24 @@
    SIGMAN — ATIVOS
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
-
 let _editType=null,_editIdx=null;
 
 function renderAtivos() {
   populateAtMaqSala();
+  popularModeloPadraoSelect();
+
   // Salas em ordem alfabética
   document.getElementById('at-sl').innerHTML = db.salas.length===0
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
     : [...db.salas].sort().map((s,i)=>`
-        <div class="edit-row">
-          <span style="font-size:13px;font-weight:500">${s}</span>
-          <div class="edit-acts">
-            <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
-            <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
-          </div>
-        </div>`).join('');
+      <div class="edit-row">
+        <span style="font-size:15px;font-weight:500">${s}</span>
+        <div class="edit-acts">
+          <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
+          <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
+        </div>
+      </div>`).join('');
 
-  // Máquinas agrupadas por sala e em ordem alfabética
   // Popula e aplica filtro de sala nas máquinas
   const filSel = document.getElementById('at-ml-fil');
   if (filSel) {
@@ -35,19 +35,20 @@ function renderAtivos() {
     .filter(m => !filSala || m.sala === filSala)
     .sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
       if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
-    });  
+    });
+
   document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
       ${bySala[sala].map((m,_i)=>{
         const gi=db.maquinas.indexOf(m);
         const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
-            <div style="font-size:13px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:10px;color:var(--txt3)">${m.tag}</span>`:''}</div>
-            <div style="font-size:11px;color:var(--txt3)">
+            <div style="font-size:15px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:11px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+            <div style="font-size:13px;color:var(--txt3)">
               Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
-              Preventiva: ${m.periodicidade||'—'}
+              Preventiva: ${m.periodicidade||'—'}${m.modeloPadrao?` | Modelo: <span style="color:var(--txt2)">${m.modeloPadrao}</span>`:''}
             </div>
           </div>
           <div class="edit-acts">
@@ -57,30 +58,39 @@ function renderAtivos() {
         </div>`;
       }).join('')}
     </div>`).join('');
-  
+
   // Gráfico de criticidade
   renderCritChart();
 }
+
+async function popularModeloPadraoSelect() {
+  const sel = document.getElementById('at-mmp');
+  if (!sel) return;
+  const cur = sel.value;
+  try {
+    if (!PREV_MODELOS_CACHE) PREV_MODELOS_CACHE = await apiGet({ action: 'planos_list' });
+    sel.innerHTML = '<option value="">Nenhum (seleciona manual na OS)</option>' +
+      PREV_MODELOS_CACHE.map(n=>`<option value="${n}">${n}</option>`).join('');
+    if (cur) sel.value = cur;
+  } catch(e) { /* silencioso — não bloqueia a página de Ativos por causa do modelo */ }
+}
+
 function renderCritChart() {
   const cont = document.getElementById('at-crit-chart');
   if (!cont) return;
-
   const counts = {'1':0,'2':0,'3':0,'4':0};
   db.maquinas.forEach(m => {
     const k = {Alta:'2',Média:'3',Baixa:'4'}[m.criticidade] || m.criticidade;
     if (counts[k] !== undefined) counts[k]++;
   });
-
   const total = db.maquinas.length;
   if (!total) {
-    cont.innerHTML = '<div style="text-align:center;color:var(--txt3);padding:20px;font-size:12px">Nenhuma máquina cadastrada</div>';
+    cont.innerHTML = '<div style="text-align:center;color:var(--txt3);padding:20px;font-size:14px">Nenhuma máquina cadastrada</div>';
     return;
   }
-
   const colors = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988'};
   const labels = {'1':'1 – Crítico','2':'2 – Alta','3':'3 – Média','4':'4 – Baixa'};
 
-  // ── Donut ──────────────────────────────────────────────────
   const sz = 108, r = 36, cx = 54, cy = 54, sw = 15;
   const circ = 2 * Math.PI * r;
   let offset = 0, arcs = '';
@@ -96,26 +106,24 @@ function renderCritChart() {
     offset += dash;
   });
 
-  // Legenda ao lado do donut — sempre em coluna vertical
   const legendaHtml = entries.map(([k, n]) => `
     <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
       <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-      <span style="font-size:11px;font-weight:700;color:var(--txt2)">${k}</span>
-      <span style="font-size:11px;color:var(--txt3)">${Math.round(n/total*100)}%</span>
+      <span style="font-size:13px;font-weight:700;color:var(--txt2)">${k}</span>
+      <span style="font-size:13px;color:var(--txt3)">${Math.round(n/total*100)}%</span>
     </div>`).join('');
 
-  // ── Barras verticais ──────────────────────────────────────
   const allBars = [...Object.entries(counts), ['T', total]];
   const barCols = {'1':'#ff2244','2':'#f59e0b','3':'#4096ff','4':'#1fd988','T':'#999999'};
   const barLbls = {'1':'1','2':'2','3':'3','4':'4','T':'Total'};
-  const maxVal  = Math.max(...allBars.map(([,n]) => n), 1);
-  const chartH  = 90, barW = 26, gap = 10, startX = 10, topPad = 16;
-  const svgW    = startX * 2 + allBars.length * (barW + gap);
-  let barsSvg   = '';
+  const maxVal = Math.max(...allBars.map(([,n]) => n), 1);
+  const chartH = 90, barW = 26, gap = 10, startX = 10, topPad = 16;
+  const svgW = startX * 2 + allBars.length * (barW + gap);
+  let barsSvg = '';
   allBars.forEach(([k, n], i) => {
-    const x  = startX + i * (barW + gap);
+    const x = startX + i * (barW + gap);
     const bh = Math.max(6, Math.round((n / maxVal) * chartH));
-    const y  = chartH - bh + topPad;
+    const y = chartH - bh + topPad;
     barsSvg += `
       <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3"
         fill="${barCols[k]}" opacity="0.88"/>
@@ -127,10 +135,9 @@ function renderCritChart() {
 
   cont.innerHTML = `
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:nowrap;overflow-x:auto">
-      <!-- Donut + Legenda sempre lado a lado -->
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
         <div style="text-align:center">
-          <div style="font-size:10px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:4px">Visão Geral</div>
+          <div style="font-size:11px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:4px">Visão Geral</div>
           <svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">
             <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surf3)" stroke-width="${sw}"/>
             ${arcs}
@@ -138,23 +145,19 @@ function renderCritChart() {
               font-size="16" font-weight="800" fill="var(--txt)" font-family="var(--fw)">${total}</text>
           </svg>
         </div>
-        <!-- Legenda fica colada à direita do donut, nunca vai para baixo -->
         <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
           ${legendaHtml}
         </div>
       </div>
-
-      <!-- Barras -->
       <div style="flex:1;min-width:160px">
-        <div style="font-size:10px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:6px">Quantidade da Distribuição</div>
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);font-variant:small-caps;letter-spacing:.8px;margin-bottom:6px">Quantidade da Distribuição</div>
         <svg width="100%" height="${chartH + topPad + 18}" viewBox="0 0 ${svgW} ${chartH + topPad + 18}" preserveAspectRatio="xMidYMid meet">
           ${barsSvg}
         </svg>
       </div>
-
     </div>`;
 }
-  
+
 function addSala() {
   const nome = v('at-sn').trim().toUpperCase();
   if (!nome) { showToast('Informe o nome da sala.'); return; }
@@ -167,16 +170,17 @@ function addSala() {
   renderAtivos();
   apiAppend('salas', { Nome: nome, Ativo: 'sim', Criado_Em: new Date().toISOString() });
 }
-  
+
 function addMaq() {
   const sala=v('at-ms'), nome=v('at-mn').trim().toUpperCase(),
-        tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal';
+  tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal',
+  modeloPadrao=v('at-mmp')||'';
   if(!sala||!nome){showToast('Selecione sala e informe o nome.');return;}
-  db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per});
+  db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per,modeloPadrao});
   db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
   saveDB(); sv('at-mn',''); sv('at-mt',''); populateAll(); renderAtivos();
   apiAppend('maquinas',{ID_Maquina:(sala+'_'+nome).replace(/\s+/g,'_'),Sala:sala,Nome:nome,Tag:tag,
-    Criticidade:crit,Periodicidade_Preventiva:per,Descricao:'',Ativo:'sim',Criado_Em:new Date().toISOString()});
+  Criticidade:crit,Periodicidade_Preventiva:per,ModeloPadrao:modeloPadrao,Descricao:'',Ativo:'sim',Criado_Em:new Date().toISOString()});
 }
 
 function delSala(nome) {
@@ -226,6 +230,9 @@ function openEdit(type,idx) {
           <option${m.periodicidade==='Semestral'?' selected':''}>Semestral</option>
           <option${m.periodicidade==='Anual'?' selected':''}>Anual</option>
         </select>
+      </div>
+      <div class="fg"><label>Modelo de Manutenção Padrão</label>
+        <select id="me-mp">${['<option value="">Nenhum</option>'].concat((PREV_MODELOS_CACHE||[]).map(n=>`<option value="${n}"${n===m.modeloPadrao?' selected':''}>${n}</option>`)).join('')}</select>
       </div>`;
   } else if(type==='plan') {
     // editarPlan já preenche me-b antes de abrir
@@ -243,36 +250,35 @@ function salvarEdit() {
   } else if(_editType==='maq') {
     const old=db.maquinas[_editIdx];
     const nv={nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
-               criticidade:v('me-crit'),periodicidade:v('me-per')};
+    criticidade:v('me-crit'),periodicidade:v('me-per'),modeloPadrao:v('me-mp')||''};
     db.maquinas[_editIdx]=nv;
     db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
     saveDB();populateAll();renderAtivos();closeM('m-edit');
     apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
-      Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade});
+    Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade,ModeloPadrao:nv.modeloPadrao});
   } else if(_editType==='plan') {
     const p = db.planejadas.find(x => x.numero === _editIdx);
     if (!p) return;
-    p.sala       = v('ep-sala')   || p.sala;
-    p.maq        = v('ep-maq')    || p.maq;
-    p.tipo       = v('ep-tipo')   || p.tipo;
-    p.prioridade = v('ep-prio')   || p.prioridade;
-    p.prazo      = v('ep-prazo')  || p.prazo;
+    p.sala = v('ep-sala') || p.sala;
+    p.maq = v('ep-maq') || p.maq;
+    p.tipo = v('ep-tipo') || p.tipo;
+    p.prioridade = v('ep-prio') || p.prioridade;
+    p.prazo = v('ep-prazo') || p.prazo;
     p.horasTurno = parseInt(v('ep-horas')) || p.horasTurno;
-    p.status     = v('ep-status') || p.status;
-    p.desc       = v('ep-desc');
+    p.status = v('ep-status') || p.status;
+    p.desc = v('ep-desc');
     logEdit('Editou Planejada', p.numero,
       `${p.sala} · ${p.maq} · Status: ${p.status} · Prazo: ${p.prazo}`);
     saveDB(); renderPlan(); closeM('m-edit');
     apiUpdate('planejadas', p.numero, 'PL_Numero', {
-      Sala:               p.sala,
-      Maquina:            p.maq,
-      Tipo:               p.tipo,
-      Prioridade:         p.prioridade,
-      Prazo_Limite:       p.prazo,
-      Horas_Turno:        p.horasTurno,
-      Status:             p.status,
+      Sala: p.sala,
+      Maquina: p.maq,
+      Tipo: p.tipo,
+      Prioridade: p.prioridade,
+      Prazo_Limite: p.prazo,
+      Horas_Turno: p.horasTurno,
+      Status: p.status,
       Descricao_Planejada:p.desc
     });
   }
 }
-   

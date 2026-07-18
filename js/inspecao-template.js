@@ -1,16 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════
    SIGMAN — TEMPLATES DE INSPEÇÃO (admin)
    Muffato Foods
+   Inspeção de Rota foi descontinuada (16/07/2026) — só Mecânica/Elétrica.
    ══════════════════════════════════════════════════════════════════ */
-
-// Estrutura PCM de inspeção de rota e mecânica/elétrica
-const INSP_ROTA_ITEMS = [
-  {sistema:'Elétrico',    itens:['Disjuntores e fusíveis','Quadros elétricos (CCM)','Iluminação','Tomadas e extensões','Cabos e calhas (integridade)']},
-  {sistema:'Utilidades',  itens:['Pressão do compressor','Temperatura do compressor','Nível de óleo compressor','Filtros de ar (estado)','Vazamentos de ar']},
-  {sistema:'Esteiras',    itens:['Tensão da correia/corrente','Alinhamento','Desgaste','Rolamentos (ruído/vibração)','Proteções mecânicas']},
-  {sistema:'Pneumático',  itens:['Pressão da linha','Filtros reguladores','Vazamentos','Cilindros (fixação/estado)']},
-  {sistema:'Segurança',   itens:['Botões de emergência','Proteções de máquinas','Sinalização de segurança','EPI disponíveis no posto']}
-];
 
 const INSP_MAQ_ITEMS = [
   {sistema:'Mecânico',    itens:['Fixação e alinhamento geral','Correntes / correias / polias','Rolamentos (temperatura, vibração, ruído)','Vedações e gaxetas','Folgas e desgastes','Lubrificação (nível e estado)']},
@@ -28,24 +20,19 @@ function initInspTmpl() {
 }
 
 function renderInspTmpl() {
-  const tipo = v('insp-tmpl-tipo');
   const sala = v('insp-tmpl-sala');
-  const items = tipo === 'rota' ? INSP_ROTA_ITEMS : INSP_MAQ_ITEMS;
+  const items = INSP_MAQ_ITEMS;
 
-  // Para inspeção de máquinas, lista as máquinas da sala selecionada
-  let maqSelect = '';
-  if (tipo === 'maquina') {
-    const maqsFiltradas = sala ? db.maquinas.filter(m=>m.sala===sala) : db.maquinas;
-    maqSelect = `<div class="card" style="margin-bottom:10px">
-      <div class="card-t">Máquina Inspecionada</div>
-      <div class="fg"><label>Selecione a Máquina</label>
-        <select id="insp-tmpl-maq">
-          <option value="">Selecione...</option>
-          ${maqsFiltradas.sort((a,b)=>a.nome.localeCompare(b.nome)).map(m=>`<option value="${m.sala}|${m.nome}|${m.tag}">${m.nome} (${m.sala})${m.tag?' – '+m.tag:''}</option>`).join('')}
-        </select>
-      </div>
-    </div>`;
-  }
+  const maqsFiltradas = sala ? db.maquinas.filter(m=>m.sala===sala) : db.maquinas;
+  const maqSelect = `<div class="card" style="margin-bottom:10px">
+    <div class="card-t">Máquina Inspecionada</div>
+    <div class="fg"><label>Selecione a Máquina</label>
+      <select id="insp-tmpl-maq">
+        <option value="">Selecione...</option>
+        ${maqsFiltradas.sort((a,b)=>a.nome.localeCompare(b.nome)).map(m=>`<option value="${m.sala}|${m.nome}|${m.tag}">${m.nome} (${m.sala})${m.tag?' – '+m.tag:''}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
 
   const body = `${maqSelect}${items.map((grp,gi)=>`
     <div class="card" style="margin-bottom:10px">
@@ -75,39 +62,31 @@ function setItmStatus(id, st, btn) {
 }
 
 async function salvarInspTmpl() {
-  const tipo=v('insp-tmpl-tipo'),data=v('insp-tmpl-dt'),manut=v('insp-tmpl-mn').trim();
+  const data=v('insp-tmpl-dt'),manut=v('insp-tmpl-mn').trim();
   if(!data||!manut){showToast('Informe data e manutentor.');return;}
-  const items=tipo==='rota'?INSP_ROTA_ITEMS:INSP_MAQ_ITEMS;
+  const items=INSP_MAQ_ITEMS;
   const agora=new Date().toISOString();
-  let maqInfo={sala:'',nome:'',tag:''};
-  if(tipo==='maquina'){const mv=v('insp-tmpl-maq').split('|');maqInfo={sala:mv[0]||'',nome:mv[1]||'',tag:mv[2]||''};}
+  const mv=v('insp-tmpl-maq').split('|');
+  const maqInfo={sala:mv[0]||'',nome:mv[1]||'',tag:mv[2]||''};
   items.forEach((grp,gi)=>{
     grp.itens.forEach((item,ii)=>{
       const hid=document.getElementById('itst-'+gi+'-'+ii);
       const st=hid?hid.value:'';
       const val=v('itval-'+gi+'-'+ii);
       const obs=v('itobs-'+gi+'-'+ii);
-      if(tipo==='rota'){
-        apiAppend('insp_rota',{ID:agora,Data:data,Turno: v('insp-tmpl-tn')||'',Manutentor:manut,
-          Sala:maqInfo.sala||v('insp-tmpl-sala')||'',Ponto_Inspecao:grp.sistema,Item:item,
-          Status:st,Hora:'',Valor_Medido:val,Limite_Min:'',Limite_Max:'',
-          Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
-      } else {
-        apiAppend('insp_maquina',{ID:agora,Data:data,Maquina:maqInfo.nome,Tag:maqInfo.tag,
-          Manutentor:manut,Sistema:grp.sistema,Item_Verificado:item,Status:st,
-          Valor_Medido:val,Unidade:'',Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
-      }
+      apiAppend('insp_maquina',{ID:agora,Data:data,Maquina:maqInfo.nome,Tag:maqInfo.tag,
+        Manutentor:manut,Sistema:grp.sistema,Item_Verificado:item,Status:st,
+        Valor_Medido:val,Unidade:'',Observacoes:obs,Acao_Necessaria:'',Criado_Em:agora});
     });
   });
   showToast('Inspeção salva no banco de dados!');
 }
 
-function imprimirInspecao(tipo) {
+function imprimirInspecao() {
   const data=v('insp-tmpl-dt')||today(), manut=v('insp-tmpl-mn')||'_______________';
   const sala=v('insp-tmpl-sala')||'Todas as Salas';
-  const titulo = tipo==='rota' ? 'INSPEÇÃO DE ROTA' : 'INSPEÇÃO MECÂNICA E ELÉTRICA';
-  const items  = tipo==='rota' ? INSP_ROTA_ITEMS : INSP_MAQ_ITEMS;
-  const maqList= tipo==='maquina' ? [...db.maquinas].filter(m=>!v('insp-tmpl-sala')||m.sala===v('insp-tmpl-sala')).sort((a,b)=>a.nome.localeCompare(b.nome)) : [];
+  const titulo = 'INSPEÇÃO MECÂNICA E ELÉTRICA';
+  const items  = INSP_MAQ_ITEMS;
 
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -142,7 +121,7 @@ function imprimirInspecao(tipo) {
     <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(data)}</div></div>
     <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${manut}</div></div>
     <div class="info-box"><div class="info-label">Sala / Área</div><div class="info-val">${sala}</div></div>
-    ${tipo==='maquina'?`<div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${v('insp-tmpl-maq').split('|')[1]||'_______________'}</div></div>`:''}
+    <div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${v('insp-tmpl-maq').split('|')[1]||'_______________'}</div></div>
   </div>
   ${items.map(grp=>`
   <h2>● ${grp.sistema}</h2>
@@ -162,4 +141,3 @@ function imprimirInspecao(tipo) {
   <script>window.print();<\/script></body></html>`);
   win.document.close();
 }
-   

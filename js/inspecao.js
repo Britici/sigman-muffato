@@ -187,11 +187,11 @@ function mostrarInspRel(sorted,idx) {
   const insp=sorted[idx];
   const nav=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx-1})" ${idx===0?'disabled':''}>◀ Anterior</button>
-    <span style="font-size:12px;color:var(--txt3)">${idx+1} de ${sorted.length}</span>
+    <span style="font-size:14px;color:var(--txt3)">${idx+1} de ${sorted.length}</span>
     <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx+1})" ${idx===sorted.length-1?'disabled':''}>Próxima ▶</button>
   </div>`;
   document.getElementById('m-rel-b').innerHTML='';
-  const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:var(--fm);font-size:11px;color:var(--txt2);line-height:1.9';
+  const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font-family:var(--fm);font-size:13px;color:var(--txt2);line-height:1.9';
   pre.textContent=gerarTextoRel(insp);
   document.getElementById('m-rel-b').innerHTML=nav;
   document.getElementById('m-rel-b').appendChild(pre);
@@ -233,7 +233,7 @@ function imprimirInspDiaria() {
   let linhas = '';
   if (isHierarquico) {
     insp.itens.forEach(sec => {
-      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:11px;padding:5px 8px;border-left:3px solid #C41230">● ${sec.sala}</td></tr>`;
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${sec.sala}</td></tr>`;
       (sec.equips || []).forEach(eq => {
         if (!eq.status) return;
         const stOk  = eq.status === 'ok';
@@ -247,10 +247,10 @@ function imprimirInspDiaria() {
           if (!s.status) return;
           const sOk = s.status === 'ok';
           linhas += `<tr style="background:#fafafa">
-            <td style="padding-left:28px;font-size:10px;color:#444">↳ ${s.nome}</td>
+            <td style="padding-left:28px;font-size:11px;color:#444">↳ ${s.nome}</td>
             <td style="text-align:center">${sOk ? '✔' : ''}</td>
             <td style="text-align:center">${!sOk ? '✘' : ''}</td>
-            <td style="font-size:10px">${s.hora||''}${s.obs?' — '+s.obs:''}</td>
+            <td style="font-size:11px">${s.hora||''}${s.obs?' — '+s.obs:''}</td>
           </tr>`;
         });
       });
@@ -262,7 +262,7 @@ function imprimirInspDiaria() {
       bySala[item.sala].push(item);
     });
     Object.entries(bySala).forEach(([sala, items]) => {
-      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:11px;padding:5px 8px;border-left:3px solid #C41230">● ${sala}</td></tr>`;
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${sala}</td></tr>`;
       items.forEach(item => {
         if (!item.status) return;
         const stOk = item.status === 'ok';
@@ -282,29 +282,29 @@ function imprimirInspDiaria() {
   <title>INSPEÇÃO DIÁRIA</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:15mm}
+    body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:15mm}
     .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
     .header-left{display:flex;align-items:center;gap:12px}
     .header-left img{height:44px;object-fit:contain}
-    h1{font-size:15px;color:#C41230;margin-bottom:2px}
+    h1{font-size:17px;color:#C41230;margin-bottom:2px}
     .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
     .info-box{border:1px solid #ccc;border-radius:3px;padding:5px 8px}
-    .info-label{font-size:9px;color:#666;text-transform:uppercase}
-    .info-val{font-size:12px;font-weight:bold}
+    .info-label{font-size:10px;color:#666;text-transform:uppercase}
+    .info-val{font-size:14px;font-weight:bold}
     table{width:100%;border-collapse:collapse;margin-bottom:12px}
-    th{background:#C41230;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    th{background:#C41230;color:#fff;padding:6px 8px;text-align:left;font-size:11px}
     td{padding:5px 8px;border:1px solid #ddd;vertical-align:middle}
     tr:nth-child(even) td{background:#fafafa}
-    .assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:9px}
+    .assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:10px}
     @media print{body{padding:10mm}}
   </style></head><body>
   <div class="header">
     <div class="header-left">
       <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" alt="Muffato Foods">
-      <div><div style="font-weight:bold;font-size:13px">MUFFATO FOODS</div><div style="font-size:10px;color:#666">Gestão de Manutenção — SIGMAN</div></div>
+      <div><div style="font-weight:bold;font-size:15px">MUFFATO FOODS</div><div style="font-size:11px;color:#666">Gestão de Manutenção — SIGMAN</div></div>
     </div>
     <div style="text-align:center"><h1>INSPEÇÃO DIÁRIA</h1></div>
-    <div style="text-align:right;font-size:9px;color:#666">Doc: SIGMAN-INSP<br>Rev: 01</div>
+    <div style="text-align:right;font-size:10px;color:#666">Doc: SIGMAN-INSP<br>Rev: 01</div>
   </div>
   <div class="info-grid">
     <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(insp.data)}</div></div>

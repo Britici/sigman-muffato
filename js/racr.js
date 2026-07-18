@@ -23,8 +23,10 @@ function abrirNovoRACR() {
   .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   // Data e hora atuais
   const dtEl = document.getElementById('racr-data');
+  const dtDispEl = document.getElementById('racr-data_disp');
   const hrEl = document.getElementById('racr-hora');
   if (dtEl) { dtEl.value = today(); dtEl.removeAttribute('readonly'); }
+  if (dtDispEl) { dtDispEl.value = fd(today()); dtDispEl.removeAttribute('readonly'); }
   if (hrEl) { hrEl.value = new Date().toTimeString().slice(0,5); hrEl.removeAttribute('readonly'); }
   openM('mb-racr');
 }
@@ -136,21 +138,21 @@ function imprimirRACR() {
   <title>RACR — ${dados?.maquina || ''}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:11px;color:#000;padding:12mm 15mm}
-    h1{font-size:16px;font-weight:800;margin-bottom:2px}
-    h2{font-size:12px;font-weight:700;background:#C41230;color:#fff;padding:4px 8px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px}
-    .sub{font-size:10px;color:#555;margin-bottom:10px}
+    body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:12mm 15mm}
+    h1{font-size:18px;font-weight:800;margin-bottom:2px}
+    h2{font-size:14px;font-weight:700;background:#C41230;color:#fff;padding:4px 8px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+    .sub{font-size:11px;color:#555;margin-bottom:10px}
     .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
     .row.two{grid-template-columns:1fr 1fr}
     .row.one{grid-template-columns:1fr}
-    .field label{font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:1px}
-    .field p{border-bottom:1px solid #ccc;min-height:18px;padding:2px 0;font-size:11px}
+    .field label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:1px}
+    .field p{border-bottom:1px solid #ccc;min-height:18px;padding:2px 0;font-size:13px}
     .why{counter-reset:why}
     .why-item{display:flex;gap:8px;margin-bottom:5px;align-items:flex-start}
-    .why-num{background:#C41230;color:#fff;font-weight:700;font-size:10px;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .why-num{background:#C41230;color:#fff;font-weight:700;font-size:11px;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .why-line{flex:1;border-bottom:1px solid #ccc;min-height:16px;padding:2px 0}
     .assinaturas{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:14px}
-    .ass{border-top:1px solid #000;padding-top:4px;font-size:10px;text-align:center}
+    .ass{border-top:1px solid #000;padding-top:4px;font-size:11px;text-align:center}
     .logo-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:2px solid #C41230;padding-bottom:6px}
     @media print{body{padding:8mm 10mm}}
   </style>
@@ -262,6 +264,7 @@ function verRACR(id) {
   setVal('racr-equip',    r.maquina);
   setVal('racr-sala',     r.sala);
   setVal('racr-data',     r.dataAbertura);
+  setVal('racr-data_disp', fd(r.dataAbertura) === '—' ? '' : fd(r.dataAbertura));
   setVal('racr-hora',     '');
   setVal('racr-falha',    r.falha);
   setVal('racr-causa',    r.causaRaiz);

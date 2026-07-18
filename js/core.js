@@ -4,45 +4,45 @@
    ORDEM DE CARREGAMENTO: este arquivo deve vir ANTES do script
    principal no index.html.
    ══════════════════════════════════════════════════════════════════ */
-   
-const API_URL    = 'https://script.google.com/macros/s/AKfycbwzcntvx4_QfBYotW2Sz2H8TiwprqkmAyWolYlbIeCfTR2Uhj2VIgVC7Mun1mTaFXohuA/exec';
-const USE_API    = true;   // false = modo offline (só localStorage)
-const POLL_MS    = 180000;  // Atualização automática a cada 3 minutos
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbwzcntvx4_QfBYotW2Sz2H8TiwprqkmAyWolYlbIeCfTR2Uhj2VIgVC7Mun1mTaFXohuA/exec';
+const USE_API = true; // false = modo offline (só localStorage)
+const POLL_MS = 180000; // Atualização automática a cada 3 minutos
 
 // ══════════════════════════════════════════════════════════════════════
 // TEMPLATE DE INSPEÇÃO DIÁRIA (Equipamentos por Sala)
 // ══════════════════════════════════════════════════════════════════════
 const INSP_TMPL = [
-  {"sala":"UTILIDADES",             "equips":[{"id":"DISJUNTORES","nome":"DISJUNTORES CCM","subs":[]}]},
-  {"sala":"PIZZA",                  "equips":[{"id":"PIZZA_LINHA","nome":"LINHA DE PRODUÇÃO","subs":[]}]},
-  {"sala":"LÁCTEOS",                "equips":[
+  {"sala":"UTILIDADES", "equips":[{"id":"DISJUNTORES","nome":"DISJUNTORES CCM","subs":[]}]},
+  {"sala":"PIZZA", "equips":[{"id":"PIZZA_LINHA","nome":"LINHA DE PRODUÇÃO","subs":[]}]},
+  {"sala":"LÁCTEOS", "equips":[
     {"id":"LACTEOS_W905","nome":"FATIADORA WEBER 905","subs":[]},
     {"id":"LACTEOS_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
       {"id":"LACTEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"LACTEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"CÁRNEOS",                "equips":[
+  {"sala":"CÁRNEOS", "equips":[
     {"id":"CARNEOS_W405","nome":"FATIADORA WEBER 405","subs":[]},
     {"id":"CARNEOS_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
       {"id":"CARNEOS_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"CARNEOS_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"DEFUMADOS",               "equips":[
+  {"sala":"DEFUMADOS", "equips":[
     {"id":"DEFUM_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
       {"id":"DEFUM_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"DEFUM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"BACALHAU",               "equips":[
+  {"sala":"BACALHAU", "equips":[
     {"id":"BAC_SERRA","nome":"SERRA FITA MONTEMIL","subs":[]},
     {"id":"BAC_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
       {"id":"BAC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
       {"id":"BAC_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"LINGUIÇAS",               "equips":[
+  {"sala":"LINGUIÇAS", "equips":[
     {"id":"LING_ELEV","nome":"ELEVADOR SULMAQ","subs":[]},
     {"id":"LING_HAND","nome":"EMBUTIDEIRA HANDTMANN VF 612","subs":[]},
     {"id":"LING_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
@@ -50,7 +50,7 @@ const INSP_TMPL = [
       {"id":"LING_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"SALMOURAS",               "equips":[
+  {"sala":"SALMOURAS", "equips":[
     {"id":"SALM_BAL","nome":"BALANÇA","subs":[]},
     {"id":"SALM_EKO","nome":"MISTURADOR DE MASSA EKOMEX","subs":[]},
     {"id":"SALM_MAX","nome":"MOEDOR MAXMAC","subs":[]},
@@ -58,7 +58,7 @@ const INSP_TMPL = [
     {"id":"SALM_INJ","nome":"INJETORA HENNEKEN","subs":[]},
     {"id":"SALM_SAL","nome":"SALMOURA HENNEKEN","subs":[]}
   ]},
-  {"sala":"TEMPERADOS",             "equips":[
+  {"sala":"TEMPERADOS", "equips":[
     {"id":"TEMP_DVAC","nome":"DUPLAVAC SELOVAC","subs":[]},
     {"id":"TEMP_TUM","nome":"TUMBLER MAXMAC","subs":[]},
     {"id":"TEMP_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
@@ -66,7 +66,7 @@ const INSP_TMPL = [
       {"id":"TEMP_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"PORCIONAMENTO",          "equips":[
+  {"sala":"PORCIONAMENTO", "equips":[
     {"id":"PORC_FAT","nome":"FATIADORA DADAUX","subs":[]},
     {"id":"PORC_ULMA","nome":"TERMOFORMADORA ULMA","subs":[
       {"id":"PORC_ULMA_VAC","nome":"TESTE DE VÁCUO"},
@@ -74,7 +74,7 @@ const INSP_TMPL = [
     ]}
   ]},
   {"sala":"CORREDOR PORCIONAMENTO", "equips":[{"id":"CORR_BAL","nome":"BALANÇA","subs":[]}]},
-  {"sala":"CARNE MOÍDA",            "equips":[
+  {"sala":"CARNE MOÍDA", "equips":[
     {"id":"CM_MOE","nome":"MISTURADOR DE MASSA EKOMEX","subs":[]},
     {"id":"CM_HAND","nome":"EMBUTIDEIRA HANDTMANN VF 620","subs":[]},
     {"id":"CM_GMD","nome":"PORCIONADORA HANDTMANN GMD 99-2","subs":[]},
@@ -85,7 +85,7 @@ const INSP_TMPL = [
       {"id":"CM_ULMA_IMP","nome":"TESTE DE IMPRESSORA"}
     ]}
   ]},
-  {"sala":"DESOSSA",                "equips":[
+  {"sala":"DESOSSA", "equips":[
     {"id":"DES_SERRA3","nome":"SERRA FITA ESTEIRA 3","subs":[]},
     {"id":"DES_SERRACIRC","nome":"SERRA CIRCULAR","subs":[]},
     {"id":"DES_ESFOL","nome":"ESFOLIADEIRA ESTEIRA 1","subs":[]},
@@ -101,15 +101,15 @@ const INSP_TMPL = [
 // BANCO DE DADOS LOCAL (cache em memória + localStorage)
 // ══════════════════════════════════════════════════════════════════════
 let db = {
-  salas:        [],
-  maquinas:     [],
-  ordens:       [],
-  planejadas:   [],
+  salas: [],
+  maquinas: [],
+  ordens: [],
+  planejadas: [],
   solicitacoes: [],
-  inspecoes:    [],
-  usuarios:     [],
+  inspecoes: [],
+  usuarios: [],
   configuracoes: {
-    horas_turno_1: 7.1, horas_turno_2: 0, horas_turno_3: 0,
+    horas_turno_1: 7.1, horas_turno_2: 7.1, horas_turno_3: 0,
     meta_disponibilidade: 91, meta_performance: 90, meta_qualidade: 99
   },
   osC:1, plC:1, solC:1, inspC:1,
@@ -132,7 +132,7 @@ const ROLES = {
   producao: {
     label: 'Produção',
     menus: ['solicitacao']
-    },
+  },
   diretoria: {
     label: 'Diretoria',
     menus: ['dashboard','executadas','solicitacao']
@@ -151,22 +151,20 @@ let _dashAutoRf = false; // auto-refresh dashboard ativo?
 async function apiGet(params, _tentativa = 1) {
   if (!USE_API) return null;
   const MAX_TENTATIVAS = 3;
-  const TIMEOUT_MS     = 35000; // 35s cobre o cold start do Apps Script
+  const TIMEOUT_MS = 35000; // 35s cobre o cold start do Apps Script
   try {
-    const q   = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const q = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
     const res = await fetch(API_URL + '?' + q, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return await res.json();
   } catch(e) {
     const isTimeout = e.name === 'TimeoutError' || e.name === 'AbortError';
     console.warn(`[API GET] ${isTimeout ? 'Timeout' : 'Erro'} (tentativa ${_tentativa}/${MAX_TENTATIVAS}) — ${e.message}`);
-
     if (_tentativa < MAX_TENTATIVAS) {
       // Espera 3s antes de tentar novamente (deixa o Apps Script acordar)
       await new Promise(r => setTimeout(r, 3000));
       return apiGet(params, _tentativa + 1);
     }
-
     // Todas as tentativas falharam — avisa visualmente
     showApiStatus('offline');
     return null;
@@ -229,13 +227,13 @@ setInterval(async () => {
   const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
   if (fila.length > 0) await apiFlushQueue();
 }, 45000);
-  
+
 function showApiStatus(status) {
   let el = document.getElementById('api-status-bar');
   if (!el) {
     el = document.createElement('div');
     el.id = 'api-status-bar';
-    el.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:10px 16px;border-radius:8px;font-family:var(--fw);font-size:12px;font-weight:700;font-variant:small-caps;letter-spacing:.04em;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:all .3s';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:10px 16px;border-radius:8px;font-family:var(--fw);font-size:14px;font-weight:700;font-variant:small-caps;letter-spacing:.04em;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:all .3s';
     document.body.appendChild(el);
   }
   if (status === 'offline') {
@@ -255,10 +253,8 @@ function showApiStatus(status) {
 
 // Envia nova linha para o Sheets
 function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row }); }
-
 // Atualiza linha existente
 function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row }); }
-
 // Remove linha
 function apiDelete(sheet, id, idCol) { return apiPost({ action:'delete', sheet, id, idCol }); }
 
@@ -278,7 +274,7 @@ function normTime(v) {
   if (!v) return '';
   if (typeof v === 'number') {
     const frac = v % 1;
-    const min  = Math.round(frac * 1440);
+    const min = Math.round(frac * 1440);
     return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0');
   }
   const s = String(v);
@@ -316,25 +312,25 @@ async function apiLoadAll(silent = false) {
   // Ordens Executadas
   if (d.ordens && d.ordens.length) {
     db.ordens = d.ordens.map(r => ({
-      id:          crypto.randomUUID(),
-      numero:      normStr(r.OS_Numero),
-      sala:        normStr(r.Sala),
-      maq:         normStr(r.Maquina),
-      tipo:        normStr(r.Tipo),
-      prioridade:  normStr(r.Prioridade),
-      manut:       normStr(r.Manutentor),
-      data:        normDate(r.Data),
-      ini:         normTime(r.Hora_Inicio),
-      fim:         normTime(r.Hora_Fim),
-      durMin:      Number(r.Duracao_Min) || 0,
-      paradaMin:   Number(r.Tempo_Parada_Min) || 0,
-      prob:        normStr(r.Problema),
-      acao:        normStr(r.Acao_Executada),
-      acaoPrev:    normStr(r.Acao_Preventiva||''),
-      fotoUrl:     normStr(r.Foto_URL||''),
-      origem:      normStr(r.Origem),
-      origemNum:   normStr(r.OS_Origem_Ref),
-      criadoEm:    normStr(r.Criado_Em)
+      id: crypto.randomUUID(),
+      numero: normStr(r.OS_Numero),
+      sala: normStr(r.Sala),
+      maq: normStr(r.Maquina),
+      tipo: normStr(r.Tipo),
+      prioridade: normStr(r.Prioridade),
+      manut: normStr(r.Manutentor),
+      data: normDate(r.Data),
+      ini: normTime(r.Hora_Inicio),
+      fim: normTime(r.Hora_Fim),
+      durMin: Number(r.Duracao_Min) || 0,
+      paradaMin: Number(r.Tempo_Parada_Min) || 0,
+      prob: normStr(r.Problema),
+      acao: normStr(r.Acao_Executada),
+      acaoPrev: normStr(r.Acao_Preventiva||''),
+      fotoUrl: normStr(r.Foto_URL||''),
+      origem: normStr(r.Origem),
+      origemNum: normStr(r.OS_Origem_Ref),
+      criadoEm: normStr(r.Criado_Em)
     }));
     const max = Math.max(...db.ordens.map(o => parseInt(o.numero.replace(/\D/g,''))||0), 0);
     db.osC = max + 1;
@@ -343,23 +339,23 @@ async function apiLoadAll(silent = false) {
   // OS Planejadas
   if (d.planejadas && d.planejadas.length) {
     db.planejadas = d.planejadas.map(r => ({
-      id:         crypto.randomUUID(),
-      numero:     normStr(r.PL_Numero),
-      sala:       normStr(r.Sala),
-      maq:        normStr(r.Maquina),
-      tipo:       normStr(r.Tipo),
+      id: crypto.randomUUID(),
+      numero: normStr(r.PL_Numero),
+      sala: normStr(r.Sala),
+      maq: normStr(r.Maquina),
+      tipo: normStr(r.Tipo),
       prioridade: normStr(r.Prioridade),
-      prazo:      normDate(r.Prazo_Limite),
+      prazo: normDate(r.Prazo_Limite),
       horasTurno: Number(r.Horas_Turno) || 10,
-      desc:       normStr(r.Descricao_Planejada),
-      status:     normStr(r.Status) || 'Pendente',
-      manut:      normStr(r.Manutentor_Exec),
-      dtExec:     normDate(r.Data_Execucao),
-      ini:        normTime(r.Hora_Inicio),
-      fim:        normTime(r.Hora_Fim),
-      durMin:     Number(r.Duracao_Min) || 0,
-      desc2:      normStr(r.Servico_Executado),
-      criadoEm:   normStr(r.Criado_Em)
+      desc: normStr(r.Descricao_Planejada),
+      status: normStr(r.Status) || 'Pendente',
+      manut: normStr(r.Manutentor_Exec),
+      dtExec: normDate(r.Data_Execucao),
+      ini: normTime(r.Hora_Inicio),
+      fim: normTime(r.Hora_Fim),
+      durMin: Number(r.Duracao_Min) || 0,
+      desc2: normStr(r.Servico_Executado),
+      criadoEm: normStr(r.Criado_Em)
     }));
     const max = Math.max(...db.planejadas.map(p => parseInt(p.numero.replace(/\D/g,''))||0), 0);
     db.plC = max + 1;
@@ -368,20 +364,20 @@ async function apiLoadAll(silent = false) {
   // Solicitações
   if (d.solicitacoes && d.solicitacoes.length) {
     db.solicitacoes = d.solicitacoes.map(r => ({
-      id:         crypto.randomUUID(),
-      numero:     normStr(r.SOL_Numero),
-      sala:       normStr(r.Sala),
-      maq:        normStr(r.Maquina),
-      tipo:       normStr(r.Tipo),
+      id: crypto.randomUUID(),
+      numero: normStr(r.SOL_Numero),
+      sala: normStr(r.Sala),
+      maq: normStr(r.Maquina),
+      tipo: normStr(r.Tipo),
       prioridade: normStr(r.Prioridade),
-      desc:       normStr(r.Descricao),
-      status:     normStr(r.Status) || 'Não Executada',
+      desc: normStr(r.Descricao),
+      status: normStr(r.Status) || 'Não Executada',
       solicitante:normStr(r.Solicitante),
-      manut:      normStr(r.Manutentor_Exec),
-      dtExec:     normDate(r.Data_Execucao),
-      desc2:      normStr(r.Servico_Executado),
-      criadoEm:   normStr(r.Criado_Em),
-      fotoUrl:    normStr(r.Foto_URL||'')
+      manut: normStr(r.Manutentor_Exec),
+      dtExec: normDate(r.Data_Execucao),
+      desc2: normStr(r.Servico_Executado),
+      criadoEm: normStr(r.Criado_Em),
+      fotoUrl: normStr(r.Foto_URL||'')
     }));
     const max = Math.max(...db.solicitacoes.map(s => parseInt(s.numero.replace(/\D/g,''))||0), 0);
     db.solC = max + 1;
@@ -393,36 +389,36 @@ async function apiLoadAll(silent = false) {
     d.inspecoes.forEach(r => {
       const key = normDate(r.Data) + '|' + normStr(r.Turno) + '|' + normStr(r.Manutentor);
       if (!map[key]) map[key] = {
-        id:     normStr(r.ID_Inspecao) || key,
-        data:   normDate(r.Data),
-        turno:  normStr(r.Turno),
+        id: normStr(r.ID_Inspecao) || key,
+        data: normDate(r.Data),
+        turno: normStr(r.Turno),
         horasTurno: Number(r.Horas_Turno) || 10,
-        manut:  normStr(r.Manutentor),
-        itens:  []
+        manut: normStr(r.Manutentor),
+        itens: []
       };
       map[key].itens.push({
-        sala:   normStr(r.Sala),
-        equip:  normStr(r.Equipamento),
-        sub:    normStr(r.Sub_Item),
+        sala: normStr(r.Sala),
+        equip: normStr(r.Equipamento),
+        sub: normStr(r.Sub_Item),
         status: normStr(r.Status),
-        hora:   normTime(r.Hora),
-        obs:    normStr(r.Observacoes)
+        hora: normTime(r.Hora),
+        obs: normStr(r.Observacoes)
       });
     });
     db.inspecoes = Object.values(map);
   }
 
   if (d.historico && d.historico.length) {
-  db.historico = d.historico.slice(0, 100).map(r => ({
-    ts:      normStr(r.Data_Hora),
-    user:    normStr(r.Usuario),
-    login:   normStr(r.Login),
-    acao:    normStr(r.Acao),
-    numero:  normStr(r.Numero_Ref),
-    detalhe: normStr(r.Detalhe)
-  }));
-}
-  
+    db.historico = d.historico.slice(0, 100).map(r => ({
+      ts: normStr(r.Data_Hora),
+      user: normStr(r.Usuario),
+      login: normStr(r.Login),
+      acao: normStr(r.Acao),
+      numero: normStr(r.Numero_Ref),
+      detalhe: normStr(r.Detalhe)
+    }));
+  }
+
   // Usuários — Sheets é a fonte de verdade; Senha_Hash do Sheets é usada diretamente.
   // Se o usuário mudou a senha pelo app, a versão local tem prioridade.
   const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
@@ -446,11 +442,12 @@ async function apiLoadAll(silent = false) {
   }
   if (d.maquinas && d.maquinas.length) {
     db.maquinas = d.maquinas.filter(r => r.Ativo !== 'nao').map(r => ({
-      nome:          normStr(r.Nome),
-      sala:          normStr(r.Sala),
-      tag:           normStr(r.Tag),
-      criticidade:   normStr(r.Criticidade) || '3',
-      periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal'
+      nome: normStr(r.Nome),
+      sala: normStr(r.Sala),
+      tag: normStr(r.Tag),
+      criticidade: normStr(r.Criticidade) || '3',
+      periodicidade: normStr(r.Periodicidade_Preventiva) || 'Mensal',
+      modeloPadrao: normStr(r.ModeloPadrao||'')
     }));
     db.maquinas.sort((a,b) => (a.sala+a.nome).localeCompare(b.sala+b.nome));
   }
@@ -461,27 +458,29 @@ async function apiLoadAll(silent = false) {
       if (r.Chave) db.configuracoes[r.Chave] = isNaN(r.Valor) ? r.Valor : Number(r.Valor);
     });
   }
-   if (d.racs && d.racs.length) {
+
+  if (d.racs && d.racs.length) {
     db.racs = d.racs.map(r => ({
-      id:           normStr(r.ID),
-      osNumero:     normStr(r.OS_Numero),
-      maquina:      normStr(r.Maquina),
-      sala:         normStr(r.Sala),
-      criticidade:  Number(r.Criticidade) || 3,
-      tempoParada:  Number(r.Tempo_Parada_Min) || 0,
-      limiteMin:    Number(r.Limite_Min) || 0,
-      causaRaiz:    normStr(r.Causa_Raiz),
+      id: normStr(r.ID),
+      osNumero: normStr(r.OS_Numero),
+      maquina: normStr(r.Maquina),
+      sala: normStr(r.Sala),
+      criticidade: Number(r.Criticidade) || 3,
+      tempoParada: Number(r.Tempo_Parada_Min) || 0,
+      limiteMin: Number(r.Limite_Min) || 0,
+      causaRaiz: normStr(r.Causa_Raiz),
       acaoImediata: normStr(r.Acao_Imediata),
       acaoCorretiva:normStr(r.Acao_Corretiva),
-      responsavel:  normStr(r.Responsavel),
-      prazo:        normDate(r.Prazo),
-      status:       normStr(r.Status) || 'Aberto',
+      responsavel: normStr(r.Responsavel),
+      prazo: normDate(r.Prazo),
+      status: normStr(r.Status) || 'Aberto',
       dataAbertura: normDate(r.Data_Abertura),
-      dataBaixa:    normDate(r.Data_Baixa),
-      fechadoPor:   normStr(r.Fechado_Por),
-      criadoEm:     normStr(r.Criado_Em)
+      dataBaixa: normDate(r.Data_Baixa),
+      fechadoPor: normStr(r.Fechado_Por),
+      criadoEm: normStr(r.Criado_Em)
     }));
   }
+
   saveDB();
   if (!silent) console.log('[SIGMAN] ✅ Dados carregados do Sheets');
 }
@@ -489,7 +488,7 @@ async function apiLoadAll(silent = false) {
 // ── localStorage ───────────────────────────────────────────────────────
 function saveDB() {
   try {
-   localStorage.setItem('sigman_v4', JSON.stringify({
+    localStorage.setItem('sigman_v4', JSON.stringify({
       salas: db.salas, maquinas: db.maquinas,
       ordens: db.ordens, planejadas: db.planejadas,
       solicitacoes: db.solicitacoes, inspecoes: db.inspecoes,

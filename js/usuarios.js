@@ -11,8 +11,8 @@ function renderUsuarios() {
     : db.usuarios.map(u => `
         <div class="edit-row">
           <div>
-            <div style="font-size:13px;font-weight:500">${u.nome}</div>
-            <div style="font-size:11px;color:var(--txt3)">@${u.login}</div>
+            <div style="font-size:15px;font-weight:500">${u.nome}</div>
+            <div style="font-size:13px;color:var(--txt3)">@${u.login}</div>
           </div>
           ${roleBadge(u.tipo)}
         </div>`).join('');

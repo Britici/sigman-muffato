@@ -60,7 +60,7 @@ function clearAb() {
   const inp = document.getElementById('ab-photo-input');
   if (inp) inp.value = '';
   const prev = document.getElementById('ab-photo-preview');
-  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
+  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -123,7 +123,7 @@ function previewSolPhoto(input) {
       const byteSize = Math.round(_solPhotoBase64.length * 0.75 / 1024);
       document.getElementById('sol-photo-preview').innerHTML = `
         <img src="${dataUrl}" style="max-height:80px;max-width:120px;border-radius:4px;object-fit:cover" alt="Foto">
-        <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+        <div style="font-size:13px;color:var(--txt2);margin-top:4px">
           <strong>${file.name}</strong><br>
           <span style="color:var(--txt3)">${byteSize} KB (redimensionado)</span><br>
           <button class="btn btn-sm" onclick="removeSolPhoto(event)" style="margin-top:5px;background:rgba(196,18,48,.12);color:#ff4d65;border:1px solid rgba(196,18,48,.3);padding:3px 8px">🗑 Remover</button>
@@ -140,7 +140,7 @@ function removeSolPhoto(e) {
   const inp = document.getElementById('sol-photo-input');
   if (inp) inp.value = '';
   const prev = document.getElementById('sol-photo-preview');
-  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:13px">📷 Clique para anexar foto</span>';
+  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
 }
 async function salvarSol() {
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
@@ -196,21 +196,31 @@ function renderSol() {
     return dir === 'asc' ? cmp : -cmp;
   });
   const c = document.getElementById('sol-lista');
-  if (!list.length) { c.innerHTML = '<div class="empty"><div class="ei">📣</div><p>Nenhuma solicitação.</p></div>'; return; }
-  c.innerHTML = list.map(s => `
+  const cC = document.getElementById('sol-lista-concluidas');
+  const rowHtml = s => `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bord);gap:10px">
       <div>
         <span class="osn">${s.numero}</span>
-        <div style="font-size:13px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
-        <div style="font-size:11px;color:var(--txt3)">${fd((s.criadoEm||'').slice(0,10))} · ${s.solicitante}</div>
-        <div style="font-size:12px;color:var(--txt2);margin-top:3px">${s.desc}</div>
+        <div style="font-size:15px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
+        <div style="font-size:13px;color:var(--txt3)">${fd((s.criadoEm||'').slice(0,10))} · ${s.solicitante}</div>
+        <div style="font-size:14px;color:var(--txt2);margin-top:3px">${s.desc}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         ${prio(s.prioridade)}${stBadge(s.status)}
         ${CU&&CU.tipo!=='producao'&&s.status==='Não Executada'
           ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+
+  const naoConcl = list.filter(s => s.status !== 'Concluída');
+  const concl    = list.filter(s => s.status === 'Concluída');
+
+  c.innerHTML = naoConcl.length ? naoConcl.map(rowHtml).join('')
+    : '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação não concluída.</p></div>';
+  if (cC) {
+    cC.innerHTML = concl.length ? concl.map(rowHtml).join('')
+      : '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação concluída.</p></div>';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -231,10 +241,10 @@ function abrirConcluir(id, tipo) {
     <div style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);padding:12px">
       <div class="osdisp">${item.numero}</div>
       <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
-      <div style="font-size:12px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
-      ${item.desc?`<div style="font-size:12px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
+      <div style="font-size:14px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
+      ${item.desc?`<div style="font-size:14px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
       ${item.fotoUrl?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)">
-        <div style="font-size:11px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto da Solicitação</div>
+        <div style="font-size:13px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto da Solicitação</div>
          <a href="${item.fotoUrl}" target="_blank">
            <img src="${driveThumb(item.fotoUrl)}"px solid var(--bord);cursor:zoom-in" alt="Foto">
         </a>
