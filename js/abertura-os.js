@@ -197,10 +197,12 @@ function renderSol() {
   });
   const c = document.getElementById('sol-lista');
   const cC = document.getElementById('sol-lista-concluidas');
-  const rowHtml = s => `
+  const rowHtml = s => {
+    const osGerada = (db.ordens.find(o => o.origem==='sol' && o.origemNum===s.numero)||{}).numero;
+    return `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bord);gap:10px">
       <div>
-        <span class="osn">${s.numero}</span>
+        <span class="osn">${s.numero}</span>${osGerada?` <span style="font-size:11px;color:var(--txt2)">(${osGerada})</span>`:''}
         <div style="font-size:15px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
         <div style="font-size:13px;color:var(--txt3)">${fd((s.criadoEm||'').slice(0,10))} · ${s.solicitante}</div>
         <div style="font-size:14px;color:var(--txt2);margin-top:3px">${s.desc}</div>
@@ -209,8 +211,10 @@ function renderSol() {
         ${prio(s.prioridade)}${stBadge(s.status)}
         ${CU&&CU.tipo!=='producao'&&s.status==='Não Executada'
           ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`:''}
+        ${osGerada?`<button class="btn btn-sm btn-gh" onclick="verDet('${osGerada}','os')">Ver</button>`:''}
       </div>
     </div>`;
+  };
 
   const naoConcl = list.filter(s => s.status !== 'Concluída');
   const concl    = list.filter(s => s.status === 'Concluída');

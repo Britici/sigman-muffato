@@ -176,7 +176,7 @@ function editarPlan(id) {
       <input type="hidden" id="ep-prazo" value="${p.prazo||''}">
       <input type="text" id="ep-prazo_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" value="${p.prazo?fd(p.prazo):''}">
     </div>
-    <div class="fg"><label>Horas por Turno</label>
+    <div class="fg" style="display:none"><label>Horas por Turno</label>
       <input type="number" id="ep-horas" value="${p.horasTurno||10}" min="1" max="24">
     </div>
     <div class="fg"><label>Status</label>

@@ -66,7 +66,7 @@ function renderExec() {
         ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório" style="cursor:default;flex-shrink:0"></span>`:''}
         <span class="osn">${o.numero}</span>
       </span>
-      ${o.origem==='plan'&&o.origemNum?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${o.origemNum})</div>`:''}
+      ${(o.origem==='plan'||o.origem==='sol')&&o.origemNum?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${o.origemNum})</div>`:''}
     </td>
     <td style="font-size:14px">${fd(o.data)}</td>
     <td>${o.sala}</td>
@@ -136,60 +136,6 @@ function abrirRAC(osNumero) {
   openM('mb-racr');
 }
 
-function salvarRAC(osNumero) {
-  const o = db.ordens.find(x => x.numero === osNumero);
-  if (!o) return;
-  const causa = document.getElementById('rac-causa')?.value?.trim();
-  if (!causa) { showToast('Informe a causa raiz.','er'); return; }
-  const imediata = document.getElementById('rac-imediata')?.value?.trim();
-  const corretiva = document.getElementById('rac-corretiva')?.value?.trim();
-  const resp = document.getElementById('rac-resp')?.value?.trim();
-  const prazo = document.getElementById('rac-prazo')?.value;
-  const agora = new Date().toISOString();
-  const crit = getCriticidadeMaq(o.maq);
-
-  if (!db.racs) db.racs = [];
-  const idx = db.racs.findIndex(r => r.osNumero === osNumero);
-  const racId = idx >= 0 ? db.racs[idx].id : 'RAC-' + agora.replace(/\D/g,'').slice(0,14);
-
-  const rac = {
-    id: racId, osNumero, maquina: o.maq, sala: o.sala, criticidade: crit,
-    tempoParada: o.paradaMin||o.durMin||0, limiteMin: limiteRAC(crit),
-    causaRaiz: causa, acaoImediata: imediata, acaoCorretiva: corretiva,
-    responsavel: resp, prazo, status: idx>=0?db.racs[idx].status:'Aberto',
-    dataAbertura: idx>=0?db.racs[idx].dataAbertura:agora.slice(0,10),
-    criadoEm: idx>=0?db.racs[idx].criadoEm:agora
-  };
-  if (idx >= 0) db.racs[idx] = rac; else db.racs.push(rac);
-  saveDB();
-  document.getElementById('lal').style.display='none';
-  renderExec();
-  showToast('RAC salvo.','ok');
-
-  if (idx < 0) apiAppend('racs',{ID:rac.id,Data_Abertura:rac.dataAbertura,OS_Numero:osNumero,
-    Maquina:rac.maquina,Sala:rac.sala,Criticidade:rac.criticidade,
-    Tempo_Parada_Min:rac.tempoParada,Limite_Min:rac.limiteMin,
-    Causa_Raiz:rac.causaRaiz,Acao_Imediata:rac.acaoImediata,Acao_Corretiva:rac.acaoCorretiva,
-    Responsavel:rac.responsavel,Prazo:rac.prazo,Status:rac.status,Criado_Em:rac.criadoEm});
-  else apiUpdate('racs',rac.id,'ID',{Causa_Raiz:rac.causaRaiz,Acao_Imediata:rac.acaoImediata,
-    Acao_Corretiva:rac.acaoCorretiva,Responsavel:rac.responsavel,Prazo:rac.prazo});
-}
-
-function darBaixaRAC(osNumero) {
-  if (!db.racs) return;
-  const idx = db.racs.findIndex(r => r.osNumero === osNumero);
-  if (idx < 0) return;
-  const agora = new Date().toISOString();
-  db.racs[idx].status = 'Concluído';
-  db.racs[idx].dataBaixa = agora.slice(0,10);
-  db.racs[idx].fechadoPor = CU?.nome || '';
-  saveDB();
-  document.getElementById('lal').style.display='none';
-  renderExec();
-  showToast('RAC concluído.','ok');
-  apiUpdate('racs',db.racs[idx].id,'ID',{
-    Status:'Concluído',Data_Baixa:db.racs[idx].dataBaixa,Fechado_Por:db.racs[idx].fechadoPor});
-}
 
 function racrFiltrarMaq() {
   const sala = document.getElementById('racr-sala')?.value;

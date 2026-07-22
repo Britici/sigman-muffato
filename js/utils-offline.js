@@ -41,7 +41,7 @@ async function init() {
         enterApp();
         document.getElementById('loading-screen').style.display = 'none';
         if (USE_API) {
-          apiLoadAll(true).then(() => {
+          apiLoadAll(true, true).then(() => {
             setOffline(false);
             updStats(); updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
@@ -59,7 +59,7 @@ async function init() {
   }
 
   if (USE_API) {
-    try { await apiLoadAll(); setOffline(false); }
+    try { await apiLoadAll(false, true); setOffline(false); }
     catch(e) { setOffline(true); }
   }
 

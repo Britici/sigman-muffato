@@ -3,9 +3,22 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 
+// Cache de Solicitações de Compra (aba OrdensCompra) — sheet pesada,
+// não vem no readAll() (ver SKIP_READ_ALL no Code.gs). Carregada sob
+// demanda aqui, igual o módulo de Compras faz. null = ainda não carregou.
+let _comprasCache = null;
+
+async function _refreshComprasCache() {
+  const d = await apiGet({ action: 'readCompras' });
+  _comprasCache = (d && d.data) || [];
+  renderDash();
+}
+
 function renderDash() {
   updStats();
   const t = today();
+
+  if (_comprasCache === null) { _refreshComprasCache(); }
 
   // Filtro de período
   const sel = document.getElementById('dash-periodo');
@@ -49,11 +62,11 @@ function renderDash() {
   const hj      = db.ordens.filter(o => o.data === t).length;
   const plOpen  = db.planejadas.filter(p => p.status !== 'Concluída').length;
   const plAtras = db.planejadas.filter(p => p.status === 'Atrasada').length;
-  const solPend = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
-  // Solicitações "atrasadas" = abertas há mais de 3 dias sem execução
-  const solAtras = db.solicitacoes.filter(s => {
-    if (s.status !== 'Não Executada' || !s.criadoEm) return false;
-    const dias = (new Date(t) - new Date(s.criadoEm.slice(0,10))) / 86400000;
+  const solPend = (_comprasCache||[]).filter(o => o.Status !== 'concluida').length;
+  // Solicitações de compra "atrasadas" = abertas há mais de 3 dias sem conclusão
+  const solAtras = (_comprasCache||[]).filter(o => {
+    if (o.Status === 'concluida' || !o.Data_Solicitacao) return false;
+    const dias = (new Date(t) - new Date(String(o.Data_Solicitacao).slice(0,10))) / 86400000;
     return dias > 3;
   }).length;
 
@@ -172,7 +185,7 @@ function renderDash() {
         <button class=\"btn btn-sm btn-gh\" onclick=\"goToPage('salas-status')\" style=\"margin-top:4px;width:100%\">Ver Detalhes →</button>
         <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${corColor};opacity:.5\"></div>
       </div>
-      <div class="sc-card c-go">
+      <div class="sc-card c-go" onclick="irParaCard('executadas')" style="cursor:pointer">
         <div class="sc-lbl">OS Hoje</div>
         <div class="sc-val">${hj}</div>
         <div style="font-size:11px;color:var(--txt3);margin-top:4px">Período: ${total}</div>
@@ -187,13 +200,13 @@ function renderDash() {
       <div class="sc-val">${mttr}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">Tempo médio de reparo</div>
     </div>
-    <div class="sc-card ${solAtras > 0 ? 'c-r' : 'c-o'}">
-      <div class="sc-lbl">Solicitações</div>
+    <div class="sc-card ${solAtras > 0 ? 'c-r' : 'c-o'}" onclick="irParaCard('compras-acompanhamento')" style="cursor:pointer">
+      <div class="sc-lbl">Solicitações de Compra</div>
       <div class="sc-val">${solPend}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${solAtras} atrasadas</div>
     </div>
-    <div class="sc-card ${racNaoAbertas.length > 0 ? 'c-r' : 'c-o'}">
-      <div class="sc-lbl">RACR Pendentes</div>
+    <div class="sc-card ${racNaoAbertas.length > 0 ? 'c-r' : 'c-o'}" onclick="irParaCard('analise-causa-raiz')" style="cursor:pointer">
+      <div class="sc-lbl">RAC</div>
       <div class="sc-val">${racDevemAbrir.length}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${racNaoAbertas.length} não abertas</div>
     </div>
@@ -222,7 +235,7 @@ function renderDash() {
       <div class="sc-val">${predi}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${total ? Math.round(predi/total*100) : 0}% do total</div>
     </div>
-    <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}">
+    <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}" onclick="irParaCard('planejadas')" style="cursor:pointer">
       <div class="sc-lbl">Backlog OS</div>
       <div class="sc-val">${plOpen}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${plAtras} atrasadas</div>
@@ -351,7 +364,7 @@ function renderDash() {
           </div>`;
       }).join('');
 }
-function exportDashPDF() {
+async function exportDashPDF() {
   const t = today();
   const sel = document.getElementById('dash-periodo');
   const per = sel ? sel.value : 'mes';
@@ -390,10 +403,11 @@ function exportDashPDF() {
   const hj = db.ordens.filter(o => o.data === t).length;
   const plOpen = db.planejadas.filter(p => p.status !== 'Concluída').length;
   const plAtras = db.planejadas.filter(p => p.status === 'Atrasada').length;
-  const solPend = db.solicitacoes.filter(s => s.status === 'Não Executada').length;
-  const solAtras = db.solicitacoes.filter(s => {
-    if (s.status !== 'Não Executada' || !s.criadoEm) return false;
-    const dias = (new Date(t) - new Date(s.criadoEm.slice(0,10))) / 86400000;
+  const _comprasPdf = (await apiGet({ action: 'readCompras' }))?.data || [];
+  const solPend = _comprasPdf.filter(o => o.Status !== 'concluida').length;
+  const solAtras = _comprasPdf.filter(o => {
+    if (o.Status === 'concluida' || !o.Data_Solicitacao) return false;
+    const dias = (new Date(t) - new Date(String(o.Data_Solicitacao).slice(0,10))) / 86400000;
     return dias > 3;
   }).length;
   const racDevemAbrir = ordCorr.filter(o => {
@@ -465,8 +479,8 @@ function exportDashPDF() {
     <div class="card"><div class="card-label">OS Hoje</div><div class="card-value">${hj}</div></div>
     <div class="card"><div class="card-label">MTBF (min)</div><div class="card-value">${mtbf}</div></div>
     <div class="card"><div class="card-label">MTTR (min)</div><div class="card-value">${mttr}</div></div>
-    <div class="card"><div class="card-label">Solicitações</div><div class="card-value">${solPend}</div><div class="card-sub">${solAtras} atrasadas</div></div>
-    <div class="card"><div class="card-label">RACR Pendentes</div><div class="card-value">${racDevemAbrir.length}</div><div class="card-sub">${racNaoAbertas.length} não abertas</div></div>
+    <div class="card"><div class="card-label">Solicitações de Compra</div><div class="card-value">${solPend}</div><div class="card-sub">${solAtras} atrasadas</div></div>
+    <div class="card"><div class="card-label">RAC</div><div class="card-value">${racDevemAbrir.length}</div><div class="card-sub">${racNaoAbertas.length} não abertas</div></div>
     <div class="card"><div class="card-label">Preventivas</div><div class="card-value">${ordPrev.length}</div></div>
     <div class="card"><div class="card-label">Corretivas</div><div class="card-value">${ordCorr.length}</div></div>
     <div class="card"><div class="card-label">Melhoria</div><div class="card-value">${ordMelh.length}</div></div>

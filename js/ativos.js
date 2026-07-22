@@ -4,6 +4,10 @@
    ══════════════════════════════════════════════════════════════════ */
 let _editType=null,_editIdx=null;
 
+function toggleAtFold(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
 function renderAtivos() {
   populateAtMaqSala();
   popularModeloPadraoSelect();
@@ -28,18 +32,25 @@ function renderAtivos() {
     if (curFil) filSel.value = curFil;
   }
   const filSala = filSel ? filSel.value : '';
+  const buscaEl = document.getElementById('at-ml-busca');
+  const busca = buscaEl ? buscaEl.value.trim().toUpperCase() : '';
 
   // Máquinas agrupadas por sala e em ordem alfabética
   const bySala = {};
   [...db.maquinas]
     .filter(m => !filSala || m.sala === filSala)
+    .filter(m => !busca || m.nome.toUpperCase().includes(busca) || (m.tag||'').toUpperCase().includes(busca))
     .sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome)).forEach(m=>{
       if(!bySala[m.sala])bySala[m.sala]=[];bySala[m.sala].push(m);
     });
 
-  document.getElementById('at-ml').innerHTML = Object.keys(bySala).sort().map(sala=>`
+  document.getElementById('at-ml').innerHTML = Object.keys(bySala).length===0
+    ? '<div class="empty"><p>Nenhuma máquina encontrada.</p></div>'
+    : Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px">${sala}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px;display:flex;justify-content:space-between">
+        <span>${sala}</span><span style="color:var(--txt3);font-weight:400">${bySala[sala].length}</span>
+      </div>
       ${bySala[sala].map((m,_i)=>{
         const gi=db.maquinas.indexOf(m);
         const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
@@ -176,10 +187,11 @@ function addMaq() {
   tag=v('at-mt').trim().toUpperCase(), crit=v('at-mc')||'Média', per=v('at-mp')||'Mensal',
   modeloPadrao=v('at-mmp')||'';
   if(!sala||!nome){showToast('Selecione sala e informe o nome.');return;}
-  db.maquinas.push({nome,sala,tag,criticidade:crit,periodicidade:per,modeloPadrao});
+  const id=(sala+'_'+nome).replace(/\s+/g,'_');
+  db.maquinas.push({id,nome,sala,tag,criticidade:crit,periodicidade:per,modeloPadrao});
   db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
   saveDB(); sv('at-mn',''); sv('at-mt',''); populateAll(); renderAtivos();
-  apiAppend('maquinas',{ID_Maquina:(sala+'_'+nome).replace(/\s+/g,'_'),Sala:sala,Nome:nome,Tag:tag,
+  apiAppend('maquinas',{ID_Maquina:id,Sala:sala,Nome:nome,Tag:tag,
   Criticidade:crit,Periodicidade_Preventiva:per,ModeloPadrao:modeloPadrao,Descricao:'',Ativo:'sim',Criado_Em:new Date().toISOString()});
 }
 
@@ -195,7 +207,7 @@ function delMaq(i) {
   if(!confirm('Remover máquina?'))return;
   const m=db.maquinas[i];
   db.maquinas.splice(i,1);saveDB();populateAll();renderAtivos();
-  if(m)apiDelete('maquinas',m.nome,'Nome');
+  if(m)apiDelete('maquinas',m.id,'ID_Maquina');
 }
 
 // Editar sala/máquina
@@ -249,12 +261,12 @@ function salvarEdit() {
     apiUpdate('salas',old,'Nome',{Nome:nv});
   } else if(_editType==='maq') {
     const old=db.maquinas[_editIdx];
-    const nv={nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
+    const nv={id:old.id,nome:v('me-nm').trim().toUpperCase(),sala:v('me-sl'),tag:v('me-tg').trim().toUpperCase(),
     criticidade:v('me-crit'),periodicidade:v('me-per'),modeloPadrao:v('me-mp')||''};
     db.maquinas[_editIdx]=nv;
     db.maquinas.sort((a,b)=>(a.sala+a.nome).localeCompare(b.sala+b.nome));
     saveDB();populateAll();renderAtivos();closeM('m-edit');
-    apiUpdate('maquinas',old.nome,'Nome',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
+    apiUpdate('maquinas',old.id,'ID_Maquina',{Sala:nv.sala,Nome:nv.nome,Tag:nv.tag,
     Criticidade:nv.criticidade,Periodicidade_Preventiva:nv.periodicidade,ModeloPadrao:nv.modeloPadrao});
   } else if(_editType==='plan') {
     const p = db.planejadas.find(x => x.numero === _editIdx);

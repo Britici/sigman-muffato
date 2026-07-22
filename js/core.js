@@ -8,6 +8,7 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbwzcntvx4_QfBYotW2Sz2H8TiwprqkmAyWolYlbIeCfTR2Uhj2VIgVC7Mun1mTaFXohuA/exec';
 const USE_API = true; // false = modo offline (só localStorage)
 const POLL_MS = 180000; // Atualização automática a cada 3 minutos
+const CACHE_TTL_MS = 180000; // TTL do readAll: só busca novamente após 3 min
 
 // ══════════════════════════════════════════════════════════════════════
 // TEMPLATE DE INSPEÇÃO DIÁRIA (Equipamentos por Sala)
@@ -252,11 +253,11 @@ function showApiStatus(status) {
 }
 
 // Envia nova linha para o Sheets
-function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row }); }
+function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
 // Atualiza linha existente
-function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row }); }
+function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
 // Remove linha
-function apiDelete(sheet, id, idCol) { return apiPost({ action:'delete', sheet, id, idCol }); }
+function apiDelete(sheet, id, idCol) { return apiPost({ action:'delete', sheet, id, idCol, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
 
 // ── Normalização de valores vindos do Sheets ─────────────────────────────
 function normDate(v) {
@@ -297,8 +298,15 @@ function driveThumb(url) {
 function normStr(v) { return v === null || v === undefined ? '' : String(v); }
 
 // ── Carrega todos os dados do Sheets ────────────────────────────────────
-async function apiLoadAll(silent = false) {
+async function apiLoadAll(silent = false, force = false) {
   if (!USE_API) return;
+  // TTL: só vai ao Sheets se passou mais de CACHE_TTL_MS desde o último readAll
+  // force=true é usado após gravações (append/update/delete) para garantir consistência
+  const lastLoad = Number(localStorage.getItem('sigman_last_load') || 0);
+  if (!force && (Date.now() - lastLoad) < CACHE_TTL_MS) {
+    if (!silent) console.log('[SIGMAN] Cache válido — readAll ignorado');
+    return;
+  }
   const json = await apiGet({ action: 'readAll' });
   if (!json || !json.ok) {
     if (!silent) {
@@ -307,6 +315,7 @@ async function apiLoadAll(silent = false) {
     }
     return;
   }
+  localStorage.setItem('sigman_last_load', String(Date.now()));
   const d = json.data;
 
   // Ordens Executadas
@@ -384,30 +393,6 @@ async function apiLoadAll(silent = false) {
   }
 
   // Inspeções Diárias
-  if (d.inspecoes && d.inspecoes.length) {
-    const map = {};
-    d.inspecoes.forEach(r => {
-      const key = normDate(r.Data) + '|' + normStr(r.Turno) + '|' + normStr(r.Manutentor);
-      if (!map[key]) map[key] = {
-        id: normStr(r.ID_Inspecao) || key,
-        data: normDate(r.Data),
-        turno: normStr(r.Turno),
-        horasTurno: Number(r.Horas_Turno) || 10,
-        manut: normStr(r.Manutentor),
-        itens: []
-      };
-      map[key].itens.push({
-        sala: normStr(r.Sala),
-        equip: normStr(r.Equipamento),
-        sub: normStr(r.Sub_Item),
-        status: normStr(r.Status),
-        hora: normTime(r.Hora),
-        obs: normStr(r.Observacoes)
-      });
-    });
-    db.inspecoes = Object.values(map);
-  }
-
   if (d.historico && d.historico.length) {
     db.historico = d.historico.slice(0, 100).map(r => ({
       ts: normStr(r.Data_Hora),
@@ -442,6 +427,7 @@ async function apiLoadAll(silent = false) {
   }
   if (d.maquinas && d.maquinas.length) {
     db.maquinas = d.maquinas.filter(r => r.Ativo !== 'nao').map(r => ({
+      id: normStr(r.ID_Maquina) || (normStr(r.Sala)+'_'+normStr(r.Nome)).replace(/\s+/g,'_'),
       nome: normStr(r.Nome),
       sala: normStr(r.Sala),
       tag: normStr(r.Tag),
@@ -459,30 +445,65 @@ async function apiLoadAll(silent = false) {
     });
   }
 
-  if (d.racs && d.racs.length) {
-    db.racs = d.racs.map(r => ({
-      id: normStr(r.ID),
-      osNumero: normStr(r.OS_Numero),
-      maquina: normStr(r.Maquina),
-      sala: normStr(r.Sala),
-      criticidade: Number(r.Criticidade) || 3,
-      tempoParada: Number(r.Tempo_Parada_Min) || 0,
-      limiteMin: Number(r.Limite_Min) || 0,
-      causaRaiz: normStr(r.Causa_Raiz),
-      acaoImediata: normStr(r.Acao_Imediata),
-      acaoCorretiva:normStr(r.Acao_Corretiva),
-      responsavel: normStr(r.Responsavel),
-      prazo: normDate(r.Prazo),
-      status: normStr(r.Status) || 'Aberto',
-      dataAbertura: normDate(r.Data_Abertura),
-      dataBaixa: normDate(r.Data_Baixa),
-      fechadoPor: normStr(r.Fechado_Por),
-      criadoEm: normStr(r.Criado_Em)
-    }));
-  }
-
   saveDB();
   if (!silent) console.log('[SIGMAN] ✅ Dados carregados do Sheets');
+}
+
+// ── Lazy loaders — chamados sob demanda ao entrar nas páginas ──────────────
+async function apiLoadInspecoes() {
+  if (!USE_API) return;
+  const json = await apiGet({ action: 'readInspecoes' });
+  if (!json?.ok || !json.data?.length) return;
+  const map = {};
+  json.data.forEach(r => {
+    const key = normDate(r.Data) + '|' + normStr(r.Turno) + '|' + normStr(r.Manutentor);
+    if (!map[key]) map[key] = {
+      id: normStr(r.ID_Inspecao) || key,
+      data: normDate(r.Data),
+      turno: normStr(r.Turno),
+      horasTurno: Number(r.Horas_Turno) || 10,
+      manut: normStr(r.Manutentor),
+      itens: []
+    };
+    map[key].itens.push({
+      sala: normStr(r.Sala), equip: normStr(r.Equipamento),
+      sub: normStr(r.Sub_Item), status: normStr(r.Status),
+      hora: normTime(r.Hora), obs: normStr(r.Observacoes)
+    });
+  });
+  db.inspecoes = Object.values(map);
+  saveDB();
+}
+
+async function apiLoadRacs() {
+  if (!USE_API) return;
+  const json = await apiGet({ action: 'readRacs' });
+  if (!json?.ok || !json.data?.length) return;
+  db.racs = json.data.map(r => ({
+    id: normStr(r.ID),
+    osNumero: normStr(r.OS_Numero),
+    maquina: normStr(r.Equipamento),
+    sala: normStr(r.Sala),
+    criticidade: Number(r.Criticidade) || 3,
+    tempoParada: Number(r.Tempo_Parada_Min) || 0,
+    limiteMin: Number(r.Limite_Min) || 0,
+    falha: normStr(r.Falha),
+    causaRaiz: normStr(r.Causa_Raiz),
+    why1: normStr(r.Why1), why2: normStr(r.Why2), why3: normStr(r.Why3),
+    why4: normStr(r.Why4), why5: normStr(r.Why5),
+    acaoImediata: normStr(r.Acao_Imediata),
+    acaoPreventiva: normStr(r.Acao_Preventiva),
+    respProd: normStr(r.Resp_Producao),
+    respManu: normStr(r.Resp_Manutencao),
+    executantes: normStr(r.Executantes),
+    fotos: (() => { try { return JSON.parse(r.Fotos || '[]'); } catch { return []; } })(),
+    status: normStr(r.Status) || 'Aberto',
+    dataAbertura: normDate(r.Data_Abertura),
+    dataBaixa: normDate(r.Data_Fechamento),
+    fechadoPor: normStr(r.Fechado_Por),
+    criadoEm: normStr(r.Data_Criacao)
+  }));
+  saveDB();
 }
 
 // ── localStorage ───────────────────────────────────────────────────────

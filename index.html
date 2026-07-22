@@ -70,7 +70,7 @@
  <div class="main">
   <header class="tb">
    <button class="tb-tog" onclick="toggleSB()">☰</button>
-   <div class="tb-title" id="tb-t">Dashboard</div>
+   <div class="tb-title" id="tb-t" onclick="showPage('dashboard')" style="cursor:pointer" title="Voltar ao Dashboard">Dashboard</div>
    <div class="tb-r">
     <div class="tb-stat" id="tb-stat" onclick="showPage('abertura');closeSB()"><span id="th-hj">0</span> OS hoje</div>
     <button class="tb-btn" onclick="toggleTheme()" id="th-btn">🌙</button>
@@ -270,7 +270,7 @@
       <div class="fg"><label>Tipo de Serviço</label><select id="pl-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Inspeção</option><option>Melhoria</option><option>Preditiva</option><option>Preventiva</option></select></div>
       <div class="fg"><label>Prioridade</label><select id="pl-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Emergencial (Parada)</option><option value="2">🟡 2 – Urgente (Corretiva Programada)</option><option value="3">🔵 3 – Média (Preventiva)</option><option value="4">🟢 4 – Baixa (Melhoria)</option></select></div>
       <div class="fg"><label>Prazo Limite</label><input type="hidden" id="pl-pz"><input type="text" id="pl-pz_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)"></div>
-      <div class="fg"><label>Horas por Turno</label><input type="number" id="pl-horas" value="10" min="1" max="24"></div>
+      <div class="fg" style="display:none"><label>Horas por Turno</label><input type="number" id="pl-horas" value="10" min="1" max="24"></div>
       <div class="fg fg-full"><label>Descrição do Serviço Planejado</label><textarea id="pl-ds" placeholder="Descreva o serviço..."></textarea></div>
      </div>
      <div class="fa">
@@ -305,9 +305,9 @@
      </div>
     </div>
       <div class="card">
-      <div class="card-t" style="justify-content:space-between">
+      <div class="card-t">
         Solicitações Não Concluídas
-        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:13px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer">
+        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:13px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer;margin-left:auto">
           <option value="numero-desc">OS # ↓ (mais recente)</option>
           <option value="numero-asc">OS # ↑ (mais antiga)</option>
           <option value="prioridade-asc">Prioridade (crítica primeiro)</option>
@@ -339,7 +339,7 @@
      <div class="fg-row">
       <div class="fg"><label>Data</label><input type="hidden" id="insp-dt"><input type="text" id="insp-dt_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)"></div>
       <div class="fg"><label>Turno</label><select id="insp-tn"><option>1º Turno</option><option>2º Turno</option><option>3º Turno</option></select></div>
-      <div class="fg"><label>Horas do Turno</label><input type="number" id="insp-horas" value="10" min="1" max="24"></div>
+      <div class="fg" style="display:none"><label>Horas do Turno</label><input type="number" id="insp-horas" value="10" min="1" max="24"></div>
       <div class="fg"><label>Manutentor</label><input type="text" id="insp-mn" placeholder="Nome"></div>
      </div>
     </div>
@@ -355,48 +355,55 @@
   <div class="ph">
     <div class="pt"><small>Cadastro</small>Ativos</div>
   </div>
+    <div class="card"><div class="card-t">Criticidade das Máquinas</div><div id="at-crit-chart"></div></div>
     <div class="two-col">
     <div>
-      <div class="card"><div class="card-t">Criticidade das Máquinas</div><div id="at-crit-chart"></div></div>
-     <div class="card">
-       <div class="card-t">Nova Sala / Local</div>
-       <div class="fg"><label>Nome da Sala</label><input type="text" id="at-sn" placeholder="Ex: Carne Moída"></div>
-       <button class="btn btn-p btn-sm" onclick="addSala()">+ Adicionar</button>
+      <div class="card card-fold" id="at-card-sala">
+       <div class="card-t" onclick="toggleAtFold('at-card-sala')"><span>+ Nova Sala / Local</span><span class="card-t-chev">▾</span></div>
+       <div class="card-fold-body">
+        <div class="fg"><label>Nome da Sala</label><input type="text" id="at-sn" placeholder="Ex: Carne Moída"></div>
+        <button class="btn btn-p btn-sm" onclick="addSala()">+ Adicionar</button>
+       </div>
       </div>
       <div class="card"><div class="card-t">Salas Cadastradas</div><div id="at-sl"></div></div>
         </div>
      <div>
-      <div class="card">
-       <div class="card-t">Nova Máquina / Ativo</div>
-       <div class="fg"><label>Sala</label><select id="at-ms"><option value="">Selecione...</option></select></div>
-       <div class="fg"><label>Nome da Máquina</label><input type="text" id="at-mn" placeholder="Ex: Cubadora"></div>
-       <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
-       <div class="fg"><label>Criticidade</label>
-        <select id="at-mc">
-         <option value="1">1 – Crítico</option>
-         <option value="2">2 – Alta</option>
-         <option value="3" selected>3 – Média</option>
-         <option value="4">4 – Baixa</option>
-        </select>
+      <div class="card card-fold" id="at-card-maq">
+       <div class="card-t" onclick="toggleAtFold('at-card-maq')"><span>+ Nova Máquina / Ativo</span><span class="card-t-chev">▾</span></div>
+       <div class="card-fold-body">
+        <div class="fg"><label>Sala</label><select id="at-ms"><option value="">Selecione...</option></select></div>
+        <div class="fg"><label>Nome da Máquina</label><input type="text" id="at-mn" placeholder="Ex: Cubadora"></div>
+        <div class="fg"><label>Tag / Código</label><input type="text" id="at-mt" placeholder="Ex: CUB-001"></div>
+        <div class="fg"><label>Criticidade</label>
+         <select id="at-mc">
+          <option value="1">1 – Crítico</option>
+          <option value="2">2 – Alta</option>
+          <option value="3" selected>3 – Média</option>
+          <option value="4">4 – Baixa</option>
+         </select>
+        </div>
+        <div class="fg"><label>Periodicidade Preventiva</label>
+         <select id="at-mp">
+          <option>Diária</option><option>Semanal</option>
+          <option selected>Mensal</option><option>Trimestral</option>
+          <option>Semestral</option><option>Anual</option>
+         </select>
+        </div>
+        <div class="fg"><label>Modelo de Manutenção Padrão</label>
+         <select id="at-mmp"><option value="">Nenhum (seleciona manual na OS)</option></select>
+        </div>
+        <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
        </div>
-       <div class="fg"><label>Periodicidade Preventiva</label>
-        <select id="at-mp">
-         <option>Diária</option><option>Semanal</option>
-         <option selected>Mensal</option><option>Trimestral</option>
-         <option>Semestral</option><option>Anual</option>
-        </select>
-       </div>
-       <div class="fg"><label>Modelo de Manutenção Padrão</label>
-        <select id="at-mmp"><option value="">Nenhum (seleciona manual na OS)</option></select>
-       </div>
-       <button class="btn btn-p btn-sm" onclick="addMaq()">+ Adicionar</button>
       </div>
       <div class="card">
-        <div class="card-t" style="justify-content:space-between">
+        <div class="card-t" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
           <span>Máquinas Cadastradas</span>
-          <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:160px">
-            <option value="">Todas as Salas</option>
-          </select>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="at-ml-busca" oninput="renderAtivos()" placeholder="Buscar nome ou tag..." style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;width:140px">
+            <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:140px">
+              <option value="">Todas as Salas</option>
+            </select>
+          </div>
         </div>
         <div id="at-ml"></div>
       </div>       
@@ -578,6 +585,18 @@
         <textarea id="racr-falha" placeholder="Descrever falha identificada..."></textarea>
       </div>
     </div>
+    <!-- EVIDÊNCIAS / FOTOS -->
+    <div class="card">
+      <div class="card-t">Evidências da Falha (fotos)</div>
+      <div id="racr-foto-drop" class="racr-foto-drop" onclick="document.getElementById('racr-foto-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="event.preventDefault();this.classList.remove('drag-over');racrAddFotos(event.dataTransfer.files)">
+        📷 Clique para anexar fotos ou arraste aqui (máx. 4)
+        <input type="file" id="racr-foto-input" accept="image/*" multiple style="display:none" onchange="racrAddFotos(this.files);this.value=''">
+      </div>
+      <div id="racr-foto-preview" class="racr-foto-grid"></div>
+    </div>
     <!-- SEÇÃO 3: CAUSA -->
     <div class="card">
       <div class="card-t">3 - Causa</div>
@@ -713,6 +732,7 @@ function doLogout() {
   clearInterval(_pollTimer);
   clearInterval(_dashTimer);
   localStorage.removeItem('sigman_sess');
+  localStorage.removeItem('sigman_lastpage');
   CU = null;
   document.getElementById('app').classList.remove('on');
   document.getElementById('loading-screen').style.display = 'none';
@@ -746,7 +766,10 @@ function enterApp() {
   populateAll();
   // Primeiro menu disponível - para PCM vai para planejamento
   const firstMenu = ROLES[CU.tipo].menus[0];
-  showPage(firstMenu === 'pcm' ? 'planejamento' : firstMenu);
+  const defaultPage = firstMenu === 'pcm' ? 'planejamento' : firstMenu;
+  const lastPage = localStorage.getItem('sigman_lastpage');
+  const lastPageValida = lastPage && document.querySelector(`[data-page="${lastPage}"]`);
+  showPage(lastPageValida ? lastPage : defaultPage);
   updStats();
   updateNavDots();
 
@@ -762,7 +785,7 @@ function enterApp() {
   // Inicia polling de atualização automática (só admin e manut)
   if (CU.tipo !== 'producao') {
     _pollTimer = setInterval(async () => {
-      await apiLoadAll(true);
+      await apiLoadAll(true, true);
       updStats();
       updateNavDots();
     }, POLL_MS);
@@ -867,6 +890,7 @@ function updateNavDots() {
 }
 
 function showPage(pid) {
+  localStorage.setItem('sigman_lastpage', pid);
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nv-item').forEach(n => n.classList.remove('act'));
   document.querySelectorAll('.nv-sub-item').forEach(n => n.classList.remove('act'));
@@ -886,9 +910,9 @@ function showPage(pid) {
   if (pid === 'solicitacao') { renderSol();     apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
   if (pid === 'ativos')      { renderAtivos();  apiLoadAll(true).then(renderAtivos).catch(()=>showToast('Erro ao sincronizar Ativos.','er')); }
   if (pid === 'usuarios')      renderUsuarios();
-  if (pid === 'inspecao')      buildInsp();
+  if (pid === 'inspecao')      { buildInsp(); apiLoadInspecoes().then(buildInsp).catch(()=>{}); }
   if (pid === 'preventiva')    initPreventiva();
-  if (pid === 'analise-causa-raiz') { renderRACR(); apiLoadAll(true).then(renderRACR).catch(()=>{}); }
+  if (pid === 'analise-causa-raiz') { renderRACR(); apiLoadRacs().then(renderRACR).catch(()=>{}); }
   if (pid === 'abertura') {
     populateSalas('ab'); sv('ab-dt', today());
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
@@ -924,8 +948,8 @@ function startDashTimer() {
     const act = document.querySelector('.nv-item.act, .nv-sub-item.act');
     const pid  = act ? act.getAttribute('data-page') : null;
     if (pid === 'dashboard') {
-      await apiLoadAll(true);
-      renderDash();
+      await apiLoadAll(true, true);
+      await _refreshComprasCache();
       updateNavDots();
       const lbl = document.getElementById('rf-lbl');
       if (lbl) lbl.textContent = 'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
@@ -1112,6 +1136,20 @@ function populateSalaFilter(id) {
   sel.innerHTML = '<option value="">Todas as Salas</option>';
   [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
   if (cur) sel.value = cur;
+}
+
+function irParaCard(pageId) {
+  const ok = ROLES[CU.tipo]?.menus || [];
+  let requiredId = pageId;
+  let subEntry = null;
+  if (!NAV.find(n => n.id === pageId)) {
+    for (const n of NAV) {
+      if (n.sub) { const s = n.sub.find(x => x.id === pageId); if (s) { requiredId = n.id; subEntry = s; break; } }
+    }
+  }
+  if (subEntry && subEntry.admin && CU.tipo !== 'administracao') return;
+  if (!ok.includes(requiredId)) return; // sem permissão, clique não faz nada
+  showPage(pageId);
 }
 
 function goToPage(pageId) {
