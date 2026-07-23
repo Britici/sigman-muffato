@@ -115,7 +115,8 @@ let db = {
   },
   osC:1, plC:1, solC:1, inspC:1,
   historico: [],
-  racs: []
+  racs: [],
+  manuaisSenhas: []
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -124,11 +125,11 @@ let db = {
 const ROLES = {
   administracao: {
     label: 'Administração',
-    menus: ['dashboard','planejadas','executadas','abertura','inspecao', 'pcm', 'solicitacao','ativos','usuarios']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao', 'pcm', 'solicitacao','ativos','usuarios','manuais-senhas']
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','inspecao']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao','manuais-senhas']
   },
   producao: {
     label: 'Produção',
@@ -502,6 +503,22 @@ async function apiLoadRacs() {
     dataBaixa: normDate(r.Data_Fechamento),
     fechadoPor: normStr(r.Fechado_Por),
     criadoEm: normStr(r.Data_Criacao)
+  }));
+  saveDB();
+}
+
+async function apiLoadManuaisSenhas() {
+  if (!USE_API) return;
+  const json = await apiGet({ action: 'readManuaisSenhas' });
+  if (!json?.ok) return;
+  db.manuaisSenhas = (json.data || []).map(r => ({
+    id: normStr(r.ID),
+    sala: normStr(r.Sala),
+    maquina: normStr(r.Equipamento),
+    manualUrl: normStr(r.Manual_URL),
+    credenciais: (() => { try { return JSON.parse(r.Credenciais || '[]'); } catch { return []; } })(),
+    atualizadoPor: normStr(r.Atualizado_Por),
+    atualizadoEm: normStr(r.Atualizado_Em)
   }));
   saveDB();
 }
