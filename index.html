@@ -396,9 +396,9 @@
        </div>
       </div>
       <div class="card">
-        <div class="card-t" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div class="card-t" style="flex-wrap:wrap;gap:8px">
           <span>Máquinas Cadastradas</span>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;margin-left:auto">
             <input type="text" id="at-ml-busca" oninput="renderAtivos()" placeholder="Buscar nome ou tag..." style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;width:140px">
             <select id="at-ml-fil" onchange="renderAtivos()" style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;max-width:140px">
               <option value="">Todas as Salas</option>
@@ -410,6 +410,57 @@
      </div>
     </div>
    </div>
+
+   <!-- PÁGINA: MANUAIS E SENHAS -->
+   <div class="pg" id="pg-manuais-senhas">
+    <div class="ph"><div class="pt"><small>Manutenção</small>Manuais e Senhas</div></div>
+    <div class="two-col">
+     <div id="ms-col-admin">
+      <div class="card">
+       <div class="card-t">Selecionar Máquina</div>
+       <div class="fg"><label>Sala / Local</label>
+        <select id="ms-sala" onchange="filtrarMSMaq()"><option value="">Selecione...</option></select>
+       </div>
+       <div class="fg"><label>Máquina / Ativo</label>
+        <select id="ms-maq" onchange="selecionarMSMaquina()"><option value="">Selecione a sala primeiro...</option></select>
+       </div>
+      </div>
+      <div class="card" id="ms-card-edicao" style="display:none">
+       <div class="card-t">Manual e Credenciais</div>
+       <div class="fg"><label>Link do Manual (Drive)</label>
+        <input type="text" id="ms-manual-url" placeholder="https://drive.google.com/...">
+       </div>
+       <div class="fg"><label>Credenciais de Acesso</label></div>
+       <div id="ms-cred-list"></div>
+       <button class="btn btn-sm btn-gh" onclick="addMSCredencial()">+ Adicionar Credencial</button>
+       <div class="fa">
+        <button class="btn btn-p btn-sm" onclick="salvarMS()">💾 Salvar</button>
+       </div>
+      </div>
+     </div>
+     <div>
+      <div class="card">
+       <div class="card-t" style="flex-wrap:wrap;gap:8px">
+        <span>Máquinas Cadastradas</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto">
+         <select id="ms-lista-sala" onchange="renderMSLista()" style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none">
+          <option value="">Todas as salas</option>
+         </select>
+         <input type="text" id="ms-busca" oninput="renderMSLista()" placeholder="Buscar máquina..." style="font-size:14px;background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:4px 8px;outline:none;width:160px">
+        </div>
+       </div>
+       <div id="ms-lista"></div>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <!-- MODAL: CREDENCIAIS (Manuais e Senhas) -->
+   <div class="mb" id="m-ms-cred"><div class="modal" style="max-width:420px">
+    <div class="mhd"><div class="mtit">Usuário e Senha</div><button class="mcl" onclick="closeM('m-ms-cred')">×</button></div>
+    <div id="ms-cred-modal-body"></div>
+   </div></div>
+
 
    <!-- PÁGINA: USUÁRIOS (admin only) -->
    <div class="pg" id="pg-usuarios">
@@ -693,6 +744,7 @@
   <script src="js/racr.js"></script>
   <script src="js/modulo-compras-solicitacao.js"></script>
   <script src="js/modulo-compras-acompanhamento.js"></script>
+  <script src="js/manuais-senhas.js"></script>
   
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -812,6 +864,7 @@ const NAV = [
   { id:'solicitacao',    ic:'📣', lbl:'Solicitação de O.S.', dot:true },
   { id:'ativos',         ic:'🏭', lbl:'Ativos'                },
   { id:'usuarios',       ic:'👥', lbl:'Usuários'              },
+  { id:'manuais-senhas', ic:'🔐', lbl:'Manuais e Senhas'      },
 ];
 
 const LBLS = {
@@ -819,7 +872,7 @@ const LBLS = {
   abertura:'Abertura de O.S.', planejamento:'PCM — Planejamento de O.S.',
   'analise-causa-raiz':'PCM — Análise de Causa Raiz',
   solicitacao:'Solicitação de O.S.', inspecao:'Inspeção Diária',
-  ativos:'Ativos', usuarios:'Usuários',
+  ativos:'Ativos', usuarios:'Usuários', 'manuais-senhas':'Manuais e Senhas',
   preventiva:'PCM — Manutenção Preventiva',
   'compras-solicitacao':'PCM — Solicitação de Compras',
   'compras-acompanhamento':'PCM — Acompanhamento de Compras'
@@ -913,6 +966,7 @@ function showPage(pid) {
   if (pid === 'inspecao')      { buildInsp(); apiLoadInspecoes().then(buildInsp).catch(()=>{}); }
   if (pid === 'preventiva')    initPreventiva();
   if (pid === 'analise-causa-raiz') { renderRACR(); apiLoadRacs().then(renderRACR).catch(()=>{}); }
+  if (pid === 'manuais-senhas') { initManuaisSenhas(); apiLoadManuaisSenhas().then(renderMSLista).catch(()=>{}); }
   if (pid === 'abertura') {
     populateSalas('ab'); sv('ab-dt', today());
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
