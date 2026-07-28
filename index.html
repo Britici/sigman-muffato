@@ -41,6 +41,14 @@
    <div class="fg"><label>Senha</label><input type="password" id="l-p" placeholder="••••••••" autocomplete="current-password"></div>
    <button class="btn btn-p btn-fl" onclick="doLogin()" style="margin-top:4px">Entrar</button>
   </div>
+  <div id="lf-troca-senha" style="display:none">
+   <div class="ltitle">Defina sua Nova Senha</div>
+   <div style="font-size:13px;color:var(--txt3);margin-bottom:10px">Sua senha foi resetada. Escolha uma senha nova — só você vai saber ela, nem o administrador tem acesso.</div>
+   <div class="fg"><label>Nova senha</label><input type="password" id="tn-p1" placeholder="••••••••" autocomplete="new-password"></div>
+   <div class="fg"><label>Confirmar nova senha</label><input type="password" id="tn-p2" placeholder="••••••••" autocomplete="new-password"></div>
+   <button class="btn btn-p btn-fl" onclick="confirmarTrocaSenha()" style="margin-top:4px">Definir Senha e Entrar</button>
+   <button class="btn btn-gh btn-fl" onclick="cancelarTrocaSenha()" style="margin-top:8px">Voltar</button>
+  </div>
   </div>
  </div>
 
@@ -61,7 +69,7 @@
     <div class="u-av" id="u-av">A</div>
     <div class="u-info">
      <div class="u-nm" id="u-nm">Usuário</div>
-     <div class="u-rl" id="u-rl" style="display:none"></div>
+     <div class="u-rl" id="u-rl"></div>
     </div>
    </div>
   </div>
@@ -464,15 +472,45 @@
 
    <!-- PÁGINA: USUÁRIOS (admin only) -->
    <div class="pg" id="pg-usuarios">
-    <div class="ph"><div class="pt"><small>Administração</small>Gestão de Usuários</div></div>
+    <div class="ph">
+     <div class="pt"><small>Administração</small>Gestão de Usuários</div>
+     <button class="btn btn-p btn-sm" onclick="abrirNovoUsuario()">+ Novo Usuário</button>
+    </div>
     <div class="alert" id="al-usr"></div>
     <div class="card">
-     <div class="card-t" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0"></span>Usuários do Sistema</span>
-     </div>
-     <div id="pg-ul"></div>
+     <div class="card-t"><span id="usr-tit-ativos">Usuários Ativos</span></div>
+     <div class="tw"><table><thead><tr>
+      <th class="sortable" id="uh-nome"  onclick="sortUsr('nome')">Nome</th>
+      <th class="sortable" id="uh-cargo" onclick="sortUsr('cargo')">Cargo</th>
+      <th class="sortable" id="uh-login" onclick="sortUsr('login')">Login</th>
+      <th class="sortable" id="uh-perfil" onclick="sortUsr('perfil')">Perfil / Escopo</th>
+      <th>Ações</th>
+     </tr></thead><tbody id="tb-usr-ativos"></tbody></table></div>
+    </div>
+    <div class="card">
+     <div class="card-t"><span id="usr-tit-inativos">Usuários Desativados</span></div>
+     <div class="tw"><table><thead><tr>
+      <th>Nome</th><th>Cargo</th><th>Login</th><th>Perfil / Escopo</th><th>Ações</th>
+     </tr></thead><tbody id="tb-usr-inativos"></tbody></table></div>
     </div>
    </div>
+
+   <!-- MODAL: NOVO / EDITAR USUÁRIO -->
+   <div class="mb" id="m-usr"><div class="modal" style="max-width:420px">
+    <div class="mhd"><div class="mtit" id="usr-m-t">Novo Usuário</div><button class="mcl" onclick="closeM('m-usr')">×</button></div>
+    <input type="hidden" id="usr-login-orig">
+    <div class="fg"><label>Nome</label><input type="text" id="usr-nome" placeholder="Nome completo"></div>
+    <div class="fg"><label>Cargo</label><input type="text" id="usr-cargo" placeholder="Ex: Mecânico, Eletricista..."></div>
+    <div class="fg"><label>Login</label><input type="text" id="usr-login" placeholder="login de acesso"></div>
+    <div class="fg"><label>Perfil</label><select id="usr-perfil"></select></div>
+    <div class="fg" id="usr-senha-info" style="display:none;color:var(--txt3);font-size:13px">
+     Senha inicial: <b>mudar123</b> (o usuário pode trocar depois de logar).
+    </div>
+    <div class="fa">
+     <button class="btn btn-gh" onclick="closeM('m-usr')">Cancelar</button>
+     <button class="btn btn-p" onclick="salvarUsuario()">💾 Salvar</button>
+    </div>
+   </div></div>
 
     <!-- PÁGINA: STATUS DE SALAS -->
     <div class="pg" id="pg-salas-status">
@@ -775,8 +813,57 @@ async function doLogin() {
 
   const user = db.usuarios.find(x => x.login === login && x.senha === senha);
   if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
+  if (user.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
+
+  // Senha ainda é a padrão de reset — obriga a pessoa a definir uma nova antes de entrar.
+  if (user.senha === 'mudar123') {
+    exigirTrocaSenha(user);
+    return;
+  }
+
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha, user }));
+  enterApp();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TROCA OBRIGATÓRIA DE SENHA (após reset pelo admin)
+// ══════════════════════════════════════════════════════════════════════
+let _pendingLoginUser = null;
+
+function exigirTrocaSenha(user) {
+  _pendingLoginUser = user;
+  document.getElementById('lf-login').style.display = 'none';
+  document.getElementById('lf-troca-senha').style.display = 'block';
+  document.getElementById('tn-p1').value = '';
+  document.getElementById('tn-p2').value = '';
+}
+
+function cancelarTrocaSenha() {
+  _pendingLoginUser = null;
+  document.getElementById('lf-troca-senha').style.display = 'none';
+  document.getElementById('lf-login').style.display = 'block';
+}
+
+async function confirmarTrocaSenha() {
+  if (!_pendingLoginUser) { cancelarTrocaSenha(); return; }
+  const p1 = v('tn-p1');
+  const p2 = v('tn-p2');
+  if (!p1 || p1.length < 4) { lAlert('A senha precisa ter pelo menos 4 caracteres.'); return; }
+  if (p1 !== p2) { lAlert('As senhas não conferem.'); return; }
+  if (p1 === 'mudar123') { lAlert('Escolha uma senha diferente de "mudar123".'); return; }
+
+  const login = _pendingLoginUser.login;
+  const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: p1 });
+  if (!res || !res.ok) { lAlert('Não foi possível salvar a nova senha (sem conexão). Tente novamente.'); return; }
+
+  const u = db.usuarios.find(x => x.login === login);
+  if (u) u.senha = p1;
+  CU = { ..._pendingLoginUser, senha: p1 };
+  localStorage.setItem('sigman_sess', JSON.stringify({ login, senha: p1, user: CU }));
+  _pendingLoginUser = null;
+  document.getElementById('lf-troca-senha').style.display = 'none';
+  document.getElementById('lf-login').style.display = 'block';
   enterApp();
 }
 
@@ -790,6 +877,25 @@ function doLogout() {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('lf-login').style.display = 'block';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// REVALIDAÇÃO DE SESSÃO — sessões já abertas (localStorage) não recheckavam
+// contra o Sheets. Isso significa que desativar um usuário ou resetar a
+// senha dele não tinha efeito em quem já estava logado num navegador.
+// Chamada após cada apiLoadAll(true,true) (carga inicial + polling a cada
+// 3 min) — derruba a sessão se: usuário sumiu, foi desativado, ou a senha
+// dele virou 'mudar123' por reset administrativo enquanto estava logado.
+// ══════════════════════════════════════════════════════════════════════
+function revalidarSessao() {
+  if (!CU) return;
+  const fresh = db.usuarios.find(x => x.login === CU.login);
+  if (!fresh || fresh.ativo === false || fresh.senha === 'mudar123') {
+    if (typeof showToast === 'function') {
+      showToast('Sua sessão foi encerrada (acesso alterado pela Administração). Faça login novamente.', 'war', 6000);
+    }
+    doLogout();
+  }
 }
 
 function lAlert(m,t='err') {
@@ -838,6 +944,8 @@ function enterApp() {
   if (CU.tipo !== 'producao') {
     _pollTimer = setInterval(async () => {
       await apiLoadAll(true, true);
+      revalidarSessao();
+      if (!CU) return;
       updStats();
       updateNavDots();
     }, POLL_MS);

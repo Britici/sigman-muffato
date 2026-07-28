@@ -43,6 +43,8 @@ async function init() {
         if (USE_API) {
           apiLoadAll(true, true).then(() => {
             setOffline(false);
+            revalidarSessao();
+            if (!CU) return;
             updStats(); updateNavDots();
             const pgAtual = document.querySelector('.pg.on');
             const curPid  = pgAtual ? pgAtual.id.replace('pg-','') : '';

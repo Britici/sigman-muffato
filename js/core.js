@@ -409,13 +409,22 @@ async function apiLoadAll(silent = false, force = false) {
   // Se o usuário mudou a senha pelo app, a versão local tem prioridade.
   const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
   if (d.usuarios && d.usuarios.length) {
+    // Mantém TODOS os usuários (ativos e desativados) — desativar não é excluir.
+    // Login continua funcionando normalmente pra quem está ativo.
     db.usuarios = d.usuarios
-      .filter(r => r.Login && String(r.Ativo).toLowerCase() !== 'nao')
+      .filter(r => r.Login)
       .map(r => {
         const loc = localUsers.find(u => u.login === r.Login);
         // Prioridade: senha alterada no app (localStorage) > Senha_Hash do Sheets > fallback
         const senha = loc ? loc.senha : (r.Senha_Hash || 'mudar123');
-        return { login: r.Login, nome: r.Nome, tipo: r.Tipo_Acesso, senha };
+        return {
+          login: r.Login,
+          nome: r.Nome,
+          cargo: r.Cargo || '',
+          tipo: r.Tipo_Acesso,
+          senha,
+          ativo: String(r.Ativo).toLowerCase() !== 'nao'
+        };
       });
   } else if (localUsers.length) {
     db.usuarios = localUsers;
