@@ -3,7 +3,9 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 
+let _savingOS = false;
 async function salvarOS() {
+  if (_savingOS) return; // trava reentrância (duplo clique / duplo toque)
   const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in').trim(), fim  = v('ab-fm').trim(),
@@ -32,24 +34,35 @@ async function salvarOS() {
     showAlert('al-ab', `Erro: ${numero} já existe. Recarregue a página e tente novamente.`, 'er');
     return;
   }
-  const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
-               durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
-  db.osC++; db.ordens.push(os); saveDB(); updStats();
-  logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
-  showAlert('al-ab', `Registrando ${numero}...`, 'ok');
-  // Upload da foto (async, não bloqueia)
-  const fotoUrl = await uploadFotoOS(numero);
-    apiAppend('ordens', {
-    OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
-    Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
-    Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
-    Acao_Preventiva:acaoPrev, Foto_URL:fotoUrl||'',
-    Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
-    Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
-  });
-  showAlert('al-ab', `Ordem ${numero} registrada!${fotoUrl?' 📷 Foto enviada.':''}`, 'ok');
-  clearAb();
-  setTimeout(()=>showPage('dashboard'), 1200);
+
+  _savingOS = true;
+  const btn = document.getElementById('ab-btn-salvar');
+  const btnTxtOrig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
+
+  try {
+    const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
+                 durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
+    db.osC++; db.ordens.push(os); saveDB(); updStats();
+    logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
+    showAlert('al-ab', `Registrando ${numero}...`, 'ok');
+    // Upload da foto (async, não bloqueia)
+    const fotoUrl = await uploadFotoOS(numero);
+      apiAppend('ordens', {
+      OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
+      Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
+      Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
+      Acao_Preventiva:acaoPrev, Foto_URL:fotoUrl||'',
+      Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
+      Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
+    });
+    showAlert('al-ab', `Ordem ${numero} registrada!${fotoUrl?' 📷 Foto enviada.':''}`, 'ok');
+    clearAb();
+    setTimeout(()=>showPage('dashboard'), 1200);
+  } finally {
+    _savingOS = false;
+    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
+  }
 }
 
 function clearAb() {
@@ -66,7 +79,9 @@ function clearAb() {
 // ══════════════════════════════════════════════════════════════════════
 // PLANEJAMENTO DE O.S.
 // ══════════════════════════════════════════════════════════════════════
+let _savingPlan = false;
 async function salvarPlan() {
+  if (_savingPlan) return; // trava reentrância (duplo clique / duplo toque)
   const sala=v('pl-sl'),maq=v('pl-mq'),tipo=v('pl-tp'),
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
@@ -76,17 +91,28 @@ async function salvarPlan() {
     showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
   }
-  db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
-    status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
-  db.plC++; saveDB();
-  logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
-  apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-    Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
-    Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
-    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
-  showAlert('al-pl','O.S. Planejada criada!','ok');
-  clearPl();
-  setTimeout(()=>showPage('dashboard'),900);
+
+  _savingPlan = true;
+  const btn = document.getElementById('pl-btn-salvar');
+  const btnTxtOrig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Criando...'; }
+
+  try {
+    db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
+      status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
+    db.plC++; saveDB();
+    logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
+    apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+      Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
+      Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
+      Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+    showAlert('al-pl','O.S. Planejada criada!','ok');
+    clearPl();
+    setTimeout(()=>showPage('dashboard'),900);
+  } finally {
+    _savingPlan = false;
+    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
+  }
 }
 function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
   
@@ -142,7 +168,9 @@ function removeSolPhoto(e) {
   const prev = document.getElementById('sol-photo-preview');
   if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
 }
+let _savingSol = false;
 async function salvarSol() {
+  if (_savingSol) return; // trava reentrância (duplo clique / duplo toque)
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
@@ -151,30 +179,41 @@ async function salvarSol() {
     showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
   }
+
+  _savingSol = true;
+  const btn = document.getElementById('sol-btn-salvar');
+  const btnTxtOrig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  try {
     const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
-    status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:''};
-  db.solicitacoes.push(solItem);
-  db.solC++;saveDB();
-  let fotoUrl = '';
-  if (_solPhotoBase64 && typeof USE_API !== 'undefined' && USE_API) {
-    try {
-      const ext = (_solPhotoFile.name.split('.').pop() || 'jpg').toLowerCase();
-      const resp = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action:'uploadFoto', numero, fileName: numero+'.'+ext,
-          mimeType: _solPhotoFile.type||'image/jpeg', base64: _solPhotoBase64 })
-      });
-      const r = await resp.json();
-      if (r.ok) { fotoUrl = r.fileUrl; solItem.fotoUrl = fotoUrl; saveDB(); }
-    } catch(e) { console.warn('Foto não enviada:', e); }
+      status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:''};
+    db.solicitacoes.push(solItem);
+    db.solC++;saveDB();
+    let fotoUrl = '';
+    if (_solPhotoBase64 && typeof USE_API !== 'undefined' && USE_API) {
+      try {
+        const ext = (_solPhotoFile.name.split('.').pop() || 'jpg').toLowerCase();
+        const resp = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action:'uploadFoto', numero, fileName: numero+'.'+ext,
+            mimeType: _solPhotoFile.type||'image/jpeg', base64: _solPhotoBase64 })
+        });
+        const r = await resp.json();
+        if (r.ok) { fotoUrl = r.fileUrl; solItem.fotoUrl = fotoUrl; saveDB(); }
+      } catch(e) { console.warn('Foto não enviada:', e); }
+    }
+    apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+      Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,Foto_URL:fotoUrl||'',
+      Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+    logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
+    showAlert('al-sol','Solicitação enviada!','ok');
+    clearSol();renderSol();
+    setTimeout(()=>showPage('dashboard'),900);
+  } finally {
+    _savingSol = false;
+    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
   }
-  apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,Foto_URL:fotoUrl||'',
-    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
-  logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
-  showAlert('al-sol','Solicitação enviada!','ok');
-  clearSol();renderSol();
-  setTimeout(()=>showPage('dashboard'),900);
 }
 function clearSol() {
   ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
