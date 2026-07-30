@@ -20,13 +20,11 @@ if (!document.getElementById(CSS_ID)) {
   border-radius:var(--rs);margin-bottom:16px;overflow:hidden}
 .cac-prazos-toggle{
   display:flex;align-items:center;justify-content:space-between;
-  padding:11px 16px;cursor:pointer;user-select:none;
+  padding:11px 16px;user-select:none;
   font-size:.8rem;font-weight:700;font-variant:small-caps;color:var(--txt2);
   text-transform:uppercase;letter-spacing:.07em}
-.cac-prazos-toggle:hover{background:rgba(255,255,255,.03)}
 .cac-prazos-toggle span{font-size:.75rem;font-variant:small-caps;color:var(--txt3);font-weight:400;text-transform:none;letter-spacing:0}
-.cac-prazos-body{display:none;overflow-x:auto;padding:0 0 4px}
-.cac-prazos-body.open{display:block}
+.cac-prazos-body{display:block;overflow-x:auto;padding:0 0 4px}
 .cac-prazos-table{width:100%;border-collapse:collapse;font-size:.75rem}
 .cac-prazos-table th{
   background:var(--surf);color:var(--txt2);font-weight:700;
@@ -83,7 +81,7 @@ if (!document.getElementById(CSS_ID)) {
   cursor:pointer;user-select:none;flex-wrap:wrap}
 .cac-card-id{font-size:.72rem;font-weight:700;color:var(--txt3);font-family:monospace}
 .cac-card-desc{flex:1;font-size:.9rem;color:var(--txt1);font-weight:600;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  white-space:normal;word-break:break-word;overflow-wrap:anywhere;min-width:0}
 .cac-card-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
 .cac-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
   font-size:.7rem;font-weight:700;letter-spacing:.04em;border:1px solid currentColor}
@@ -331,7 +329,6 @@ function _buildSkeleton() {
     <div class="cac-prazos-card">
       <div class="cac-prazos-toggle" id="cac-prazos-toggle">
         📋 Tabela de Prazos por Prioridade
-        <span>▼ clique para expandir</span>
       </div>
       <div class="cac-prazos-body" id="cac-prazos-body">
         <table class="cac-prazos-table">
@@ -430,13 +427,6 @@ function _popularFiltroSala(el) {
 
 /* ── EVENTS TOP ───────────────────────────────────────────────────── */
 function _bindTopEvents(el) {
-  /* Toggle tabela de prazos */
-  el.querySelector('#cac-prazos-toggle').addEventListener('click', function () {
-    const body = el.querySelector('#cac-prazos-body');
-    const open = body.classList.toggle('open');
-    this.querySelector('span').textContent = open ? '▲ clique para recolher' : '▼ clique para expandir';
-  });
-
   el.querySelectorAll('.cac-tab').forEach(tab =>
     tab.addEventListener('click', function () {
       _abaAtiva = this.dataset.tab;
