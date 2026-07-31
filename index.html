@@ -262,7 +262,7 @@
     </div>
     <div class="fa">
      <button class="btn btn-gh" onclick="clearAb()">Limpar</button>
-     <button class="btn btn-p" onclick="salvarOS()">✓ Registrar Ordem</button>
+     <button class="btn btn-p" id="ab-btn-salvar" onclick="salvarOS()">✓ Registrar Ordem</button>
     </div>
    </div>
 
@@ -283,7 +283,7 @@
      </div>
      <div class="fa">
       <button class="btn btn-gh" onclick="clearPl()">Limpar</button>
-      <button class="btn btn-p" onclick="salvarPlan()">+ Criar O.S. Planejada</button>
+      <button class="btn btn-p" id="pl-btn-salvar" onclick="salvarPlan()">+ Criar O.S. Planejada</button>
      </div>
     </div>
    </div>
@@ -309,7 +309,7 @@
      </div>
      <div class="fa">       
       <button class="btn btn-gh" onclick="clearSol()">Limpar</button>
-      <button class="btn btn-p" onclick="salvarSol()">Enviar Solicitação</button>
+      <button class="btn btn-p" id="sol-btn-salvar" onclick="salvarSol()">Enviar Solicitação</button>
      </div>
     </div>
       <div class="card">
@@ -793,6 +793,20 @@
 // ══════════════════════════════════════════════════════════════════════
 // AUTENTICAÇÃO
 // ══════════════════════════════════════════════════════════════════════
+// HASH DE SENHA — SHA-256 nativo do navegador (crypto.subtle), sem lib
+// externa. Prefixo 'h1:' marca senhas já migradas. O sentinela literal
+// 'mudar123' NUNCA é hasheado (é só um sinal interno de "precisa trocar",
+// não uma senha real). Salt = login (evita tabela rainbow genérica entre
+// contas; não é salt aleatório por usuário, mas já tira a senha de texto
+// puro do Sheets sem exigir coluna nova nem migração manual).
+const HASH_PREFIX = 'h1:';
+async function hashSenha(login, senhaPlana) {
+  const enc = new TextEncoder().encode('sigman:' + login.toLowerCase() + ':' + senhaPlana);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return HASH_PREFIX + hex;
+}
+
 async function doLogin() {
   const login = v('l-u').trim();
   const senha = v('l-p').trim();
@@ -811,15 +825,33 @@ async function doLogin() {
     return;
   }
 
-  const user = db.usuarios.find(x => x.login === login && x.senha === senha);
-  if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
-  if (user.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
+  const cand = db.usuarios.find(x => x.login === login);
+  if (!cand) { lAlert('Usuário ou senha incorretos.'); return; }
 
-  // Senha ainda é a padrão de reset — obriga a pessoa a definir uma nova antes de entrar.
-  if (user.senha === 'mudar123') {
-    exigirTrocaSenha(user);
+  // Sentinela de reset — sempre texto puro, nunca hasheado.
+  if (cand.senha === 'mudar123') {
+    if (senha !== 'mudar123') { lAlert('Usuário ou senha incorretos.'); return; }
+    if (cand.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
+    exigirTrocaSenha(cand);
     return;
   }
+
+  let user = null;
+  if (typeof cand.senha === 'string' && cand.senha.startsWith(HASH_PREFIX)) {
+    // Já migrado: compara hash x hash.
+    const h = await hashSenha(login, senha);
+    if (h === cand.senha) user = cand;
+  } else {
+    // Legado (texto puro): compara direto e, se bater, migra pra hash na hora.
+    if (cand.senha === senha) {
+      user = cand;
+      hashSenha(login, senha).then(h => apiUpdate('usuarios', login, 'Login', { Senha_Hash: h }));
+      cand.senha = await hashSenha(login, senha); // reflete localmente sem esperar o Sheets
+    }
+  }
+
+  if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
+  if (user.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
 
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha, user }));
@@ -854,11 +886,12 @@ async function confirmarTrocaSenha() {
   if (p1 === 'mudar123') { lAlert('Escolha uma senha diferente de "mudar123".'); return; }
 
   const login = _pendingLoginUser.login;
-  const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: p1 });
+  const hash = await hashSenha(login, p1);
+  const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: hash });
   if (!res || !res.ok) { lAlert('Não foi possível salvar a nova senha (sem conexão). Tente novamente.'); return; }
 
   const u = db.usuarios.find(x => x.login === login);
-  if (u) u.senha = p1;
+  if (u) u.senha = hash;
   CU = { ..._pendingLoginUser, senha: p1 };
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha: p1, user: CU }));
   _pendingLoginUser = null;
