@@ -24,7 +24,13 @@ function verDet(id,tipo) {
       <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
       <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
       ${item.acaoPrev?`<div class="dr"><span class="dl">Ação Preventiva</span><span class="dv">${item.acaoPrev}</span></div>`:''}
-      ${item.fotoUrl?`<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${driveThumb(item.fotoUrl)}" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto OS" onclick="abrirFotoImprimir('${item.fotoUrl}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${item.fotoUrl}')">🖨️</button></div></span></div>`:''} ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
+      ${(()=>{
+        const fs = item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[]);
+        if (!fs.length) return '';
+        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${driveThumb(fs[0])}" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto OS" onclick="abrirFotoImprimir('${fs[0]}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${fs[0]}')">🖨️</button></div></span></div>`;
+        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${driveThumb(u)}" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${u}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
+      })()}
+      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
     const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
     waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
   } else {

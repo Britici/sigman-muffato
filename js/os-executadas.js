@@ -76,18 +76,12 @@ function renderExec() {
     <td style="font-size:14px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:13px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td style="width:52px;text-align:center">
-      ${o.fotoUrl
-        ? `<div class="foto-wrap" style="display:inline-block">
-             <img src="${driveThumb(o.fotoUrl)}"
-               style="width:44px;height:44px;object-fit:cover;border-radius:6px;
-               border:1px solid var(--bord);cursor:zoom-in;display:block"
-               alt="Foto" onclick="abrirFotoLightbox('${o.fotoUrl}')" onerror="this.style.display='none'">
-           </div>`
-        : `<span style="font-size:13px;color:var(--txt3)">—</span>`}
+      ${(()=>{const fs=o.fotos&&o.fotos.length?o.fotos:(o.fotoUrl?[o.fotoUrl]:[]);return fs.length?`<div class="foto-wrap" style="display:inline-block"><img src="${driveThumb(fs[0])}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bord);cursor:zoom-in;display:block" alt="Foto" onclick="abrirFotoLightbox('${fs[0]}')" onerror="this.style.display='none'">${fs.length>1?`<span style="font-size:10px;color:var(--txt3);display:block;text-align:center">+${fs.length-1}</span>`:''}</div>`:`<span style="font-size:13px;color:var(--txt3)">—</span>`})()}
     </td>
-    <td><div style="display:flex;gap:4px">
+    <td><div style="display:flex;gap:4px;flex-wrap:nowrap">
       <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
-      <button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>
+      ${podeEditar(o.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarOS('${o.numero}')">✎</button>`:''}
+      ${podeEditar(o.criadoEm)?`<button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>`:''}
     </div></td>
   </tr>`).join('');
 }
@@ -147,12 +141,85 @@ function racrFiltrarMaq() {
 }
 
 function delOS(id) {
-  if (!confirm('Excluir esta O.S.?')) return;
   const os = db.ordens.find(o => o.numero === id);
-  if (os) logEdit('Excluiu OS', os.numero, os.sala + ' · ' + os.maq);
+  if (!os) return;
+  if (!podeEditar(os.criadoEm)) { showToast('Prazo de exclusão expirado (5 min).', 'er'); return; }
+  if (!confirm('Excluir esta O.S.?')) return;
+  logEdit('Excluiu OS', os.numero, os.sala + ' · ' + os.maq);
   db.ordens = db.ordens.filter(o => o.numero !== id);
   saveDB(); renderExec(); updStats();
-  if (os) apiDelete('ordens', os.numero, 'OS_Numero');
+  apiDelete('ordens', os.numero, 'OS_Numero');
+}
+
+let _editOsNumero = null;
+
+function editarOS(numero) {
+  const o = db.ordens.find(x => x.numero === numero);
+  if (!o) return;
+  if (!podeEditar(o.criadoEm)) { showToast('Prazo de edição expirado (5 min).', 'er'); return; }
+  _editOsNumero = numero;
+  _eoePhotos.length = 0;
+  document.getElementById('eoe-num').textContent = numero;
+  sv('eoe-dt', o.data);
+  sv('eoe-mn', o.manut);
+  sv('eoe-in', o.ini || '');
+  sv('eoe-fm', o.fim || '');
+  sv('eoe-parada', o.paradaMin || '');
+  sv('eoe-pb', o.prob || '');
+  sv('eoe-ac', o.acao || '');
+  sv('eoe-ap', o.acaoPrev || '');
+  const existGrid = document.getElementById('eoe-fotos-exist');
+  const fs = o.fotos && o.fotos.length ? o.fotos : (o.fotoUrl ? [o.fotoUrl] : []);
+  existGrid.innerHTML = fs.length
+    ? fs.map(u => `<a href="${u}" target="_blank"><img src="${driveThumb(u)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)" title="Clique para ampliar"></a>`).join('')
+    : '<span style="color:var(--txt3);font-size:13px">Sem fotos</span>';
+  renderPhotoGrid('eoe');
+  openM('m-edit-exec');
+}
+
+async function salvarEditOS() {
+  const numero = _editOsNumero;
+  const o = db.ordens.find(x => x.numero === numero);
+  if (!o) return;
+  const manut = v('eoe-mn').trim();
+  if (!manut) { showToast('Manutentor é obrigatório.', 'er'); return; }
+  const data = v('eoe-dt');
+  const ini = v('eoe-in');
+  const fim = v('eoe-fm');
+  const paradaMin = parseInt(v('eoe-parada')) || 0;
+  const prob = v('eoe-pb').trim();
+  const acao = v('eoe-ac').trim();
+  const acaoPrev = v('eoe-ap').trim();
+  const btn = document.getElementById('eoe-save-btn');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    const existFotos = o.fotos && o.fotos.length ? o.fotos : (o.fotoUrl ? [o.fotoUrl] : []);
+    const newUrls = await uploadFotos(numero, _eoePhotos);
+    const allFotos = [...existFotos, ...newUrls];
+    let durMin = o.durMin;
+    if (ini && fim) {
+      const [h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);
+      durMin = Math.max(0, (h2*60+m2)-(h1*60+m1));
+      if (durMin < 0) durMin += 1440;
+    }
+    Object.assign(o, { data, manut, ini, fim, durMin, paradaMin, prob, acao, acaoPrev,
+      fotoUrl: allFotos[0] || o.fotoUrl, fotos: allFotos });
+    saveDB(); renderExec();
+    const res = await apiUpdate('ordens', numero, 'OS_Numero', {
+      Data:data, Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim,
+      Duracao_Min:durMin, Tempo_Parada_Min:paradaMin,
+      Problema:prob, Acao_Executada:acao, Acao_Preventiva:acaoPrev,
+      Foto_URL:allFotos[0]||'', Fotos:JSON.stringify(allFotos)
+    });
+    if (res && !res.ok) showToast('Aviso: ' + res.error, 'war');
+    closeM('m-edit-exec');
+    showToast(`${numero} atualizada!`, 'ok');
+    logEdit('Editou OS', numero, `${o.sala} · ${o.maq}`);
+  } catch(e) {
+    showToast('Erro ao salvar: ' + e.message, 'er');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar';
+  }
 }
 
 function exportCSV() {

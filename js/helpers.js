@@ -152,6 +152,7 @@ function stBadge(s) {
 function roleBadge(t) {
   const c = {administracao:'b-adm',manutencao:'b-man',producao:'b-pro',diretoria:'b-dir'};
   const l = {administracao:'Administração',manutencao:'Manutenção',producao:'Produção',diretoria:'Diretoria'};
+
   return `<span class="badge ${c[t]||''}">${l[t]||t}</span>`;
 }
 
@@ -294,4 +295,16 @@ img{max-width:100%;max-height:85vh;object-fit:contain;box-shadow:0 4px 20px rgba
 <div class="bar"><button onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button></div>
 </body></html>`);
   win.document.close();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CONTROLE DE EDIÇÃO/EXCLUSÃO — 5 min para não-admin
+// ══════════════════════════════════════════════════════════════════════
+// Retorna true se o usuário pode editar/excluir o registro:
+//   • Admin: sempre pode
+//   • Outros: somente nos primeiros 5 minutos após a criação
+function podeEditar(criadoEm) {
+  if (CU && CU.tipo === 'administracao') return true;
+  if (!criadoEm) return false;
+  return (Date.now() - new Date(criadoEm).getTime()) < 5 * 60 * 1000;
 }

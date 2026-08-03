@@ -3,9 +3,7 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 
-let _savingOS = false;
 async function salvarOS() {
-  if (_savingOS) return; // trava reentrância (duplo clique / duplo toque)
   const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in').trim(), fim  = v('ab-fm').trim(),
@@ -34,54 +32,38 @@ async function salvarOS() {
     showAlert('al-ab', `Erro: ${numero} já existe. Recarregue a página e tente novamente.`, 'er');
     return;
   }
-
-  _savingOS = true;
-  const btn = document.getElementById('ab-btn-salvar');
-  const btnTxtOrig = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
-
-  try {
-    const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
-                 durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta' };
-    db.osC++; db.ordens.push(os); saveDB(); updStats();
-    logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
-    showAlert('al-ab', `Registrando ${numero}...`, 'ok');
-    // Upload da foto (async, não bloqueia)
-    const fotoUrl = await uploadFotoOS(numero);
-      apiAppend('ordens', {
-      OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
-      Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
-      Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
-      Acao_Preventiva:acaoPrev, Foto_URL:fotoUrl||'',
-      Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
-      Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
-    });
-    showAlert('al-ab', `Ordem ${numero} registrada!${fotoUrl?' 📷 Foto enviada.':''}`, 'ok');
-    clearAb();
-    setTimeout(()=>showPage('dashboard'), 1200);
-  } finally {
-    _savingOS = false;
-    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
-  }
+  const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
+               durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta',
+               fotoUrl:'', fotos:[] };
+  db.osC++; db.ordens.push(os); saveDB(); updStats();
+  logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
+  showAlert('al-ab', `Registrando ${numero}...`, 'ok');
+  const fotos = await uploadFotos(numero, _abPhotos);
+  if (fotos.length) { os.fotoUrl = fotos[0]; os.fotos = fotos; saveDB(); }
+  apiAppend('ordens', {
+    OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
+    Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
+    Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
+    Acao_Preventiva:acaoPrev, Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
+    Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
+    Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
+  });
+  showAlert('al-ab', `Ordem ${numero} registrada!${fotos.length?' 📷 '+fotos.length+' foto(s).':''}`, 'ok');
+  clearAb();
+  setTimeout(()=>showPage('dashboard'), 1200);
 }
 
 function clearAb() {
   ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-ap','ab-parada'].forEach(id=>sv(id,''));
   sv('ab-dt', today());
   if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
-  _photoFile = null; _photoBase64 = null;
-  const inp = document.getElementById('ab-photo-input');
-  if (inp) inp.value = '';
-  const prev = document.getElementById('ab-photo-preview');
-  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
+  clearPhotos('ab');
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // PLANEJAMENTO DE O.S.
 // ══════════════════════════════════════════════════════════════════════
-let _savingPlan = false;
 async function salvarPlan() {
-  if (_savingPlan) return; // trava reentrância (duplo clique / duplo toque)
   const sala=v('pl-sl'),maq=v('pl-mq'),tipo=v('pl-tp'),
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
@@ -91,86 +73,24 @@ async function salvarPlan() {
     showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
   }
-
-  _savingPlan = true;
-  const btn = document.getElementById('pl-btn-salvar');
-  const btnTxtOrig = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Criando...'; }
-
-  try {
-    db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
-      status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
-    db.plC++; saveDB();
-    logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
-    apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-      Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
-      Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
-      Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
-    showAlert('al-pl','O.S. Planejada criada!','ok');
-    clearPl();
-    setTimeout(()=>showPage('dashboard'),900);
-  } finally {
-    _savingPlan = false;
-    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
-  }
+  db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
+    status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
+  db.plC++; saveDB();
+  logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
+  apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+    Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
+    Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
+    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+  showAlert('al-pl','O.S. Planejada criada!','ok');
+  clearPl();
+  setTimeout(()=>showPage('dashboard'),900);
 }
 function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
   
 // ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
 // ══════════════════════════════════════════════════════════════════════
-  let _solPhotoFile = null, _solPhotoBase64 = null;
-
-function previewSolPhoto(input) {
-  const file = input.files[0];
-  if (!file) return;
-  _solPhotoFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX_W = 1920, MAX_H = 1080, MAX_BYTES = 1 * 1024 * 1024;
-      let w = img.width, h = img.height;
-      if (w > MAX_W || h > MAX_H) {
-        const ratio = Math.min(MAX_W / w, MAX_H / h);
-        w = Math.round(w * ratio);
-        h = Math.round(h * ratio);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      let quality = 0.92;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.4) {
-        quality -= 0.06;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-      _solPhotoBase64 = dataUrl.split(',')[1];
-      const byteSize = Math.round(_solPhotoBase64.length * 0.75 / 1024);
-      document.getElementById('sol-photo-preview').innerHTML = `
-        <img src="${dataUrl}" style="max-height:80px;max-width:120px;border-radius:4px;object-fit:cover" alt="Foto">
-        <div style="font-size:13px;color:var(--txt2);margin-top:4px">
-          <strong>${file.name}</strong><br>
-          <span style="color:var(--txt3)">${byteSize} KB (redimensionado)</span><br>
-          <button class="btn btn-sm" onclick="removeSolPhoto(event)" style="margin-top:5px;background:rgba(196,18,48,.12);color:#ff4d65;border:1px solid rgba(196,18,48,.3);padding:3px 8px">🗑 Remover</button>
-        </div>`;
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function removeSolPhoto(e) {
-  e && e.stopPropagation();
-  _solPhotoFile = null; _solPhotoBase64 = null;
-  const inp = document.getElementById('sol-photo-input');
-  if (inp) inp.value = '';
-  const prev = document.getElementById('sol-photo-preview');
-  if (prev) prev.innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
-}
-let _savingSol = false;
 async function salvarSol() {
-  if (_savingSol) return; // trava reentrância (duplo clique / duplo toque)
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
@@ -179,45 +99,24 @@ async function salvarSol() {
     showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
     return;
   }
-
-  _savingSol = true;
-  const btn = document.getElementById('sol-btn-salvar');
-  const btnTxtOrig = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
-
-  try {
-    const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
-      status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:''};
-    db.solicitacoes.push(solItem);
-    db.solC++;saveDB();
-    let fotoUrl = '';
-    if (_solPhotoBase64 && typeof USE_API !== 'undefined' && USE_API) {
-      try {
-        const ext = (_solPhotoFile.name.split('.').pop() || 'jpg').toLowerCase();
-        const resp = await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action:'uploadFoto', numero, fileName: numero+'.'+ext,
-            mimeType: _solPhotoFile.type||'image/jpeg', base64: _solPhotoBase64 })
-        });
-        const r = await resp.json();
-        if (r.ok) { fotoUrl = r.fileUrl; solItem.fotoUrl = fotoUrl; saveDB(); }
-      } catch(e) { console.warn('Foto não enviada:', e); }
-    }
-    apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-      Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,Foto_URL:fotoUrl||'',
-      Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
-    logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
-    showAlert('al-sol','Solicitação enviada!','ok');
-    clearSol();renderSol();
-    setTimeout(()=>showPage('dashboard'),900);
-  } finally {
-    _savingSol = false;
-    if (btn) { btn.disabled = false; btn.textContent = btnTxtOrig; }
-  }
+  const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
+    status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:'',fotos:[]};
+  db.solicitacoes.push(solItem);
+  db.solC++; saveDB();
+  const fotos = await uploadFotos(numero, _solPhotos);
+  if (fotos.length) { solItem.fotoUrl = fotos[0]; solItem.fotos = fotos; saveDB(); }
+  apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
+    Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
+    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+  logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
+  showAlert('al-sol','Solicitação enviada!','ok');
+  clearSol();renderSol();
+  setTimeout(()=>showPage('dashboard'),900);
 }
 function clearSol() {
   ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
-  removeSolPhoto();
+  clearPhotos('sol');
 }
 
 function renderSol() {
@@ -286,12 +185,7 @@ function abrirConcluir(id, tipo) {
       <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
       <div style="font-size:14px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
       ${item.desc?`<div style="font-size:14px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
-      ${item.fotoUrl?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)">
-        <div style="font-size:13px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto da Solicitação</div>
-         <a href="${item.fotoUrl}" target="_blank">
-           <img src="${driveThumb(item.fotoUrl)}"px solid var(--bord);cursor:zoom-in" alt="Foto">
-        </a>
-      </div>`:''}
+      ${(()=>{const fs=item.fotos&&item.fotos.length?item.fotos:(item.fotoUrl?[item.fotoUrl]:[]);return fs.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)"><div style="font-size:13px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto(s) da Solicitação</div><div style="display:flex;flex-wrap:wrap;gap:6px">${fs.map(u=>`<a href="${u}" target="_blank"><img src="${driveThumb(u)}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--bord)" alt="Foto"></a>`).join('')}</div></div>`:''})()}
     </div>`;
   sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
   ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(fid=>sv(fid,''));

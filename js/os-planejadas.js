@@ -74,9 +74,9 @@ function renderPlan() {
     <td>${stBadge(p.status)}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">
       ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
-      <button class="btn btn-sm btn-gh" onclick="editarPlan('${p.numero}')">✎ Editar</button>
+      ${podeEditar(p.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarPlan('${p.numero}')">✎ Editar</button>`:''}
       <button class="btn btn-sm btn-gh" onclick="verDet('${p.numero}','pl')">Ver</button>
-      <button class="btn btn-d" onclick="delPlan('${p.numero}')">✕</button>
+      ${podeEditar(p.criadoEm)?`<button class="btn btn-d" onclick="delPlan('${p.numero}')">✕</button>`:''}
     </div></td>
   </tr>`;
   };
@@ -210,6 +210,8 @@ function epFiltrarMaq() {
 }
   
 function delPlan(id) {
+  const _chkPl = db.planejadas.find(p => p.numero === id);
+  if (_chkPl && !podeEditar(_chkPl.criadoEm)) { showToast('Prazo de exclusão expirado (5 min).','er'); return; }
   if (!confirm('Excluir esta O.S. planejada?')) return;
   const pl = db.planejadas.find(p => p.numero === id);
   if (pl) logEdit('Excluiu Planejada', pl.numero, pl.sala + ' · ' + pl.maq);

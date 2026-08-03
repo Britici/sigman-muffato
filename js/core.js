@@ -319,6 +319,16 @@ async function apiLoadAll(silent = false, force = false) {
   localStorage.setItem('sigman_last_load', String(Date.now()));
   const d = json.data;
 
+  // Helper: parse array de fotos, com fallback lazy para Foto_URL (registros antigos)
+  function _parseJsonFotos(r, fallbackKey) {
+    try {
+      const arr = JSON.parse(r.Fotos || '[]');
+      if (Array.isArray(arr) && arr.length) return arr;
+    } catch (_) {}
+    const u = fallbackKey ? (r[fallbackKey] || '') : '';
+    return u ? [u] : [];
+  }
+
   // Ordens Executadas
   if (d.ordens && d.ordens.length) {
     db.ordens = d.ordens.map(r => ({
@@ -338,6 +348,7 @@ async function apiLoadAll(silent = false, force = false) {
       acao: normStr(r.Acao_Executada),
       acaoPrev: normStr(r.Acao_Preventiva||''),
       fotoUrl: normStr(r.Foto_URL||''),
+      fotos: _parseJsonFotos(r, 'Foto_URL'),
       origem: normStr(r.Origem),
       origemNum: normStr(r.OS_Origem_Ref),
       criadoEm: normStr(r.Criado_Em)
@@ -365,6 +376,7 @@ async function apiLoadAll(silent = false, force = false) {
       fim: normTime(r.Hora_Fim),
       durMin: Number(r.Duracao_Min) || 0,
       desc2: normStr(r.Servico_Executado),
+      fotos: _parseJsonFotos(r, null),
       criadoEm: normStr(r.Criado_Em)
     }));
     const max = Math.max(...db.planejadas.map(p => parseInt(p.numero.replace(/\D/g,''))||0), 0);
@@ -387,7 +399,8 @@ async function apiLoadAll(silent = false, force = false) {
       dtExec: normDate(r.Data_Execucao),
       desc2: normStr(r.Servico_Executado),
       criadoEm: normStr(r.Criado_Em),
-      fotoUrl: normStr(r.Foto_URL||'')
+      fotoUrl: normStr(r.Foto_URL||''),
+      fotos: _parseJsonFotos(r, 'Foto_URL')
     }));
     const max = Math.max(...db.solicitacoes.map(s => parseInt(s.numero.replace(/\D/g,''))||0), 0);
     db.solC = max + 1;
