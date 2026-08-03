@@ -391,3 +391,7 @@ label,
 .racr-thumb-del:hover{background:#C41230}
 .racr-thumb-tag{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;
   font-size:9px;text-align:center;padding:2px 0}
+
+/* ── Multi-foto (OS abertura, Solicitação, edição OS) ── */
+.photo-multi-grid{min-height:82px;padding:8px;border:2px dashed var(--bord);border-radius:var(--rs);background:var(--surf2);transition:.15s}
+.photo-multi-grid:hover{border-color:var(--red)}
