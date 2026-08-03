@@ -251,18 +251,14 @@
      <div class="fg"><label>Problema / Ocorrência</label><textarea id="ab-pb" placeholder="Descreva o problema..."></textarea></div>
      <div class="fg" style="margin-top:10px"><label>Ação / Serviço Executado</label><textarea id="ab-ac" placeholder="Descreva o serviço..."></textarea></div>
      <div class="fg" style="margin-top:10px">
-      <label>Foto da OS (opcional)</label>
-      <div class="photo-zone" id="ab-photo-zone" onclick="document.getElementById('ab-photo-input').click()">
-       <input type="file" id="ab-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this)">
-       <div id="ab-photo-preview" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>
-       </div>
-      </div>
+      <label>Fotos da OS (opcional)</label>
+      <input type="file" id="ab-photo-input" accept="image/*" multiple style="display:none" onchange="addPhotos(this,'ab')">
+      <div id="ab-photo-grid" class="photo-multi-grid"></div>
      </div>
     </div>
     <div class="fa">
      <button class="btn btn-gh" onclick="clearAb()">Limpar</button>
-     <button class="btn btn-p" id="ab-btn-salvar" onclick="salvarOS()">✓ Registrar Ordem</button>
+     <button class="btn btn-p" onclick="salvarOS()">✓ Registrar Ordem</button>
     </div>
    </div>
 
@@ -283,7 +279,7 @@
      </div>
      <div class="fa">
       <button class="btn btn-gh" onclick="clearPl()">Limpar</button>
-      <button class="btn btn-p" id="pl-btn-salvar" onclick="salvarPlan()">+ Criar O.S. Planejada</button>
+      <button class="btn btn-p" onclick="salvarPlan()">+ Criar O.S. Planejada</button>
      </div>
     </div>
    </div>
@@ -300,16 +296,14 @@
       <div class="fg"><label>Tipo</label><select id="sol-tp"><option value="">Selecione...</option><option>Corretiva</option><option>Melhoria</option></select></div>
       <div class="fg"><label>Prioridade</label><select id="sol-pr"><option value="">Selecione...</option><option value="1">🔴 1 – Crítico (Parada de Máquina)</option><option value="2">🟡 2 – Alta (Risco de Parada)</option><option value="3">🔵 3 – Média (Preventiva)</option><option value="4">🟢 4 – Baixa (Melhoria)</option></select></div>
       <div class="fg fg-full"><label>Descrição do Problema</label><textarea id="sol-ds" placeholder="Descreva o problema..."></textarea></div>
-      <div class="fg fg-full"><label>Foto do Problema (opcional)</label>
-        <div id="sol-photo-area" onclick="document.getElementById('sol-photo-input').click()" style="border:2px dashed var(--bord);border-radius:var(--rs);padding:14px;text-align:center;cursor:pointer;background:var(--surf2);display:flex;align-items:center;gap:14px;justify-content:center" onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--bord)'">
-          <input type="file" id="sol-photo-input" accept="image/*" style="display:none" onchange="previewSolPhoto(this)">
-          <div id="sol-photo-preview"><span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span></div>
-        </div>
+      <div class="fg fg-full"><label>Fotos do Problema (opcional)</label>
+        <input type="file" id="sol-photo-input" accept="image/*" multiple style="display:none" onchange="addPhotos(this,'sol')">
+        <div id="sol-photo-grid" class="photo-multi-grid"></div>
       </div>
      </div>
      <div class="fa">       
       <button class="btn btn-gh" onclick="clearSol()">Limpar</button>
-      <button class="btn btn-p" id="sol-btn-salvar" onclick="salvarSol()">Enviar Solicitação</button>
+      <button class="btn btn-p" onclick="salvarSol()">Enviar Solicitação</button>
      </div>
     </div>
       <div class="card">
@@ -758,6 +752,39 @@
 </div>
   
   <!-- MODAL EDITAR -->
+  <!-- Modal: Editar OS Executada -->
+  <div class="mb" id="m-edit-exec"><div class="modal" style="max-width:520px">
+   <div class="mhd">
+     <div class="mtit">✎ Editar OS — <span id="eoe-num"></span></div>
+     <button class="mcl" onclick="closeM('m-edit-exec')">×</button>
+   </div>
+   <div style="padding:0 16px 4px;overflow-y:auto;max-height:70vh">
+    <div class="fg-row">
+      <div class="fg"><label>Data</label><input type="date" id="eoe-dt"></div>
+      <div class="fg"><label>Manutentor</label><input type="text" id="eoe-mn" placeholder="Nome do manutentor"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>Hora Início</label><input type="time" id="eoe-in"></div>
+      <div class="fg"><label>Hora Fim</label><input type="time" id="eoe-fm"></div>
+      <div class="fg"><label>Parada (min)</label><input type="number" id="eoe-parada" min="0" placeholder="0"></div>
+    </div>
+    <div class="fg"><label>Problema / Ocorrência</label><textarea id="eoe-pb" rows="2" placeholder="Descreva o problema..."></textarea></div>
+    <div class="fg"><label>Ação / Serviço Executado</label><textarea id="eoe-ac" rows="2" placeholder="Descreva o serviço..."></textarea></div>
+    <div class="fg"><label>Ação Preventiva</label><textarea id="eoe-ap" rows="2" placeholder="Opcional..."></textarea></div>
+    <div class="fg">
+      <label>Fotos existentes</label>
+      <div id="eoe-fotos-exist" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+      <label style="font-size:13px;color:var(--txt3);margin-bottom:4px">Adicionar mais fotos</label>
+      <input type="file" id="eoe-photo-input" accept="image/*" multiple style="display:none" onchange="addPhotos(this,'eoe')">
+      <div id="eoe-photo-grid" class="photo-multi-grid"></div>
+    </div>
+   </div>
+   <div class="fa">
+    <button class="btn btn-gh" onclick="closeM('m-edit-exec')">Cancelar</button>
+    <button class="btn btn-p" id="eoe-save-btn" onclick="salvarEditOS()">Salvar</button>
+   </div>
+  </div></div>
+
   <div class="mb" id="m-edit"><div class="modal" style="max-width:400px">
    <div class="mhd"><div class="mtit" id="me-t">Editar</div><button class="mcl" onclick="closeM('m-edit')">×</button></div>
    <div id="me-b"></div>
@@ -791,22 +818,18 @@
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ══════════════════════════════════════════════════════════════════════
-// AUTENTICAÇÃO
+// HASH DE SENHA — SHA-256 nativo, salt = login
+// Formato: 'h1:' + hex(SHA-256('sigman:'+login.lower()+':'+senha))
 // ══════════════════════════════════════════════════════════════════════
-// HASH DE SENHA — SHA-256 nativo do navegador (crypto.subtle), sem lib
-// externa. Prefixo 'h1:' marca senhas já migradas. O sentinela literal
-// 'mudar123' NUNCA é hasheado (é só um sinal interno de "precisa trocar",
-// não uma senha real). Salt = login (evita tabela rainbow genérica entre
-// contas; não é salt aleatório por usuário, mas já tira a senha de texto
-// puro do Sheets sem exigir coluna nova nem migração manual).
-const HASH_PREFIX = 'h1:';
-async function hashSenha(login, senhaPlana) {
-  const enc = new TextEncoder().encode('sigman:' + login.toLowerCase() + ':' + senhaPlana);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-  return HASH_PREFIX + hex;
+async function hashSenha(login, senha) {
+  const msg = 'sigman:' + login.toLowerCase() + ':' + senha;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return 'h1:' + Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// AUTENTICAÇÃO
+// ══════════════════════════════════════════════════════════════════════
 async function doLogin() {
   const login = v('l-u').trim();
   const senha = v('l-p').trim();
@@ -825,33 +848,38 @@ async function doLogin() {
     return;
   }
 
-  const cand = db.usuarios.find(x => x.login === login);
-  if (!cand) { lAlert('Usuário ou senha incorretos.'); return; }
+  const user = db.usuarios.find(x => x.login === login);
+  if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
 
-  // Sentinela de reset — sempre texto puro, nunca hasheado.
-  if (cand.senha === 'mudar123') {
-    if (senha !== 'mudar123') { lAlert('Usuário ou senha incorretos.'); return; }
-    if (cand.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
-    exigirTrocaSenha(cand);
-    return;
-  }
-
-  let user = null;
-  if (typeof cand.senha === 'string' && cand.senha.startsWith(HASH_PREFIX)) {
-    // Já migrado: compara hash x hash.
-    const h = await hashSenha(login, senha);
-    if (h === cand.senha) user = cand;
+  // Comparação com suporte a hash h1: e texto puro (migração lazy)
+  let senhaOk = false;
+  if (user.senha && user.senha.startsWith('h1:')) {
+    // Senha já hasheada — compara hash
+    const hash = await hashSenha(login, senha);
+    senhaOk = (hash === user.senha);
   } else {
-    // Legado (texto puro): compara direto e, se bater, migra pra hash na hora.
-    if (cand.senha === senha) {
-      user = cand;
-      hashSenha(login, senha).then(h => apiUpdate('usuarios', login, 'Login', { Senha_Hash: h }));
-      cand.senha = await hashSenha(login, senha); // reflete localmente sem esperar o Sheets
+    // Senha ainda em texto puro — compara direto e migra silenciosamente
+    senhaOk = (user.senha === senha);
+    if (senhaOk && typeof USE_API !== 'undefined' && USE_API) {
+      hashSenha(login, senha).then(h => {
+        apiUpdate('usuarios', login, 'Login', { Senha_Hash: h });
+        user.senha = h;
+        const lu = JSON.parse(localStorage.getItem('sigman_users') || '[]');
+        const idx = lu.findIndex(u => u.login === login);
+        if (idx >= 0) lu[idx].senha = h; else lu.push({ ...user, senha: h });
+        localStorage.setItem('sigman_users', JSON.stringify(lu));
+      });
     }
   }
 
-  if (!user) { lAlert('Usuário ou senha incorretos.'); return; }
+  if (!senhaOk) { lAlert('Usuário ou senha incorretos.'); return; }
   if (user.ativo === false) { lAlert('Usuário desativado. Fale com a Administração.'); return; }
+
+  // Sentinela de reset — obriga troca antes de entrar
+  if (user.senha === 'mudar123') {
+    exigirTrocaSenha(user);
+    return;
+  }
 
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha, user }));
@@ -886,13 +914,13 @@ async function confirmarTrocaSenha() {
   if (p1 === 'mudar123') { lAlert('Escolha uma senha diferente de "mudar123".'); return; }
 
   const login = _pendingLoginUser.login;
-  const hash = await hashSenha(login, p1);
-  const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: hash });
+  const h = await hashSenha(login, p1);
+  const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: h });
   if (!res || !res.ok) { lAlert('Não foi possível salvar a nova senha (sem conexão). Tente novamente.'); return; }
 
   const u = db.usuarios.find(x => x.login === login);
-  if (u) u.senha = hash;
-  CU = { ..._pendingLoginUser, senha: p1 };
+  if (u) u.senha = h;
+  CU = { ..._pendingLoginUser, senha: h };
   localStorage.setItem('sigman_sess', JSON.stringify({ login, senha: p1, user: CU }));
   _pendingLoginUser = null;
   document.getElementById('lf-troca-senha').style.display = 'none';
@@ -1101,7 +1129,7 @@ function showPage(pid) {
   if (pid === 'dashboard') { renderDash(); apiLoadAll(true).then(renderDash).catch(()=>{}); if (_dashAutoRf) startDashTimer(); }
   if (pid === 'planejadas')  { renderPlan();    apiLoadAll(true).then(renderPlan).catch(()=>showToast('Erro ao sincronizar Planejadas.','er')); }
   if (pid === 'executadas')  { renderExec();    apiLoadAll(true).then(renderExec).catch(()=>showToast('Erro ao sincronizar Executadas.','er')); }
-  if (pid === 'solicitacao') { renderSol();     apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
+  if (pid === 'solicitacao') { renderSol(); renderPhotoGrid('sol'); apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
   if (pid === 'ativos')      { renderAtivos();  apiLoadAll(true).then(renderAtivos).catch(()=>showToast('Erro ao sincronizar Ativos.','er')); }
   if (pid === 'usuarios')      renderUsuarios();
   if (pid === 'inspecao')      { buildInsp(); apiLoadInspecoes().then(buildInsp).catch(()=>{}); }
@@ -1111,6 +1139,7 @@ function showPage(pid) {
   if (pid === 'abertura') {
     populateSalas('ab'); sv('ab-dt', today());
     if (CU.tipo !== 'producao') sv('ab-mn', CU.nome);
+    renderPhotoGrid('ab');
   }
   if (pid === 'planejamento') { populateSalas('pl'); }
   if (pid === 'compras-solicitacao') {
@@ -1173,89 +1202,157 @@ function toggleDashRefresh() {
 // ══════════════════════════════════════════════════════════════════════
 // FOTO — Preview e upload (Google Drive via Apps Script)
 // ══════════════════════════════════════════════════════════════════════
-let _photoFile = null;
-let _photoBase64 = null;
+// ══════════════════════════════════════════════════════════════════════
+// MULTI-FOTO — estado global por prefixo
+// ══════════════════════════════════════════════════════════════════════
+// Cada item: { file: File, b64: string, dataUrl: string }
+const _abPhotos  = [];  // OS abertura
+const _solPhotos = [];  // Solicitação manutenção
+const _eoePhotos = [];  // Edição OS executada
 
-function previewPhoto(input) {
-  const file = input.files[0];
-  if (!file) return;
+function _getPhotoArr(prefix) {
+  if (prefix === 'ab')  return _abPhotos;
+  if (prefix === 'sol') return _solPhotos;
+  if (prefix === 'eoe') return _eoePhotos;
+  return [];
+}
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      // Dimensão máxima: 1920×1080, compressão até ~1 MB
-      const MAX_W = 1920, MAX_H = 1080, MAX_BYTES = 1 * 1024 * 1024;
-      let w = img.width, h = img.height;
-
-      // Redimensiona mantendo proporção se necessário
-      if (w > MAX_W || h > MAX_H) {
-        const ratio = Math.min(MAX_W / w, MAX_H / h);
-        w = Math.round(w * ratio);
-        h = Math.round(h * ratio);
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-      // Comprime em JPEG reduzindo qualidade até caber em 1 MB
-      let quality = 0.92;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.4) {
-        quality -= 0.06;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-
-      _photoBase64 = dataUrl.split(',')[1];
-      // Cria um File redimensionado para exibir o tamanho real ao usuário
-      const byteSize = Math.round(_photoBase64.length * 0.75 / 1024);
-
-      const prev = document.getElementById('ab-photo-preview');
-      prev.innerHTML = `
-        <img src="${dataUrl}" class="photo-thumb" alt="Foto OS">
-        <div style="font-size:14px;color:var(--txt2)">
-          <strong>${file.name}</strong><br>
-          <span style="color:var(--txt3)">${byteSize} KB (redimensionado)</span><br>
-          <button class="btn btn-sm" onclick="removePhoto(event)"
-            style="margin-top:6px;background:rgba(196,18,48,.12);color:#ff4d65;
-                   border:1px solid rgba(196,18,48,.3);padding:3px 8px">
-            🗑 Remover
-          </button>
-        </div>`;
-
-      // _photoFile continua sendo o original (só usado para o nome/extensão)
-      _photoFile = file;
+// Redimensiona e comprime uma imagem, retorna { b64, dataUrl, sizeKb }
+function _compressFile(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_W = 1920, MAX_H = 1080, MAX_BYTES = 1 * 1024 * 1024;
+        let w = img.width, h = img.height;
+        if (w > MAX_W || h > MAX_H) {
+          const r = Math.min(MAX_W / w, MAX_H / h);
+          w = Math.round(w * r); h = Math.round(h * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        let quality = 0.92, dataUrl;
+        do { dataUrl = canvas.toDataURL('image/jpeg', quality); quality -= 0.06; }
+        while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.4);
+        const b64 = dataUrl.split(',')[1];
+        resolve({ b64, dataUrl, sizeKb: Math.round(b64.length * 0.75 / 1024) });
+      };
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
 }
 
-function removePhoto(e) {
-  e.stopPropagation();
-  _photoFile = null; _photoBase64 = null;
-  document.getElementById('ab-photo-input').value = '';
-  document.getElementById('ab-photo-preview').innerHTML = '<span style="color:var(--txt3);font-size:15px">📷 Clique para anexar foto</span>';
+// Renderiza o grid de miniaturas + botão "adicionar"
+function renderPhotoGrid(prefix) {
+  const gridId  = prefix + '-photo-grid';
+  const inputId = prefix + '-photo-input';
+  const arr = _getPhotoArr(prefix);
+  const el  = document.getElementById(gridId);
+  if (!el) return;
+
+  if (!arr.length) {
+    // Área grande clicável (igual Solicitação de Compras)
+    el.innerHTML = `
+      <div onclick="document.getElementById('${inputId}').click()"
+        style="width:100%;min-height:90px;display:flex;flex-direction:column;
+               align-items:center;justify-content:center;gap:6px;cursor:pointer;
+               color:var(--txt3);font-size:13px"
+        onmouseover="this.parentElement.style.borderColor='var(--red)'"
+        onmouseout="this.parentElement.style.borderColor='var(--bord)'">
+        <span style="font-size:28px">🖼️</span>
+        <span>Clique para anexar fotos ou arraste aqui</span>
+      </div>`;
+    el.ondragover  = e => { e.preventDefault(); el.style.borderColor='var(--red)'; };
+    el.ondragleave = () => el.style.borderColor='var(--bord)';
+    el.ondrop      = async e => {
+      e.preventDefault(); el.style.borderColor='var(--bord)';
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (!files.length) return;
+      const fakeInput = { files };
+      await addPhotosFromFiles(fakeInput.files, prefix);
+    };
+    return;
+  }
+
+  // Há fotos: miniaturas + botão "+"
+  const thumbs = arr.map((p, i) => `
+    <div style="position:relative;display:inline-block">
+      <img src="${p.dataUrl}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)">
+      <button onclick="removePhoto('${prefix}',${i})" title="Remover"
+        style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;
+               background:var(--red);color:#fff;border:none;cursor:pointer;font-size:13px;
+               display:flex;align-items:center;justify-content:center;padding:0;line-height:1">×</button>
+      <div style="font-size:10px;color:var(--txt3);text-align:center;margin-top:2px">${p.sizeKb}KB</div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
+      ${thumbs}
+      <div onclick="document.getElementById('${inputId}').click()"
+        style="width:72px;height:72px;border:2px dashed var(--bord);border-radius:6px;
+               display:flex;flex-direction:column;align-items:center;justify-content:center;
+               cursor:pointer;color:var(--txt3);font-size:22px;background:var(--surf2)"
+        onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--bord)'">
+        ➕<span style="font-size:10px;margin-top:2px">Mais</span>
+      </div>
+    </div>`;
+  el.ondragover = el.ondragleave = el.ondrop = null;
 }
 
-async function uploadFotoOS(numero) {
-  if (!_photoBase64 || !USE_API) return null;
-  try {
-    const ext = (_photoFile.name.split('.').pop() || 'jpg').toLowerCase();
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'uploadFoto',
-        numero,
-        fileName: numero + '.' + ext,
-        mimeType: _photoFile.type || 'image/jpeg',
-        base64: _photoBase64
-      })
-    });
-    const r = await resp.json();
-    return r.ok ? r.fileUrl : null;
-  } catch(e) { console.warn('Foto não enviada:', e); return null; }
+// Processa arquivos selecionados e adiciona ao array do prefixo
+async function addPhotos(input, prefix) {
+  await addPhotosFromFiles(input.files, prefix);
+  input.value = '';
+}
+
+async function addPhotosFromFiles(files, prefix) {
+  const arr = _getPhotoArr(prefix);
+  for (const file of Array.from(files || [])) {
+    if (!file.type.startsWith('image/')) continue;
+    const r = await _compressFile(file);
+    arr.push({ file, b64: r.b64, dataUrl: r.dataUrl, sizeKb: r.sizeKb });
+  }
+  renderPhotoGrid(prefix);
+}
+
+// Remove foto por índice
+function removePhoto(prefix, idx) {
+  const arr = _getPhotoArr(prefix);
+  arr.splice(idx, 1);
+  renderPhotoGrid(prefix);
+}
+
+// Limpa o array e re-renderiza
+function clearPhotos(prefix) {
+  const arr = _getPhotoArr(prefix);
+  arr.length = 0;
+  renderPhotoGrid(prefix);
+}
+
+// Upload de todas as fotos de um array; retorna array de URLs
+async function uploadFotos(numero, photosArr) {
+  if (!photosArr.length || !USE_API) return [];
+  const urls = [];
+  for (const p of photosArr) {
+    try {
+      const ext = (p.file.name.split('.').pop() || 'jpg').toLowerCase();
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'uploadFoto', numero,
+          fileName: numero + '_' + (urls.length + 1) + '.' + ext,
+          mimeType: p.file.type || 'image/jpeg',
+          base64: p.b64
+        })
+      });
+      const r = await resp.json();
+      if (r.ok) urls.push(r.fileUrl);
+    } catch(e) { console.warn('Foto não enviada:', e); }
+  }
+  return urls;
 }
 
 function toggleSB() {
