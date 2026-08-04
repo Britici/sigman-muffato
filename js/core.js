@@ -173,7 +173,12 @@ async function apiGet(params, _tentativa = 1) {
   }
 }
 
-async function apiPost(body) {
+// noQueueOnFail: quando true, uma resposta ok:false do servidor NÃO vai
+// pra fila de retry offline (usado em retries imediatos, ex: número
+// duplicado — reenviar o mesmo body só repetiria o mesmo erro). Falha de
+// REDE (catch) continua indo pra fila normalmente, preservando o
+// comportamento offline-first em qualquer caso.
+async function apiPost(body, noQueueOnFail) {
   if (!USE_API) return null;
   try {
     const res = await fetch(API_URL, {
@@ -185,14 +190,14 @@ async function apiPost(body) {
     const json = await res.json();
     if (!json.ok) {
       console.error('[API POST] Erro:', json.error);
-      apiQueueFailed(body);
-      return null;
+      if (!noQueueOnFail) apiQueueFailed(body);
+      return json; // objeto com ok:false — caller distingue com 'res && res.ok'
     }
     return json;
   } catch(e) {
     console.error('[API POST]', e.message);
-    apiQueueFailed(body);
-    return null;
+    if (!noQueueOnFail) apiQueueFailed(body);
+    return null; // falha de rede/timeout — sinal de offline preservado
   }
 }
 
@@ -255,6 +260,46 @@ function showApiStatus(status) {
 
 // Envia nova linha para o Sheets
 function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
+
+// Append com retry automático de número sequencial (OS-/PL-/SOL-).
+// Corrige a corrida entre dois usuários gerando o mesmo número quase
+// simultaneamente: o servidor (Code.gs) valida duplicidade DENTRO do
+// lock de escrita e retorna { ok:false, error:'NUMERO_DUPLICADO' }. Aqui
+// no client, ao ver esse erro específico, avançamos o contador local e
+// tentamos de novo — sem enfileirar (reenviar o mesmo número só repetiria
+// o erro). Qualquer outra falha (rede, offline, validação) cai na fila
+// normal como sempre, preservando o comportamento offline-first.
+//   row         — objeto já com [numeroCol] preenchido (ex: {OS_Numero:'OS-0042',...})
+//   numeroCol   — nome da coluna do número (ex: 'OS_Numero')
+//   prefixo     — ex: 'OS-'
+//   counterProp — nome da prop em db usada como contador (ex: 'osC')
+// Retorna { ok, numero, offline } — numero pode diferir do original em row
+// se houve retry; o caller deve atualizar seu registro local com esse valor.
+async function apiAppendComRetryNumero(sheet, row, numeroCol, prefixo, counterProp, maxTentativas = 5) {
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    const res = await apiPost({ action:'append', sheet, row, usuario:(typeof CU!=='undefined'&&CU)?CU.nome:'' }, true);
+    if (res && res.ok) return { ok:true, numero: row[numeroCol] };
+    if (res && res.error === 'NUMERO_DUPLICADO') {
+      db[counterProp]++;
+      const novoNumero = prefixo + String(db[counterProp]).padStart(4,'0');
+      console.warn(`[SIGMAN] ${row[numeroCol]} já existia no servidor — tentando ${novoNumero} (${tentativa}/${maxTentativas}).`);
+      row[numeroCol] = novoNumero;
+      continue;
+    }
+    // Falha de rede (res===null) ou outro erro de validação: mantém o
+    // número já calculado e enfileira para sync posterior, como sempre.
+    apiQueueFailed({ action:'append', sheet, row, usuario:(typeof CU!=='undefined'&&CU)?CU.nome:'' });
+    return { ok:false, numero: row[numeroCol], offline: res === null };
+  }
+  return { ok:false, numero:null, error:'Não foi possível gerar número único após ' + maxTentativas + ' tentativas.' };
+}
+// Envia nova linha SEM número — servidor gera o próximo número (OS-/PL-/SOL-)
+// de forma atômica dentro do lock, evitando colisão entre usuários simultâneos.
+// row NÃO deve conter a coluna do número (ex: OS_Numero) — o backend preenche.
+// Retorna { ok:true, numero:'OS-0123', ... } em sucesso, ou null em falha.
+function apiAppendComNumero(sheet, coluna, prefixo, row) {
+  return apiPost({ action:'appendComNumero', sheet, coluna, prefixo, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' });
+}
 // Atualiza linha existente
 function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
 // Remove linha

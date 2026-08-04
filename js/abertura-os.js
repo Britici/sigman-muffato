@@ -40,15 +40,23 @@ async function salvarOS() {
   showAlert('al-ab', `Registrando ${numero}...`, 'ok');
   const fotos = await uploadFotos(numero, _abPhotos);
   if (fotos.length) { os.fotoUrl = fotos[0]; os.fotos = fotos; saveDB(); }
-  apiAppend('ordens', {
+  const row = {
     OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
     Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
     Acao_Preventiva:acaoPrev, Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
     Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
     Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
-  });
-  showAlert('al-ab', `Ordem ${numero} registrada!${fotos.length?' 📷 '+fotos.length+' foto(s).':''}`, 'ok');
+  };
+  const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
+  if (rAp.numero !== numero) {
+    // Servidor detectou colisão com outro usuário e reatribuiu o número —
+    // reconcilia o registro local (a pasta de fotos no Drive já foi criada
+    // com o número antigo; caso raro, revisar manualmente se necessário).
+    os.numero = rAp.numero; saveDB();
+    showAlert('al-ab', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+  }
+  showAlert('al-ab', `Ordem ${rAp.numero} registrada!${fotos.length?' 📷 '+fotos.length+' foto(s).':''}`, 'ok');
   clearAb();
   setTimeout(()=>showPage('dashboard'), 1200);
 }
@@ -77,10 +85,16 @@ async function salvarPlan() {
     status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
   db.plC++; saveDB();
   logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
-  apiAppend('planejadas',{PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+  const row = {PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
     Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
     Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
-    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
+    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
+  const rAp = await apiAppendComRetryNumero('planejadas', row, 'PL_Numero', 'PL-', 'plC');
+  if (rAp.numero !== numero) {
+    const p = db.planejadas.find(x => x.numero === numero);
+    if (p) { p.numero = rAp.numero; saveDB(); }
+    showAlert('al-pl', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+  }
   showAlert('al-pl','O.S. Planejada criada!','ok');
   clearPl();
   setTimeout(()=>showPage('dashboard'),900);
@@ -105,11 +119,16 @@ async function salvarSol() {
   db.solC++; saveDB();
   const fotos = await uploadFotos(numero, _solPhotos);
   if (fotos.length) { solItem.fotoUrl = fotos[0]; solItem.fotos = fotos; saveDB(); }
-  apiAppend('solicitacoes',{SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+  const row = {SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
     Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
     Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
-    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''});
-  logEdit('Criou Solicitação', numero, sala + ' · ' + maq + ' · ' + tipo);
+    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
+  const rAp = await apiAppendComRetryNumero('solicitacoes', row, 'SOL_Numero', 'SOL-', 'solC');
+  if (rAp.numero !== numero) {
+    solItem.numero = rAp.numero; saveDB();
+    showAlert('al-sol', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+  }
+  logEdit('Criou Solicitação', rAp.numero, sala + ' · ' + maq + ' · ' + tipo);
   showAlert('al-sol','Solicitação enviada!','ok');
   clearSol();renderSol();
   setTimeout(()=>showPage('dashboard'),900);
@@ -214,10 +233,12 @@ async function concluir() {
   if(_ctp==='plan')renderPlan();else renderSol();updStats();
   if(_ctp==='plan'){apiUpdate('planejadas',item.numero,'PL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,Servico_Executado:desc,Concluido_Em:agora});}
   else{apiUpdate('solicitacoes',item.numero,'SOL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Servico_Executado:desc,Concluido_Em:agora});}
-  apiAppend('ordens',{OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
+  const row = {OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
     Prioridade:item.prioridade,Manutentor:manut,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin,Problema:item.desc||'',Acao_Executada:desc,Origem:_ctp,
-    OS_Origem_Ref:item.numero,Criado_Em:agora});
+    OS_Origem_Ref:item.numero,Criado_Em:agora};
+  const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
+  if (rAp.numero !== numero) { os.numero = rAp.numero; saveDB(); }
     if (document.getElementById('pg-dashboard').classList.contains('on')) renderDash();
     } catch(e) { showToast('Erro ao concluir: '+e.message,'er',8000); }
   }
