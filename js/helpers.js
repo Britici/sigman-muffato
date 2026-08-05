@@ -9,7 +9,17 @@ const sv = (id, val) => {
   const disp = document.getElementById(id + '_disp');
   if (disp) disp.value = fd(val) === '—' ? '' : fd(val);
 };
-const today = () => new Date().toISOString().slice(0,10);
+// Data de "hoje" no fuso de Brasília (America/Sao_Paulo), usando o horário
+// sincronizado com o servidor (agoraServidorMs, ver core.js).
+// IMPORTANTE: toISOString() sozinho é sempre UTC — a partir de ~21h em
+// Brasília (UTC-3) ele já retorna o dia seguinte. Formatamos explicitamente
+// no fuso correto pra "hoje" não virar amanhã cedo demais.
+const today = () => {
+  const ms = (typeof agoraServidorMs === 'function') ? agoraServidorMs() : Date.now();
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date(ms)); // locale en-CA formata nativamente como AAAA-MM-DD
+};
 
 function debounce(fn, ms=300){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 var renderExecDebounced = debounce(()=>renderExec());
@@ -306,5 +316,8 @@ img{max-width:100%;max-height:85vh;object-fit:contain;box-shadow:0 4px 20px rgba
 function podeEditar(criadoEm) {
   if (CU && CU.tipo === 'administracao') return true;
   if (!criadoEm) return false;
-  return (Date.now() - new Date(criadoEm).getTime()) < 5 * 60 * 1000;
+  // Usa o horário sincronizado com o servidor (ver core.js), não o relógio
+  // bruto do dispositivo — evita que a janela de 5 min seja furada por um
+  // celular/PC com hora errada ou alterada manualmente.
+  return (agoraServidorMs() - new Date(criadoEm).getTime()) < 5 * 60 * 1000;
 }

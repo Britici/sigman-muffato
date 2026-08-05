@@ -11,6 +11,50 @@ const POLL_MS = 180000; // Atualização automática a cada 3 minutos
 const CACHE_TTL_MS = 180000; // TTL do readAll: só busca novamente após 3 min
 
 // ══════════════════════════════════════════════════════════════════════
+// HORÁRIO SINCRONIZADO COM O SERVIDOR (Brasília / rede)
+// O relógio do dispositivo (celular/PC) pode estar errado ou ter sido
+// alterado manualmente pelo usuário — isso furaria a janela de 5 min de
+// edição/exclusão (podeEditar) e distorceria "hoje" no dashboard. Aqui
+// sincronizamos com o timestamp do próprio Apps Script (Google, sempre
+// correto e em UTC — toISOString() é absoluto, não depende de fuso) na
+// abertura do app e periodicamente, calculando um offset que corrige
+// qualquer drift/desvio do relógio local sem precisar trocar o fuso do
+// dispositivo. A "hora de Brasília" é só a exibição (fuso America/Sao_Paulo,
+// sem horário de verão desde 2019) — o instante em si já é correto porque
+// vem do servidor.
+// ══════════════════════════════════════════════════════════════════════
+let _serverOffsetMs = 0;      // servidor - local, em ms
+let _serverSyncOk = false;    // true assim que a 1ª sincronização funcionar
+
+async function syncServerTime() {
+  try {
+    const antes = Date.now();
+    const res = await fetch(API_URL + '?action=ping', { signal: AbortSignal.timeout(8000) });
+    const depois = Date.now();
+    const json = await res.json();
+    if (json && json.ts) {
+      // corrige a latência de ida/volta pela metade (RTT/2), estimativa padrão
+      const rtt = depois - antes;
+      const tsServidor = new Date(json.ts).getTime() + Math.round(rtt / 2);
+      _serverOffsetMs = tsServidor - depois;
+      _serverSyncOk = true;
+    }
+  } catch (e) {
+    // offline ou timeout: mantém o último offset conhecido (ou 0 na 1ª vez).
+    // Não bloqueia o app — só significa que podeEditar()/today() usam o
+    // relógio local puro até a próxima sincronização bem-sucedida.
+    console.warn('[SIGMAN] Sincronização de horário falhou, usando relógio local:', e.message);
+  }
+}
+
+// Instante atual corrigido pelo offset do servidor (ms desde epoch)
+function agoraServidorMs() { return Date.now() + _serverOffsetMs; }
+
+// Sincroniza no carregamento e a cada 5 min (corrige drift ao longo do turno)
+syncServerTime();
+setInterval(syncServerTime, 5 * 60 * 1000);
+
+// ══════════════════════════════════════════════════════════════════════
 // TEMPLATE DE INSPEÇÃO DIÁRIA (Equipamentos por Sala)
 // ══════════════════════════════════════════════════════════════════════
 const INSP_TMPL = [
