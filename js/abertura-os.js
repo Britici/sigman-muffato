@@ -12,8 +12,8 @@ async function salvarOS() {
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
         acaoPrev = v('ab-ap').trim(),
         parada = v('ab-parada');
-  if (!sala||!maq||!tipo||!pr||!manut||!data||!ini||!fim) {
-    showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor, Data, Hora Início e Hora Fim.','er'); return;
+  if (!sala||!maq||!tipo||!pr||!manut||!data||!ini||!fim||!prob||!acao) {
+    showAlert('al-ab','Preencha todos os campos obrigatórios: Sala, Máquina, Tipo, Prioridade, Manutentor, Data, Hora Início, Hora Fim, Problema e Ação Executada.','er'); return;
   }
   {
     const [h1,m1]=ini.split(':').map(Number), [h2,m2]=fim.split(':').map(Number);
