@@ -3,6 +3,22 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+
+// Desabilita/reabilita o botão de salvar durante o envio, evitando
+// duplo clique / duplo toque criar duas OS/Planejada/Solicitação
+// enquanto a primeira ainda está em andamento (upload de fotos + API).
+function setBtnBusy(prefix, busy) {
+  const btn = document.getElementById('btn-' + prefix + '-salvar');
+  if (!btn) return;
+  if (busy) {
+    if (!btn.dataset.txtOrig) btn.dataset.txtOrig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.txtOrig) btn.textContent = btn.dataset.txtOrig;
+  }
+}
 const sv = (id, val) => {
   const el = document.getElementById(id);
   if (el) el.value = val;

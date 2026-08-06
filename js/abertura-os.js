@@ -3,62 +3,69 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 
+let _savingOS = false;
 async function salvarOS() {
+  if (_savingOS) return;
   const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in').trim(), fim  = v('ab-fm').trim(),
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
         acaoPrev = v('ab-ap').trim(),
         parada = v('ab-parada');
-  if (!sala||!maq||!tipo||!pr||!manut||!data) {
-    if (ini && !fim) { showAlert('al-ab','Se informar hora início, informe também fim.','er'); return; }
-    if (fim && !ini) { showAlert('al-ab','Se informar hora fim, informe também início.','er'); return; }
-    showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor e Data.','er'); return;
+  if (!sala||!maq||!tipo||!pr||!manut||!data||!ini||!fim) {
+    showAlert('al-ab','Preencha: Sala, Máquina, Tipo, Prioridade, Manutentor, Data, Hora Início e Hora Fim.','er'); return;
   }
-  if (ini && fim) {
+  {
     const [h1,m1]=ini.split(':').map(Number), [h2,m2]=fim.split(':').map(Number);
     if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) { showAlert('al-ab','Horas inválidas. Use HH:MM','er'); return; }
   }
   let durMin = 0, paradaMin = parseInt(parada)||0;
-  if (ini && fim) {
+  {
     const [h1,m1]=ini.split(':').map(Number), [h2,m2]=fim.split(':').map(Number);
-        durMin = (h2*60+m2)-(h1*60+m1);
+    durMin = (h2*60+m2)-(h1*60+m1);
     if (durMin < 0) durMin += 1440; // turno que passa da meia-noite
     durMin = Math.max(0, durMin);
     if (!paradaMin) paradaMin = durMin;
   }
-  const numero = genOS(), agora = new Date().toISOString();
-  if (db.ordens.find(o => o.numero === numero)) {
-    showAlert('al-ab', `Erro: ${numero} já existe. Recarregue a página e tente novamente.`, 'er');
-    return;
+  _savingOS = true;
+  setBtnBusy('ab', true);
+  try {
+    const numero = genOS(), agora = new Date().toISOString();
+    if (db.ordens.find(o => o.numero === numero)) {
+      showAlert('al-ab', `Erro: ${numero} já existe. Recarregue a página e tente novamente.`, 'er');
+      return;
+    }
+    const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
+                 durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta',
+                 fotoUrl:'', fotos:[] };
+    db.osC++; db.ordens.push(os); saveDB(); updStats();
+    logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
+    showAlert('al-ab', `Registrando ${numero}...`, 'ok');
+    const fotos = await uploadFotos(numero, _abPhotos);
+    if (fotos.length) { os.fotoUrl = fotos[0]; os.fotos = fotos; saveDB(); }
+    const row = {
+      OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
+      Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
+      Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
+      Acao_Preventiva:acaoPrev, Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
+      Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
+      Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
+    };
+    const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
+    if (rAp.numero !== numero) {
+      // Servidor detectou colisão com outro usuário e reatribuiu o número —
+      // reconcilia o registro local (a pasta de fotos no Drive já foi criada
+      // com o número antigo; caso raro, revisar manualmente se necessário).
+      os.numero = rAp.numero; saveDB();
+      showAlert('al-ab', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+    }
+    showAlert('al-ab', `Ordem ${rAp.numero} registrada!${fotos.length?' 📷 '+fotos.length+' foto(s).':''}`, 'ok');
+    clearAb();
+    setTimeout(()=>showPage('dashboard'), 1200);
+  } finally {
+    _savingOS = false;
+    setBtnBusy('ab', false);
   }
-  const os = { id: crypto.randomUUID(), numero, sala, maq, tipo, prioridade:pr, manut, data, ini, fim,
-               durMin, paradaMin, prob, acao, acaoPrev, criadoEm:agora, origem:'direta',
-               fotoUrl:'', fotos:[] };
-  db.osC++; db.ordens.push(os); saveDB(); updStats();
-  logEdit('Criou OS', numero, sala + ' · ' + maq + ' · ' + tipo);
-  showAlert('al-ab', `Registrando ${numero}...`, 'ok');
-  const fotos = await uploadFotos(numero, _abPhotos);
-  if (fotos.length) { os.fotoUrl = fotos[0]; os.fotos = fotos; saveDB(); }
-  const row = {
-    OS_Numero:numero, Data:data, Sala:sala, Maquina:maq, Tipo:tipo, Prioridade:pr,
-    Manutentor:manut, Hora_Inicio:ini, Hora_Fim:fim, Duracao_Min:durMin,
-    Tempo_Parada_Min:paradaMin, Problema:prob, Acao_Executada:acao,
-    Acao_Preventiva:acaoPrev, Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
-    Tag_Maquina:db.maquinas.find(m => m.nome === maq && m.sala === sala)?.tag || '',
-    Origem:'direta', OS_Origem_Ref:'', Criado_Em:agora
-  };
-  const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
-  if (rAp.numero !== numero) {
-    // Servidor detectou colisão com outro usuário e reatribuiu o número —
-    // reconcilia o registro local (a pasta de fotos no Drive já foi criada
-    // com o número antigo; caso raro, revisar manualmente se necessário).
-    os.numero = rAp.numero; saveDB();
-    showAlert('al-ab', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
-  }
-  showAlert('al-ab', `Ordem ${rAp.numero} registrada!${fotos.length?' 📷 '+fotos.length+' foto(s).':''}`, 'ok');
-  clearAb();
-  setTimeout(()=>showPage('dashboard'), 1200);
 }
 
 function clearAb() {
@@ -71,67 +78,85 @@ function clearAb() {
 // ══════════════════════════════════════════════════════════════════════
 // PLANEJAMENTO DE O.S.
 // ══════════════════════════════════════════════════════════════════════
+let _savingPlan = false;
 async function salvarPlan() {
+  if (_savingPlan) return;
   const sala=v('pl-sl'),maq=v('pl-mq'),tipo=v('pl-tp'),
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
   if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
-  const numero = genPL(), agora = new Date().toISOString();
-  if (db.planejadas.find(p => p.numero === numero)) {
-    showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
-    return;
+  _savingPlan = true;
+  setBtnBusy('pl', true);
+  try {
+    const numero = genPL(), agora = new Date().toISOString();
+    if (db.planejadas.find(p => p.numero === numero)) {
+      showAlert('al-pl', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
+      return;
+    }
+    db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
+      status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
+    db.plC++; saveDB();
+    logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
+    const row = {PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+      Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
+      Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
+      Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
+    const rAp = await apiAppendComRetryNumero('planejadas', row, 'PL_Numero', 'PL-', 'plC');
+    if (rAp.numero !== numero) {
+      const p = db.planejadas.find(x => x.numero === numero);
+      if (p) { p.numero = rAp.numero; saveDB(); }
+      showAlert('al-pl', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+    }
+    showAlert('al-pl','O.S. Planejada criada!','ok');
+    clearPl();
+    setTimeout(()=>showPage('dashboard'),900);
+  } finally {
+    _savingPlan = false;
+    setBtnBusy('pl', false);
   }
-  db.planejadas.push({id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,prazo,horasTurno:horas,desc,
-    status:'Pendente',criadoEm:agora,manut:null,desc2:null,ini:null,fim:null,dtExec:null,durMin:0});
-  db.plC++; saveDB();
-  logEdit('Criou Planejada', numero, sala + ' · ' + maq + ' · Prazo: ' + prazo);
-  const row = {PL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-    Prazo_Limite:prazo,Horas_Turno:horas,Descricao_Planejada:desc,Status:'Pendente',
-    Manutentor_Exec:'',Data_Execucao:'',Hora_Inicio:'',Hora_Fim:'',Duracao_Min:'',
-    Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
-  const rAp = await apiAppendComRetryNumero('planejadas', row, 'PL_Numero', 'PL-', 'plC');
-  if (rAp.numero !== numero) {
-    const p = db.planejadas.find(x => x.numero === numero);
-    if (p) { p.numero = rAp.numero; saveDB(); }
-    showAlert('al-pl', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
-  }
-  showAlert('al-pl','O.S. Planejada criada!','ok');
-  clearPl();
-  setTimeout(()=>showPage('dashboard'),900);
 }
 function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
   
 // ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
 // ══════════════════════════════════════════════════════════════════════
+let _savingSol = false;
 async function salvarSol() {
+  if (_savingSol) return;
   const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
-  const numero = genSOL(), agora = new Date().toISOString();
-  if (db.solicitacoes.find(s => s.numero === numero)) {
-    showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
-    return;
+  _savingSol = true;
+  setBtnBusy('sol', true);
+  try {
+    const numero = genSOL(), agora = new Date().toISOString();
+    if (db.solicitacoes.find(s => s.numero === numero)) {
+      showAlert('al-sol', `Erro: ${numero} já existe. Recarregue e tente novamente.`, 'er');
+      return;
+    }
+    const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
+      status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:'',fotos:[]};
+    db.solicitacoes.push(solItem);
+    db.solC++; saveDB();
+    const fotos = await uploadFotos(numero, _solPhotos);
+    if (fotos.length) { solItem.fotoUrl = fotos[0]; solItem.fotos = fotos; saveDB(); }
+    const row = {SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
+      Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
+      Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
+      Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
+    const rAp = await apiAppendComRetryNumero('solicitacoes', row, 'SOL_Numero', 'SOL-', 'solC');
+    if (rAp.numero !== numero) {
+      solItem.numero = rAp.numero; saveDB();
+      showAlert('al-sol', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
+    }
+    logEdit('Criou Solicitação', rAp.numero, sala + ' · ' + maq + ' · ' + tipo);
+    showAlert('al-sol','Solicitação enviada!','ok');
+    clearSol();renderSol();
+    setTimeout(()=>showPage('dashboard'),900);
+  } finally {
+    _savingSol = false;
+    setBtnBusy('sol', false);
   }
-  const solItem = {id:crypto.randomUUID(),numero,sala,maq,tipo,prioridade:pr,desc,
-    status:'Não Executada',solicitante:CU.nome,criadoEm:agora,fotoUrl:'',fotos:[]};
-  db.solicitacoes.push(solItem);
-  db.solC++; saveDB();
-  const fotos = await uploadFotos(numero, _solPhotos);
-  if (fotos.length) { solItem.fotoUrl = fotos[0]; solItem.fotos = fotos; saveDB(); }
-  const row = {SOL_Numero:numero,Sala:sala,Maquina:maq,Tipo:tipo,Prioridade:pr,
-    Descricao:desc,Status:'Não Executada',Solicitante:CU.nome,
-    Foto_URL:fotos[0]||'', Fotos:JSON.stringify(fotos),
-    Manutentor_Exec:'',Data_Execucao:'',Servico_Executado:'',Criado_Em:agora,Concluido_Em:''};
-  const rAp = await apiAppendComRetryNumero('solicitacoes', row, 'SOL_Numero', 'SOL-', 'solC');
-  if (rAp.numero !== numero) {
-    solItem.numero = rAp.numero; saveDB();
-    showAlert('al-sol', `Número reatribuído para ${rAp.numero} (evitando colisão).`, 'war');
-  }
-  logEdit('Criou Solicitação', rAp.numero, sala + ' · ' + maq + ' · ' + tipo);
-  showAlert('al-sol','Solicitação enviada!','ok');
-  clearSol();renderSol();
-  setTimeout(()=>showPage('dashboard'),900);
 }
 function clearSol() {
   ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
@@ -211,11 +236,15 @@ function abrirConcluir(id, tipo) {
   openM('m-con');
 }
 
+let _savingConcluir = false;
 async function concluir() {
-  try {
+  if (_savingConcluir) return;
   const manut=v('mc-mn').trim(), data=v('mc-dt'), ini=v('mc-in'),
         fim=v('mc-fm'), desc=v('mc-ds').trim(), parada=parseInt(v('mc-parada'))||0;
   if (!manut||!desc){showToast('Preencha o manutentor e a descrição do serviço executado.','er');return;}
+  _savingConcluir = true;
+  setBtnBusy('mc', true);
+  try {
   const item = _ctp==='plan'
     ? db.planejadas.find(x=>x.numero===_cid)
     : db.solicitacoes.find(x=>x.numero===_cid);
@@ -241,4 +270,5 @@ async function concluir() {
   if (rAp.numero !== numero) { os.numero = rAp.numero; saveDB(); }
     if (document.getElementById('pg-dashboard').classList.contains('on')) renderDash();
     } catch(e) { showToast('Erro ao concluir: '+e.message,'er',8000); }
+    finally { _savingConcluir = false; setBtnBusy('mc', false); }
   }
