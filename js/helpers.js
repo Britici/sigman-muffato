@@ -234,12 +234,55 @@ function calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno
   }).filter(s => s !== null);
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// FILTRO DE SALAS PARA O INDICADOR DE DISPONIBILIDADE (dashboard)
+// Config global: db.configuracoes.salas_disponibilidade — JSON array com
+// os nomes das salas marcadas. Se não existir ainda (nunca foi salva),
+// TODAS as salas contam — preserva o comportamento anterior a este filtro.
+// Só administradores podem editar (tela Status de Salas).
+// ══════════════════════════════════════════════════════════════════════
+function _getSalasIndicadorSelecionadas() {
+  const raw = db.configuracoes.salas_disponibilidade;
+  if (!raw) return null; // null = sem config = todas contam
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : null;
+  } catch (e) {
+    console.warn('[salas_disponibilidade] JSON inválido, usando todas as salas', e);
+    return null;
+  }
+}
+
+function _filtrarSalasIndicador(dispPorSala) {
+  const selecionadas = _getSalasIndicadorSelecionadas();
+  if (selecionadas === null) return dispPorSala;
+  return dispPorSala.filter(s => selecionadas.includes(s.sala));
+}
+
+// Estado local (não persistido) da seleção em edição na tela Status de Salas
+let _salasIndicadorEdicao = null;
+
 function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer) {
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
+  const isAdmin = (typeof CU !== 'undefined' && CU && CU.tipo === 'administracao');
+
+  // Inicializa o estado de edição a partir da config salva (só na 1ª renderização
+  // da sessão nesta página — evita perder marcações não salvas ao re-renderizar).
+  if (_salasIndicadorEdicao === null) {
+    const salvas = _getSalasIndicadorSelecionadas();
+    _salasIndicadorEdicao = salvas !== null ? new Set(salvas) : new Set(dispPorSala.map(s => s.sala));
+  }
+
   const html = dispPorSala.map(s => {
     const cor = s.disp >= 85 ? 'var(--grn)' : s.disp >= 75 ? 'var(--org)' : 'var(--red)';
+    const marcada = _salasIndicadorEdicao.has(s.sala);
+    const checkboxHtml = isAdmin ? `
+        <label style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:var(--txt3)" title="Incluir no indicador de disponibilidade">
+          <input type="checkbox" data-sala-indicador="${_esc(s.sala)}" ${marcada?'checked':''} onchange="_toggleSalaIndicador(this)" style="cursor:pointer">
+        </label>` : '';
     return `
-      <div class="sc-card" style="color:${cor}">
+      <div class="sc-card" style="color:${cor};position:relative">
+        ${checkboxHtml}
         <div class="sc-lbl">${s.sala}</div>
         <div class="sc-val">${s.disp}%</div>
         <div style="font-size:11px;color:var(--txt3);margin-top:4px">Parada: ${s.minParada}min</div>
@@ -248,6 +291,59 @@ function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPe
     `;
   }).join('');
   document.getElementById('salas-grid').innerHTML = html;
+
+  const btnSalvar = document.getElementById('btn-salvar-salas-indicador');
+  if (btnSalvar) btnSalvar.style.display = isAdmin ? 'inline-flex' : 'none';
+}
+
+function _esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _toggleSalaIndicador(checkbox) {
+  const sala = checkbox.dataset.salaIndicador;
+  if (checkbox.checked) _salasIndicadorEdicao.add(sala);
+  else _salasIndicadorEdicao.delete(sala);
+}
+
+async function salvarSalasIndicador() {
+  if (!_salasIndicadorEdicao) return;
+  const btn = document.getElementById('btn-salvar-salas-indicador');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+  const valor = JSON.stringify([..._salasIndicadorEdicao]);
+  const now = new Date().toISOString();
+  const usuario = (typeof CU !== 'undefined' && CU) ? CU.nome : '';
+  try {
+    let res = await apiPost({
+      action: 'update', sheet: 'configuracoes', id: 'salas_disponibilidade', idCol: 'Chave',
+      row: { Chave: 'salas_disponibilidade', Valor: valor, Descricao: 'Salas incluídas no indicador de disponibilidade', Atualizado_Em: now },
+      usuario
+    }, true);
+    if (!res || !res.ok) {
+      // Chave ainda não existe na aba Configuracoes — cria.
+      res = await apiPost({
+        action: 'append', sheet: 'configuracoes',
+        row: { Chave: 'salas_disponibilidade', Valor: valor, Descricao: 'Salas incluídas no indicador de disponibilidade', Atualizado_Em: now },
+        usuario
+      });
+    }
+    if (res && res.ok) {
+      db.configuracoes.salas_disponibilidade = valor;
+      showToast('Seleção de salas salva.');
+      // Recalcula o KPI do dashboard imediatamente — sem isso o card fica com
+      // o valor antigo até o usuário navegar pra fora e voltar pelo menu lateral
+      // (goToPage não re-renderiza, só troca visibilidade das divs).
+      if (typeof renderDash === 'function') renderDash();
+    } else {
+      showToast('Erro ao salvar: ' + (res?.error || 'falha desconhecida'));
+    }
+  } catch (e) {
+    showToast('Erro ao salvar seleção de salas.');
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar seleção'; }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════

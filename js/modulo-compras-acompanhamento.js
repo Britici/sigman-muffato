@@ -93,13 +93,22 @@ if (!document.getElementById(CSS_ID)) {
 .cac-badge.status-concluida{color:#22c55e;background:rgba(34,197,94,.1);border-color:#22c55e}
 .cac-badge.status-orcamento_recusado{color:#ef4444;background:rgba(239,68,68,.1);border-color:#ef4444}
 .cac-badge.status-atrasada{color:#ef4444;background:rgba(239,68,68,.1);border-color:#ef4444}
+.cac-badge.tipo{color:var(--txt3);background:var(--surf);border-color:var(--bord);font-weight:600}
 .cac-card-toggle{color:var(--txt3);font-size:.85rem;transition:transform .25s;margin-left:4px}
 .cac-card-toggle.open{transform:rotate(180deg)}
 .cac-card-body{padding:0 16px 16px;border-top:1px solid var(--bord);display:none}
 .cac-card-body.open{display:block}
-.cac-card-info{display:flex;gap:18px;flex-wrap:wrap;padding:12px 0 14px;
-  font-size:.8rem;color:var(--txt3)}
-.cac-card-info span b{color:var(--txt2);font-weight:600}
+.cac-card-progress{display:flex;align-items:center;gap:6px;width:100%;margin-top:2px;order:99}
+.cac-card-progress-bar{flex:1;display:flex;gap:4px}
+.cac-card-progress-seg{flex:1;height:4px;border-radius:2px;background:var(--bord)}
+.cac-card-progress-seg.done{background:#22c55e}
+.cac-card-progress-seg.current{background:#eab308}
+.cac-card-progress-lbl{font-size:.65rem;color:var(--txt3);white-space:nowrap}
+.cac-card-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;
+  padding:12px 0 14px;font-size:.8rem;color:var(--txt3)}
+.cac-card-info span{white-space:normal;word-break:break-word;overflow-wrap:anywhere}
+.cac-card-info span b{display:block;color:var(--txt2);font-weight:600;font-size:.7rem;
+  text-transform:uppercase;letter-spacing:.03em;margin-bottom:1px}
 /* Stepper */
 .cac-stepper{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:4px 0 14px}
 .cac-step{display:flex;flex-direction:column;align-items:center;
@@ -531,6 +540,20 @@ function _buildCard(ordem) {
   const steps = ETAPAS.map(e => _buildStep(ordem, e, isAdmin, isConcl)).join('');
   const fotos = _parseFotos(ordem.Fotos);
 
+  /* Progresso resumido (cabeçalho) — não substitui o stepper do corpo,
+     que mantém a edição por etapa. É só um indicador rápido de "onde está". */
+  const etapaAtualIdx = ETAPAS.findIndex(e => _getStepState(ordem, e.idx) !== 'done');
+  const etapaAtual = isConcl ? ETAPAS.length : (etapaAtualIdx === -1 ? ETAPAS.length : etapaAtualIdx + 1);
+  const progressSegs = ETAPAS.map((e, i) => {
+    const st = _getStepState(ordem, e.idx);
+    const cls = st === 'done' ? 'done' : (i === etapaAtualIdx ? 'current' : '');
+    return '<span class="cac-card-progress-seg ' + cls + '"></span>';
+  }).join('');
+  const progressLbl = isConcl ? 'Concluída' : ('Etapa ' + etapaAtual + ' de ' + ETAPAS.length);
+  const progressHtml = '<div class="cac-card-progress">' +
+    '<div class="cac-card-progress-bar">' + progressSegs + '</div>' +
+    '<span class="cac-card-progress-lbl">' + progressLbl + '</span></div>';
+
   /* Fotos iniciais */
   const fotosIniciaisHtml = fotos.length
     ? '<div class="cac-fotos-grid"><span class="cac-fotos-label">📎 Fotos da Solicitação</span>' +
@@ -566,22 +589,24 @@ function _buildCard(ordem) {
       <span class="cac-card-id">${_esc(ordem.ID)}</span>
       <span class="cac-card-desc" title="${_esc(ordem.Descricao)}">${_esc(ordem.Descricao||'—')}</span>
       <div class="cac-card-meta">
+        ${ordem.Tipo_Acao?`<span class="cac-badge tipo">${_esc(ordem.Tipo_Acao)}</span>`:''}
         <span class="cac-badge pri-${pri}">${priLabel}</span>
         <span class="cac-badge ${statusClass}">${statusTxt}</span>
         <span class="cac-card-toggle">▼</span>
       </div>
+      ${progressHtml}
     </div>
     <div class="cac-card-body">
       <div class="cac-card-info">
-        <span><b>Sala:</b> ${_esc(ordem.Sala)}</span>
-        <span><b>Máquina:</b> ${_esc(ordem.Maquina)}</span>
-        <span><b>Qtd:</b> ${_esc(String(ordem.Quantidade||'—'))}</span>
-        ${ordem.Fornecedor_Sugerido?`<span><b>Fornecedor:</b> ${_esc(ordem.Fornecedor_Sugerido)}</span>`:''}
-        ${ordem.Numero_RC ?`<span><b>RC:</b> ${_esc(ordem.Numero_RC)}</span>`:''}
-        ${ordem.Numero_NF ?`<span><b>NF:</b> ${_esc(ordem.Numero_NF)}</span>`:''}
-        ${ordem.Valor_Orcamento ?`<span><b>Orçamento:</b> R$ ${_esc(String(ordem.Valor_Orcamento))}</span>`:''}
-        <span><b>Data:</b> ${_fmtDate(ordem.Data_Solicitacao)}</span>
-        <span><b>Solicitante:</b> ${_esc(ordem.Solicitante)}</span>
+        <span><b>Sala</b>${_esc(ordem.Sala)}</span>
+        <span><b>Máquina</b>${_esc(ordem.Maquina)}</span>
+        <span><b>Qtd</b>${_esc(String(ordem.Quantidade||'—'))}</span>
+        <span><b>Data</b>${_fmtDate(ordem.Data_Solicitacao)}</span>
+        <span><b>Solicitante</b>${_esc(ordem.Solicitante)}</span>
+        ${ordem.Fornecedor_Sugerido?`<span><b>Fornecedor</b>${_esc(ordem.Fornecedor_Sugerido)}</span>`:''}
+        ${ordem.Numero_RC ?`<span><b>RC</b>${_esc(ordem.Numero_RC)}</span>`:''}
+        ${ordem.Numero_NF ?`<span><b>NF</b>${_esc(ordem.Numero_NF)}</span>`:''}
+        ${ordem.Valor_Orcamento ?`<span><b>Orçamento</b>R$ ${_esc(String(ordem.Valor_Orcamento))}</span>`:''}
       </div>
       <div class="cac-stepper">${steps}</div>
       ${mostrarRecusar?`<div style="margin-top:8px">

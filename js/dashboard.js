@@ -107,14 +107,19 @@ function renderDash() {
   const diasPer = Math.max(1, Math.round((dtHoje - dtStart) / 86400000) + 1);
   // Disponibilidade por sala (crítico = 1)
   const dispPorSala = calcDisponibilidadePorSala(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPer);
-  
+
+  // KPI global considera só as salas marcadas em Configurações > Status de Salas.
+  // Se a config ainda não existe (nunca foi salva), entram todas — compatibilidade
+  // com o comportamento anterior à existência desse filtro.
+  const dispParaKpi = _filtrarSalasIndicador(dispPorSala);
+
   let disponib = 0;
-  if (dispPorSala.length > 0) {
-    const soma = dispPorSala.reduce((sum, s) => sum + (s.disp || 0), 0);
-    disponib = Math.round(soma / dispPorSala.length);
+  if (dispParaKpi.length > 0) {
+    const soma = dispParaKpi.reduce((sum, s) => sum + (s.disp || 0), 0);
+    disponib = Math.round(soma / dispParaKpi.length);
   } else {
     disponib = 0;
-    console.warn('[AVISO] Nenhuma sala cadastrada para o período');
+    console.warn('[AVISO] Nenhuma sala habilitada para o indicador de disponibilidade');
   }
   
   const metaDisp   = db.configuracoes.meta_disponibilidade || 91;
@@ -397,7 +402,8 @@ async function exportDashPDF() {
   const horasTotaisPorDia = horas_turno_1 + horas_turno_2 + horas_turno_3;
   
   const dispPorSala = calcDisponibilidadePorSala(ordP, horas_turno_1, horas_turno_2, horas_turno_3, Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1));
-  const disponib = dispPorSala.length > 0 ? Math.round(dispPorSala.reduce((s, sala) => s + (sala.disp || 0), 0) / dispPorSala.length) : 100;
+  const dispParaKpiPdf = _filtrarSalasIndicador(dispPorSala);
+  const disponib = dispParaKpiPdf.length > 0 ? Math.round(dispParaKpiPdf.reduce((s, sala) => s + (sala.disp || 0), 0) / dispParaKpiPdf.length) : 100;
   const metaDisp = db.configuracoes.meta_disponibilidade || 91;
 
   const hj = db.ordens.filter(o => o.data === t).length;
