@@ -123,7 +123,7 @@ function renderDash() {
   }
   
   const metaDisp   = db.configuracoes.meta_disponibilidade || 91;
-  const salaComAlerta = dispPorSala.filter(s => s.disp < metaDisp);
+  const salaComAlerta = dispParaKpi.filter(s => s.disp < metaDisp);
   const ordCorrComTempo = ordCorr.filter(o => o.durMin > 0);
   const mttr = ordCorrComTempo.length ? Math.round(ordCorrComTempo.reduce((s,o)=>s+o.durMin,0)/ordCorrComTempo.length) : 0;
   
@@ -174,7 +174,7 @@ function renderDash() {
         <div style=\"font-size:22px\">${salaComAlerta.length === 0 ? '🟢' : '🔴'}</div>
         <div>
           <div style=\"font-size:13px;color:var(--txt3);font-variant:small-caps;font-weight:700\">Disponibilidade</div>
-          <div style=\"font-size:16px;font-weight:700;color:var(--txt)\">${dispPorSala.length - salaComAlerta.length}/${dispPorSala.length} operando</div>
+          <div style=\"font-size:16px;font-weight:700;color:var(--txt)\">${dispParaKpi.length - salaComAlerta.length}/${dispParaKpi.length} operando</div>
         </div>
       </div>
       ${salaComAlerta.length > 0 ? `<div style=\"border-top:1px solid var(--bord);padding-top:8px;font-size:14px\">
@@ -504,7 +504,7 @@ async function exportDashPDF() {
         <circle cx="50" cy="40" r="25" fill="none" stroke="#C41230" stroke-width="8" stroke-dasharray="${disponib * 1.57} 157" stroke-linecap="round" transform="rotate(-90 50 40)"></circle>
         <text x="50" y="45" text-anchor="middle" font-size="16" font-weight="bold" fill="#C41230">${disponib}%</text>
         <text x="120" y="20" font-size="10" fill="#666">Meta: ${metaDisp}%</text>
-        <text x="120" y="35" font-size="10" fill="#666">Salas: ${dispPorSala.length}</text>
+        <text x="120" y="35" font-size="10" fill="#666">Salas: ${dispParaKpiPdf.length}</text>
       </svg>
     </div>
     <div class="chart-box">
