@@ -749,6 +749,7 @@
     <!-- BOTÕES -->
     <div class="fa">
       <button class="btn btn-gh" onclick="fecharRACR()">Cancelar</button>
+      <button class="btn btn-gh" onclick="salvarRACRRascunho()">📝 Salvar Rascunho</button>
       <button class="btn btn-p" onclick="salvarRACR()">💾 Salvar RAC</button>
       <button class="btn btn-p" onclick="imprimirRACR()">🖨️ Imprimir</button>
     </div>
@@ -798,22 +799,22 @@
      </div>
   </div></div>
   
-  <script src="js/core.js?v=202608062100"></script>
-  <script src="js/helpers.js?v=202608062100"></script>
-  <script src="js/modais-helpers.js?v=202608062100"></script>
-  <script src="js/utils-offline.js?v=202608062100"></script>
-  <script src="js/dashboard.js?v=202608062100"></script>
-  <script src="js/os-planejadas.js?v=202608062100"></script>
-  <script src="js/os-executadas.js?v=202608062100"></script>
-  <script src="js/abertura-os.js?v=202608062100"></script>
-  <script src="js/inspecao.js?v=202608062100"></script>
-  <script src="js/ativos.js?v=202608062100"></script>
-  <script src="js/usuarios.js?v=202608062100"></script>
-  <script src="js/preventiva.js?v=202608062100"></script>
-  <script src="js/racr.js?v=202608062100"></script>
-  <script src="js/modulo-compras-solicitacao.js?v=202608062100"></script>
-  <script src="js/modulo-compras-acompanhamento.js?v=202608062100"></script>
-  <script src="js/manuais-senhas.js?v=202608062100"></script>
+  <script src="js/core.js?v=202608181530"></script>
+  <script src="js/helpers.js?v=202608181530"></script>
+  <script src="js/modais-helpers.js?v=202608181530"></script>
+  <script src="js/utils-offline.js?v=202608181530"></script>
+  <script src="js/dashboard.js?v=202608181530"></script>
+  <script src="js/os-planejadas.js?v=202608181530"></script>
+  <script src="js/os-executadas.js?v=202608181530"></script>
+  <script src="js/abertura-os.js?v=202608181530"></script>
+  <script src="js/inspecao.js?v=202608181530"></script>
+  <script src="js/ativos.js?v=202608181530"></script>
+  <script src="js/usuarios.js?v=202608181530"></script>
+  <script src="js/preventiva.js?v=202608181530"></script>
+  <script src="js/racr.js?v=202608181530"></script>
+  <script src="js/modulo-compras-solicitacao.js?v=202608181530"></script>
+  <script src="js/modulo-compras-acompanhamento.js?v=202608181530"></script>
+  <script src="js/manuais-senhas.js?v=202608181530"></script>
   
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -1130,7 +1131,7 @@ function showPage(pid) {
 
   // Dashboard: ligar/desligar timer 15s
   clearInterval(_dashTimer);
-  if (pid === 'dashboard') { renderDash(); apiLoadAll(true).then(renderDash).catch(()=>{}); if (_dashAutoRf) startDashTimer(); }
+  if (pid === 'dashboard') { renderDash(); apiLoadAll(true).then(renderDash).catch(()=>{}); apiLoadHistorico().then(renderDash).catch(()=>{}); if (_dashAutoRf) startDashTimer(); }
   if (pid === 'planejadas')  { renderPlan();    apiLoadAll(true).then(renderPlan).catch(()=>showToast('Erro ao sincronizar Planejadas.','er')); }
   if (pid === 'executadas')  { renderExec();    apiLoadAll(true).then(renderExec).catch(()=>showToast('Erro ao sincronizar Executadas.','er')); }
   if (pid === 'solicitacao') { renderSol(); renderPhotoGrid('sol'); apiLoadAll(true).then(renderSol).catch(()=>showToast('Erro ao sincronizar Solicitações.','er')); }
