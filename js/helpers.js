@@ -301,6 +301,16 @@ function _esc(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Escape seguro pra valores usados dentro de onclick="fn('...')".
+// ATENÇÃO: &#39; NÃO resolve aqui — o navegador decodifica entities do atributo
+// ANTES de compilar o onclick como JS, então &#39; vira ' de novo e quebra a
+// string igual (testado). A ordem certa é: 1) escapar \ e ' no nível de string
+// JS (\\ e \'), 2) só depois escapar & < > " no nível de atributo HTML.
+function _escAttr(s) {
+  s = String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function _toggleSalaIndicador(checkbox) {
   const sala = checkbox.dataset.salaIndicador;
   if (checkbox.checked) _salasIndicadorEdicao.add(sala);

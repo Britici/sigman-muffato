@@ -83,7 +83,7 @@ async function carregarTarefasPreventiva() {
   try {
     plano = await apiGet({ action: 'planos_get', modelo: nomeModelo });
   } catch (e) {
-    body.innerHTML = `<div class="card" style="padding:16px;color:#c0392b">Erro ao carregar modelo: ${e.message||e}</div>`;
+    body.innerHTML = `<div class="card" style="padding:16px;color:var(--red-l)">Erro ao carregar modelo: ${e.message||e}</div>`;
     PREV_PLANO_ATUAL = { mecanico: [], eletrico: [] };
     return;
   }

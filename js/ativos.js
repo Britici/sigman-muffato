@@ -17,10 +17,10 @@ function renderAtivos() {
     ? '<div class="empty"><p>Nenhuma sala.</p></div>'
     : [...db.salas].sort().map((s,i)=>`
       <div class="edit-row">
-        <span style="font-size:15px;font-weight:500">${s}</span>
+        <span style="font-size:15px;font-weight:500">${_esc(s)}</span>
         <div class="edit-acts">
           <button class="btn btn-edit btn-sm" onclick="openEdit('sala',${db.salas.indexOf(s)})">✎</button>
-          <button class="btn btn-d" onclick="delSala('${s}')">✕</button>
+          <button class="btn btn-d" onclick="delSala('${_escAttr(s)}')">✕</button>
         </div>
       </div>`).join('');
 

@@ -6,6 +6,7 @@
 // ── Abre modal RACR em branco (botão "+ Novo RACR" na página) ──────
 function abrirNovoRACR() {
   _racrOsRef = null;
+  _racrEditId = null;
   // Popula select de salas
   const salaSel = document.getElementById('racr-sala');
   if (salaSel) {
@@ -36,31 +37,29 @@ function abrirNovoRACR() {
 function fecharRACR() {
   closeM('mb-racr');
   _racrOsRef = null;
+  _racrEditId = null;
 }
  
 // ── Salva rascunho localmente (sem enviar ao Sheets) ──────────────
 function salvarRACRRascunho() {
-  const dados = _coletarDadosRACR();
+  const dados = _coletarDadosRACR(false); // false = não valida obrigatórios
   if (!dados) return;
   if (!db.racs) db.racs = [];
-  // Verifica se já existe rascunho para essa OS
-  const idx = _racrOsRef
-    ? db.racs.findIndex(r => r.osNumero === _racrOsRef && r.status === 'Rascunho')
+  // Localiza rascunho existente por ID (funciona também pra RAC avulso,
+  // sem OS vinculada, onde _racrOsRef é null)
+  const idx = _racrEditId
+    ? db.racs.findIndex(r => r.id === _racrEditId)
     : -1;
   const agora = new Date().toISOString();
   const id    = idx >= 0 ? db.racs[idx].id : 'RACR-' + agora.replace(/\D/g,'').slice(0,14);
-  if (!dados.maquina && _racrOsRef) {
-  const osRef = db.ordens.find(x => x.numero === _racrOsRef);
-  if (osRef) { dados.maquina = osRef.maq; dados.sala = osRef.sala; }
-  }
-  const racr = { ...dados, id, status: 'Rascunho', dataAbertura: agora.slice(0,10), criadoEm: agora };
+  const racr  = { ...dados, id, status: 'Rascunho', dataAbertura: agora.slice(0,10), criadoEm: agora };
   if (idx >= 0) db.racs[idx] = racr; else db.racs.push(racr);
   saveDB();
   fecharRACR();
-  showToast('Rascunho salvo localmente.', 'ok');
+  showToast('Rascunho salvo localmente (fotos não são mantidas no rascunho).', 'ok');
   renderRACR();
 }
- 
+
 // ── Salva RACR definitivo + envia ao Sheets ───────────────────────
 async function salvarRACR() {
   const dados = _coletarDadosRACR();
@@ -69,9 +68,9 @@ async function salvarRACR() {
   const agora = new Date().toISOString();
   const id    = 'RACR-' + agora.replace(/\D/g,'').slice(0,14);
   const racr  = { ...dados, id, status: 'Aberto', dataAbertura: agora.slice(0,10), criadoEm: agora };
-  // Remove rascunho anterior se existir
-  if (_racrOsRef) {
-    const idxR = db.racs.findIndex(r => r.osNumero === _racrOsRef && r.status === 'Rascunho');
+  // Remove rascunho anterior se existir (por ID — funciona pra RAC avulso também)
+  if (_racrEditId) {
+    const idxR = db.racs.findIndex(r => r.id === _racrEditId && r.status === 'Rascunho');
     if (idxR >= 0) db.racs.splice(idxR, 1);
   }
   // Upload das fotos novas pro Drive (mantém as já salvas, se houver)
@@ -276,6 +275,7 @@ function verRACR(id) {
   if (!r) return;
   // Preenche o modal com os dados do RACR
   _racrOsRef = r.osNumero || null;
+  _racrEditId = r.status === 'Rascunho' ? r.id : null;
   const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val||''; };
   setVal('racr-equip',    r.maquina);
   setVal('racr-sala',     r.sala);
@@ -329,6 +329,10 @@ function _coletarDadosRACR(validar = true) {
  
 // Variável de estado: OS que originou o RACR atual
 let _racrOsRef = null;
+// ID do rascunho atualmente em edição (null se for um RACR novo/não-rascunho).
+// Necessário pra RAC avulso (sem OS vinculada, _racrOsRef=null) — sem isso,
+// salvar o mesmo rascunho duas vezes criava duplicata em vez de atualizar.
+let _racrEditId = null;
 // Estado de fotos do RACR atual: novas (ainda não enviadas) e já salvas (URLs do Drive)
 let _racrFotosNovas = [];   // [{name, mime, b64}]
 let _racrFotosSalvas = [];  // [url, ...]

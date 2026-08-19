@@ -337,13 +337,6 @@ async function apiAppendComRetryNumero(sheet, row, numeroCol, prefixo, counterPr
   }
   return { ok:false, numero:null, error:'Não foi possível gerar número único após ' + maxTentativas + ' tentativas.' };
 }
-// Envia nova linha SEM número — servidor gera o próximo número (OS-/PL-/SOL-)
-// de forma atômica dentro do lock, evitando colisão entre usuários simultâneos.
-// row NÃO deve conter a coluna do número (ex: OS_Numero) — o backend preenche.
-// Retorna { ok:true, numero:'OS-0123', ... } em sucesso, ou null em falha.
-function apiAppendComNumero(sheet, coluna, prefixo, row) {
-  return apiPost({ action:'appendComNumero', sheet, coluna, prefixo, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' });
-}
 // Atualiza linha existente
 function apiUpdate(sheet, id, idCol, row) { return apiPost({ action:'update', sheet, id, idCol, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
 // Remove linha
@@ -591,30 +584,55 @@ async function apiLoadRacs() {
   if (!USE_API) return;
   const json = await apiGet({ action: 'readRacs' });
   if (!json?.ok || !json.data?.length) return;
-  db.racs = json.data.map(r => ({
-    id: normStr(r.ID),
-    osNumero: normStr(r.OS_Numero),
-    maquina: normStr(r.Equipamento),
-    sala: normStr(r.Sala),
-    criticidade: Number(r.Criticidade) || 3,
-    tempoParada: Number(r.Tempo_Parada_Min) || 0,
-    limiteMin: Number(r.Limite_Min) || 0,
-    falha: normStr(r.Falha),
-    causaRaiz: normStr(r.Causa_Raiz),
-    why1: normStr(r.Why1), why2: normStr(r.Why2), why3: normStr(r.Why3),
-    why4: normStr(r.Why4), why5: normStr(r.Why5),
-    acaoImediata: normStr(r.Acao_Imediata),
-    acaoPreventiva: normStr(r.Acao_Preventiva),
-    respProd: normStr(r.Resp_Producao),
-    respManu: normStr(r.Resp_Manutencao),
-    executantes: normStr(r.Executantes),
-    fotos: (() => { try { return JSON.parse(r.Fotos || '[]'); } catch { return []; } })(),
-    status: normStr(r.Status) || 'Aberto',
-    dataAbertura: normDate(r.Data_Abertura),
-    dataBaixa: normDate(r.Data_Fechamento),
-    fechadoPor: normStr(r.Fechado_Por),
-    criadoEm: normStr(r.Data_Criacao)
-  }));
+  // Preserva rascunhos locais (nunca enviados ao Sheets) — sem isso, cada
+  // reload da tela RACR sobrescrevia db.racs só com os dados do backend
+  // e apagava qualquer rascunho salvo localmente, inclusive no localStorage.
+  const rascunhosLocais = (db.racs || []).filter(r => r.status === 'Rascunho');
+  db.racs = [
+    ...json.data.map(r => ({
+      id: normStr(r.ID),
+      osNumero: normStr(r.OS_Numero),
+      maquina: normStr(r.Equipamento),
+      sala: normStr(r.Sala),
+      criticidade: Number(r.Criticidade) || 3,
+      tempoParada: Number(r.Tempo_Parada_Min) || 0,
+      limiteMin: Number(r.Limite_Min) || 0,
+      falha: normStr(r.Falha),
+      causaRaiz: normStr(r.Causa_Raiz),
+      why1: normStr(r.Why1), why2: normStr(r.Why2), why3: normStr(r.Why3),
+      why4: normStr(r.Why4), why5: normStr(r.Why5),
+      acaoImediata: normStr(r.Acao_Imediata),
+      acaoPreventiva: normStr(r.Acao_Preventiva),
+      respProd: normStr(r.Resp_Producao),
+      respManu: normStr(r.Resp_Manutencao),
+      executantes: normStr(r.Executantes),
+      fotos: (() => { try { return JSON.parse(r.Fotos || '[]'); } catch { return []; } })(),
+      status: normStr(r.Status) || 'Aberto',
+      dataAbertura: normDate(r.Data_Abertura),
+      dataBaixa: normDate(r.Data_Fechamento),
+      fechadoPor: normStr(r.Fechado_Por),
+      criadoEm: normStr(r.Data_Criacao)
+    })),
+    ...rascunhosLocais
+  ];
+  saveDB();
+}
+
+async function apiLoadHistorico() {
+  if (!USE_API) return;
+  const json = await apiGet({ action: 'readHistorico' });
+  if (!json?.ok) return;
+  db.historico = (json.data || [])
+    .map(r => ({
+      ts: normStr(r.Data_Hora),
+      user: normStr(r.Usuario),
+      login: normStr(r.Login),
+      acao: normStr(r.Acao),
+      numero: normStr(r.Numero_Ref),
+      detalhe: normStr(r.Detalhe)
+    }))
+    .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+    .slice(0, 100);
   saveDB();
 }
 

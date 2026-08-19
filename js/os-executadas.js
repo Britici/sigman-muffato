@@ -199,8 +199,9 @@ async function salvarEditOS() {
     let durMin = o.durMin;
     if (ini && fim) {
       const [h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);
-      durMin = Math.max(0, (h2*60+m2)-(h1*60+m1));
-      if (durMin < 0) durMin += 1440;
+      durMin = (h2*60+m2)-(h1*60+m1);
+      if (durMin < 0) durMin += 1440; // turno que passa da meia-noite
+      durMin = Math.max(0, durMin);
     }
     Object.assign(o, { data, manut, ini, fim, durMin, paradaMin, prob, acao, acaoPrev,
       fotoUrl: allFotos[0] || o.fotoUrl, fotos: allFotos });

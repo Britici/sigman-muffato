@@ -88,16 +88,16 @@ function _renderMSCred() {
   box.innerHTML = _msCredAtual.map((c, i) => `
     <div class="fg-row fg-3" style="align-items:end;margin-bottom:6px">
       <div class="fg"><label>Tipo</label>
-        <input type="text" value="${c.tipo || ''}" placeholder="Ex: CLP, IHM"
+        <input type="text" value="${_esc(c.tipo || '')}" placeholder="Ex: CLP, IHM"
           oninput="_msAtualizaCampo(${i},'tipo',this.value)">
       </div>
       <div class="fg"><label>Usuário</label>
-        <input type="text" value="${c.usuario || ''}" placeholder="Usuário"
+        <input type="text" value="${_esc(c.usuario || '')}" placeholder="Usuário"
           oninput="_msAtualizaCampo(${i},'usuario',this.value)">
       </div>
       <div class="fg"><label>Senha</label>
         <div style="display:flex;gap:4px">
-          <input type="password" id="ms-cred-senha-${i}" value="${c.senha || ''}" placeholder="Senha"
+          <input type="password" id="ms-cred-senha-${i}" value="${_esc(c.senha || '')}" placeholder="Senha"
             oninput="_msAtualizaCampo(${i},'senha',this.value)">
           <button type="button" class="btn btn-gh btn-sm" onclick="toggleMSSenha(${i})">👁</button>
           <button type="button" class="btn btn-gh btn-sm" onclick="removeMSCredencial(${i})">🗑</button>
@@ -154,14 +154,14 @@ function renderMSLista() {
     return `
     <div class="edit-row">
       <div style="cursor:${CU.tipo === 'administracao' ? 'pointer' : 'default'}"
-           ${CU.tipo === 'administracao' ? `onclick="_msIrPara('${r.sala}','${r.maquina}')"` : ''}>
-        <b>${r.maquina}</b> <span style="opacity:.6">(${r.sala})</span>
+           ${CU.tipo === 'administracao' ? `onclick="_msIrPara('${_escAttr(r.sala)}','${_escAttr(r.maquina)}')"` : ''}>
+        <b>${_esc(r.maquina)}</b> <span style="opacity:.6">(${_esc(r.sala)})</span>
       </div>
       <div class="edit-acts" style="gap:6px">
         <button class="btn btn-gh btn-sm" ${temManual ? '' : 'disabled style="opacity:.4"'}
-          onclick="event.stopPropagation();_msAbrirManual('${r.id}')">🔗 Abrir</button>
+          onclick="event.stopPropagation();_msAbrirManual('${_escAttr(r.id)}')">🔗 Abrir</button>
         <button class="btn btn-gh btn-sm" ${temCred ? '' : 'disabled style="opacity:.4"'}
-          onclick="event.stopPropagation();_msVerCredenciais('${r.id}')">🔑 Senha</button>
+          onclick="event.stopPropagation();_msVerCredenciais('${_escAttr(r.id)}')">🔑 Senha</button>
       </div>
     </div>`;
   }).join('');
@@ -186,13 +186,13 @@ function _msVerCredenciais(id) {
   if (!r || !r.credenciais || !r.credenciais.length) {
     body.innerHTML = '<div style="opacity:.6;font-size:13px">Nenhuma credencial cadastrada.</div>';
   } else {
-    body.innerHTML = `<div style="font-size:13px;opacity:.75;margin-bottom:8px">${r.maquina} — ${r.sala}</div>` +
+    body.innerHTML = `<div style="font-size:13px;opacity:.75;margin-bottom:8px">${_esc(r.maquina)} — ${_esc(r.sala)}</div>` +
       r.credenciais.map((c) => `
       <div class="edit-row" style="margin-bottom:6px">
         <div>
-          <div style="font-size:12px;opacity:.7">${c.tipo || 'Acesso'}</div>
-          <div><b>Usuário:</b> ${c.usuario || '—'}</div>
-          <div><b>Senha:</b> ${c.senha || '—'}</div>
+          <div style="font-size:12px;opacity:.7">${_esc(c.tipo || 'Acesso')}</div>
+          <div><b>Usuário:</b> ${_esc(c.usuario || '—')}</div>
+          <div><b>Senha:</b> ${_esc(c.senha || '—')}</div>
         </div>
       </div>`).join('');
   }

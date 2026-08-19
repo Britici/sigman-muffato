@@ -57,14 +57,6 @@ function setStatus(id,st,btn) {
   }
 }
 
-function setPrevStatus(key, st, btn) {
-  const row = btn.closest('.prev-row');
-  row.querySelectorAll('.iok,.inok').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  const hid = document.getElementById('pvst-' + key);
-  if (hid) hid.value = st;
-}
-  
 function collectInsp() {
   const data=[];
   INSP_TMPL.forEach(sec=>{

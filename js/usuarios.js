@@ -23,18 +23,18 @@ function _usrRowHtml(u) {
   const podeMexer = CU && CU.tipo === 'administracao';
   const acoes = podeMexer ? `
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-       <button class="btn btn-sm btn-gh" onclick="abrirEditarUsuario('${u.login}')">✏️ Editar</button>
-       <button class="btn btn-sm btn-gh" onclick="resetarSenhaUsuario('${u.login}')">🔑 Resetar</button>
+       <button class="btn btn-sm btn-gh" onclick="abrirEditarUsuario('${_escAttr(u.login)}')">✏️ Editar</button>
+       <button class="btn btn-sm btn-gh" onclick="resetarSenhaUsuario('${_escAttr(u.login)}')">🔑 Resetar</button>
        ${u.ativo
-         ? `<button class="btn btn-sm btn-gh" onclick="toggleAtivoUsuario('${u.login}', false)">🚫 Desativar</button>`
-         : `<button class="btn btn-sm btn-p"  onclick="toggleAtivoUsuario('${u.login}', true)">✅ Reativar</button>`}
+         ? `<button class="btn btn-sm btn-gh" onclick="toggleAtivoUsuario('${_escAttr(u.login)}', false)">🚫 Desativar</button>`
+         : `<button class="btn btn-sm btn-p"  onclick="toggleAtivoUsuario('${_escAttr(u.login)}', true)">✅ Reativar</button>`}
       </div>` : '—';
 
   return `
     <tr>
-     <td>${u.nome || ''}</td>
-     <td>${u.cargo || '–'}</td>
-     <td>${u.login}</td>
+     <td>${_esc(u.nome || '')}</td>
+     <td>${_esc(u.cargo || '–')}</td>
+     <td>${_esc(u.login)}</td>
      <td>${roleBadge(u.tipo)}</td>
      <td>${acoes}</td>
     </tr>`;
