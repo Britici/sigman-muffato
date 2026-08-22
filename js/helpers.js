@@ -60,9 +60,27 @@ function _brToISO(br) {
   if (!m) return '';
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
-function abrirDatePicker(id) {
+function abrirDatePicker(id, anchorEl) {
   const el = document.getElementById(id);
   if (!el) return;
+  // Reposiciona o input invisível em coordenadas fixas e seguras da viewport
+  // antes de abrir o calendário nativo. Sem isso, o navegador âncora o
+  // popup na posição "estática" do elemento (herdada do fluxo do wrapper),
+  // e se o campo estiver perto da borda direita/inferior da tela o Chrome
+  // às vezes não vira o popup corretamente, deixando-o cortado fora da
+  // viewport. Calculando o retângulo do campo visível (anchorEl) e
+  // limitando (clamp) dentro da janela, garantimos folga suficiente para
+  // o navegador decidir a direção de abertura sozinho.
+  const ref = anchorEl || el;
+  const rect = ref.getBoundingClientRect();
+  const margin = 8;
+  const maxLeft = Math.max(margin, window.innerWidth - 320 - margin); // ~320px = largura típica do calendário nativo
+  const maxTop = Math.max(margin, window.innerHeight - 360 - margin); // ~360px = altura típica do calendário nativo
+  const left = Math.min(Math.max(rect.left, margin), maxLeft);
+  const top = Math.min(Math.max(rect.bottom, margin), maxTop);
+  el.style.position = 'fixed';
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
   if (el.showPicker) { try { el.showPicker(); return; } catch (e) { /* fallback abaixo */ } }
   el.style.pointerEvents = 'auto';
   el.focus();
@@ -115,7 +133,7 @@ function wireDateIcon(dispEl) {
   btn.className = 'dp-btn';
   btn.title = 'Escolher data';
   btn.textContent = '📅';
-  btn.onclick = () => abrirDatePicker(picker.id);
+  btn.onclick = () => abrirDatePicker(picker.id, dispEl);
   wrap.appendChild(btn);
 }
 function initDateIcons(root) {
