@@ -53,7 +53,7 @@
 .csl-field textarea{
   background:var(--bg);
   border:1px solid var(--bord);
-  color:var(--txt1);
+  color:var(--txt);
   border-radius:7px;
   padding:9px 12px;
   font-size:.88rem;
@@ -86,7 +86,7 @@
 .csl-foto-drop:hover,.csl-foto-drop.drag-over{
   border-color:#C41230;
   background:rgba(196,18,48,.06);
-  color:var(--txt1)
+  color:var(--txt)
 }
 .csl-foto-drop svg{display:block;margin:0 auto 8px;opacity:.4}
 
@@ -104,7 +104,7 @@
 .csl-thumb-del:hover{background:#C41230}
 .csl-thumb-name{
   position:absolute;bottom:0;left:0;right:0;
-  background:rgba(0,0,0,.65);color:var(--txt1);
+  background:rgba(0,0,0,.65);color:var(--txt);
   font-size:.6rem;padding:2px 4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
@@ -117,7 +117,7 @@
   background:transparent;color:var(--txt2);
   font-size:.88rem;cursor:pointer;transition:background .2s,color .2s
 }
-.btn-csl-secondary:hover{background:var(--surf2);color:var(--txt1)}
+.btn-csl-secondary:hover{background:var(--surf2);color:var(--txt)}
 .btn-csl-primary{
   padding:9px 28px;border-radius:7px;border:none;
   background:#C41230;color:#fff;
