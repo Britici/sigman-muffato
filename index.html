@@ -642,6 +642,12 @@
       <div class="card-t">1 - Identificação do Problema</div>
       <div class="fg-row">
         <div class="fg">
+          <label>OS DE ORIGEM *</label>
+          <select id="racr-os" onchange="racrSelecionarOS(this.value)">
+            <option value="">Selecione a OS...</option>
+          </select>
+        </div>
+        <div class="fg">
           <label>SALA</label>
           <select id="racr-sala" onchange="racrFiltrarMaq()">
             <option value="">Selecione...</option>
@@ -1337,25 +1343,38 @@ function clearPhotos(prefix) {
   renderPhotoGrid(prefix);
 }
 
-// Upload de todas as fotos de um array; retorna array de URLs
+// Upload de todas as fotos de um array; retorna array de URLs das que
+// deram certo. Timeout de 40s por foto (mesmo padrão do apiPost em
+// core.js) + aviso visível (showToast) se alguma falhar. Antes falhava
+// em silêncio (sem timeout algum, e só console.warn no catch) — numa
+// conexão lenta o registro era salvo sem foto e sem avisar ninguém.
 async function uploadFotos(numero, photosArr) {
   if (!photosArr.length || !USE_API) return [];
-  const urls = [];
-  for (const p of photosArr) {
+  // Paralelo: confirmado no Code.gs que uploadFoto() não usa comLock,
+  // então não serializa no Drive — subir 1 de cada vez era limitação
+  // só do cliente. Índice fixo (i+1) em vez de urls.length+1 pra manter
+  // nome de arquivo estável mesmo se alguma foto no meio falhar.
+  const resultados = await Promise.all(photosArr.map(async (p, i) => {
     try {
       const ext = (p.file.name.split('.').pop() || 'jpg').toLowerCase();
       const resp = await fetch(API_URL, {
         method: 'POST',
         body: JSON.stringify({
           action: 'uploadFoto', numero,
-          fileName: numero + '_' + (urls.length + 1) + '.' + ext,
+          fileName: numero + '_' + (i + 1) + '.' + ext,
           mimeType: p.file.type || 'image/jpeg',
           base64: p.b64
-        })
+        }),
+        signal: AbortSignal.timeout(40000)
       });
       const r = await resp.json();
-      if (r.ok) urls.push(r.fileUrl);
-    } catch(e) { console.warn('Foto não enviada:', e); }
+      return r.ok ? r.fileUrl : null;
+    } catch(e) { console.warn('Foto não enviada:', e); return null; }
+  }));
+  const urls = resultados.filter(Boolean);
+  const falhas = resultados.length - urls.length;
+  if (falhas > 0) {
+    showToast(`⚠️ ${falhas} de ${photosArr.length} foto(s) não enviada(s) (conexão lenta ou instável). O resto do registro foi salvo normalmente.`, 'war', 6000);
   }
   return urls;
 }
