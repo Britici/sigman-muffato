@@ -4,20 +4,28 @@
    ══════════════════════════════════════════════════════════════════ */
   
 // ── Abre modal RACR em branco (botão "+ Novo RACR" na página) ──────
+// Decisão: RAC não pode mais ser avulso (sem OS) — sempre exige
+// vincular a uma OS existente, esteja ela executada/fechada ou não
+// (db.ordens não distingue status; qualquer OS ali serve). Quem
+// preenche sala/equipamento agora é a escolha da OS, via
+// racrSelecionarOS() → _racrPreencherDeOS().
 function abrirNovoRACR() {
   _racrOsRef = null;
   _racrEditId = null;
-  // Popula select de salas
-  const salaSel = document.getElementById('racr-sala');
-  if (salaSel) {
-    salaSel.innerHTML = '<option value="">Selecione...</option>' +
-      db.salas.map(s => `<option value="${s}">${s}</option>`).join('');
-    salaSel.removeAttribute('disabled');
+
+  const osSel = document.getElementById('racr-os');
+  if (osSel) {
+    const ordens = [...(db.ordens||[])].sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
+    osSel.innerHTML = '<option value="">Selecione a OS...</option>' +
+      ordens.map(o => `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`).join('');
+    osSel.removeAttribute('disabled');
   }
-  // Popula select de equipamentos (todos)
-  racrFiltrarMaq();
+  // Sala/equipamento ficam travados até a OS ser escolhida
+  const salaSel = document.getElementById('racr-sala');
+  if (salaSel) { salaSel.innerHTML = '<option value="">Selecione a OS primeiro</option>'; salaSel.setAttribute('disabled', ''); }
   const equipSel = document.getElementById('racr-equip');
-  if (equipSel) equipSel.removeAttribute('disabled');
+  if (equipSel) { equipSel.innerHTML = '<option value="">Selecione a OS primeiro</option>'; equipSel.setAttribute('disabled', ''); }
+
   // Limpa campos de texto
   ['racr-falha','racr-causa','racr-p1','racr-p2','racr-p3','racr-p4','racr-p5',
    'racr-imediata','racr-preventiva','racr-resp-prod','racr-resp-manu','racr-exec']
@@ -31,6 +39,21 @@ function abrirNovoRACR() {
   if (hrEl) { hrEl.value = new Date().toTimeString().slice(0,5); hrEl.removeAttribute('readonly'); }
   _racrFotosNovas = []; _racrFotosSalvas = []; _racrRenderFotos();
   openM('mb-racr');
+}
+
+// ── Chamado ao escolher a OS no seletor do "+ Novo RAC" ────────────
+function racrSelecionarOS(osNumero) {
+  if (!osNumero) {
+    _racrOsRef = null;
+    const salaSel = document.getElementById('racr-sala');
+    const equipSel = document.getElementById('racr-equip');
+    if (salaSel) { salaSel.innerHTML = '<option value="">Selecione a OS primeiro</option>'; salaSel.setAttribute('disabled', ''); }
+    if (equipSel) { equipSel.innerHTML = '<option value="">Selecione a OS primeiro</option>'; equipSel.setAttribute('disabled', ''); }
+    return;
+  }
+  const o = db.ordens.find(x => x.numero === osNumero);
+  if (!o) { showToast('OS não encontrada.', 'er'); return; }
+  _racrPreencherDeOS(o);
 }
  
 // ── Fecha o modal RACR ────────────────────────────────────────────
@@ -74,12 +97,20 @@ async function salvarRACR() {
     if (idxR >= 0) db.racs.splice(idxR, 1);
   }
   // Upload das fotos novas pro Drive (mantém as já salvas, se houver)
-  const urlsFotos = [..._racrFotosSalvas];
-  for (const f of _racrFotosNovas) {
+  // Paralelo — uploadFoto não usa lock no Code.gs, não serializa no Drive.
+  const novasUrls = await Promise.all(_racrFotosNovas.map(async f => {
     try {
-      const r = await apiPost({ action: 'uploadFoto', numero: id, fileName: f.name, mimeType: f.mime, base64: f.b64 });
-      if (r?.ok && r.fileUrl) urlsFotos.push(r.fileUrl);
-    } catch (e) { console.warn('Foto RACR não enviada:', e); }
+      // noQueueOnFail: evita guardar a foto inteira (base64) na fila
+      // offline do localStorage — cota é ~5-10MB e uma foto de ~1MB
+      // falhando repetidamente pode estourar isso em silêncio.
+      const r = await apiPost({ action: 'uploadFoto', numero: id, fileName: f.name, mimeType: f.mime, base64: f.b64 }, true);
+      return (r?.ok && r.fileUrl) ? r.fileUrl : null;
+    } catch (e) { console.warn('Foto RACR não enviada:', e); return null; }
+  }));
+  const urlsFotos = [..._racrFotosSalvas, ...novasUrls.filter(Boolean)];
+  const fotosFalharam = novasUrls.length - novasUrls.filter(Boolean).length;
+  if (fotosFalharam > 0) {
+    showToast(`⚠️ ${fotosFalharam} foto(s) do RACR não enviada(s) (conexão lenta?). RACR salvo mesmo assim.`, 'war');
   }
   racr.fotos = urlsFotos;
   db.racs.push(racr);
@@ -108,7 +139,13 @@ async function salvarRACR() {
       respManu:      racr.respManu,
       executantes:   racr.executantes,
       fotos:         urlsFotos,
-      usuario:       CU?.nome || 'Sistema'
+      usuario:       CU?.nome || 'Sistema',
+      // Essa chamada não usa noQueueOnFail — se falhar, entra na fila
+      // offline e é reenviada sozinha (apiFlushQueue). Sem essa chave,
+      // um reenvio automático depois de um timeout ambíguo duplicaria
+      // o RACR no Sheets. O body enfileirado é reenviado igual ao
+      // original, então a mesma chave se repete nas tentativas.
+      idempotencyKey: 'racr_' + Date.now() + '_' + Math.random().toString(36).slice(2)
     }
   }).then(res => {
     if (res?.ok) {
@@ -276,6 +313,22 @@ function verRACR(id) {
   // Preenche o modal com os dados do RACR
   _racrOsRef = r.osNumero || null;
   _racrEditId = r.status === 'Rascunho' ? r.id : null;
+
+  const osSel = document.getElementById('racr-os');
+  if (osSel) {
+    if (r.osNumero) {
+      const o = db.ordens.find(x => x.numero === r.osNumero);
+      osSel.innerHTML = `<option value="${r.osNumero}">${r.osNumero}${o ? ' — ' + o.sala + ' / ' + o.maq : ''}</option>`;
+      osSel.setAttribute('disabled', '');
+    } else {
+      // Rascunho antigo salvo antes de OS virar obrigatória — deixa escolher agora
+      const ordens = [...(db.ordens||[])].sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
+      osSel.innerHTML = '<option value="">Selecione a OS...</option>' +
+        ordens.map(o => `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`).join('');
+      osSel.removeAttribute('disabled');
+    }
+  }
+
   const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val||''; };
   setVal('racr-equip',    r.maquina);
   setVal('racr-sala',     r.sala);
@@ -298,9 +351,46 @@ function verRACR(id) {
   openM('mb-racr');
 }
  
+// ── Preenche sala/equip/data/falha a partir de uma OS ──────────────
+// Compartilhado entre abrirRAC() (os-executadas.js, RAC direto de uma
+// OS) e racrSelecionarOS() (picker do "+ Novo RAC").
+function _racrPreencherDeOS(o) {
+  _racrOsRef = o.numero;
+  const salaSel = document.getElementById('racr-sala');
+  if (salaSel) {
+    salaSel.innerHTML = `<option value="${o.sala}">${o.sala}</option>`;
+    salaSel.setAttribute('disabled', '');
+  }
+  const equipSel = document.getElementById('racr-equip');
+  if (equipSel) {
+    equipSel.innerHTML = `<option value="${o.maq}">${o.maq}</option>`;
+    equipSel.setAttribute('disabled', '');
+  }
+  const dtEl = document.getElementById('racr-data');
+  const dtDispEl = document.getElementById('racr-data_disp');
+  const hrEl = document.getElementById('racr-hora');
+  if (dtEl) { dtEl.value = o.data || today(); dtEl.setAttribute('readonly', ''); }
+  if (dtDispEl) { dtDispEl.value = fd(o.data || today()); dtDispEl.setAttribute('readonly', ''); }
+  if (hrEl) { hrEl.value = o.ini || new Date().toTimeString().slice(0,5); hrEl.setAttribute('readonly', ''); }
+  const falhaEl = document.getElementById('racr-falha');
+  const imediataEl = document.getElementById('racr-imediata');
+  const respManuEl = document.getElementById('racr-resp-manu');
+  if (falhaEl) falhaEl.value = o.prob || '';
+  if (imediataEl) imediataEl.value = o.acao || '';
+  if (respManuEl) respManuEl.value = o.manut || '';
+  ['racr-causa','racr-p1','racr-p2','racr-p3','racr-p4','racr-p5',
+   'racr-preventiva','racr-resp-prod','racr-exec'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
 // ── Coleta dados do formulário modal RACR ────────────────────────
 function _coletarDadosRACR(validar = true) {
   const g = id => document.getElementById(id)?.value?.trim() || '';
+  // OS obrigatória só no envio de verdade (validar=true) — rascunho local
+  // pode ficar sem escolher OS ainda (salvarRACRRascunho passa false).
+  if (validar && !_racrOsRef) { showToast('Selecione a OS de origem.', 'er'); return null; }
   const falha = g('racr-falha');
   if (validar && !falha) { showToast('Informe a falha identificada.', 'er'); return null; }
   const maquina = g('racr-equip') || (_racrOsRef ? (db.ordens.find(x=>x.numero===_racrOsRef)?.maq||'') : '');
@@ -330,8 +420,10 @@ function _coletarDadosRACR(validar = true) {
 // Variável de estado: OS que originou o RACR atual
 let _racrOsRef = null;
 // ID do rascunho atualmente em edição (null se for um RACR novo/não-rascunho).
-// Necessário pra RAC avulso (sem OS vinculada, _racrOsRef=null) — sem isso,
-// salvar o mesmo rascunho duas vezes criava duplicata em vez de atualizar.
+// Necessário porque um rascunho pode ser salvo antes de escolher a OS
+// (_racrOsRef=null) — sem isso, salvar o mesmo rascunho duas vezes criava
+// duplicata em vez de atualizar. Sem OS só vale pra rascunho local; pro
+// envio de verdade (salvarRACR) a OS é obrigatória — ver _coletarDadosRACR.
 let _racrEditId = null;
 // Estado de fotos do RACR atual: novas (ainda não enviadas) e já salvas (URLs do Drive)
 let _racrFotosNovas = [];   // [{name, mime, b64}]

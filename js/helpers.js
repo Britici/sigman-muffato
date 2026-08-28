@@ -60,35 +60,14 @@ function _brToISO(br) {
   if (!m) return '';
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
-function abrirDatePicker(id, anchorEl) {
+function abrirDatePicker(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  // Reposiciona o input invisível em coordenadas fixas e seguras da viewport
-  // antes de abrir o calendário nativo (desktop). Sem isso, o navegador
-  // âncora o popup na posição "estática" do elemento, e se o campo estiver
-  // perto da borda direita/inferior o Chrome às vezes não vira o popup
-  // corretamente, deixando-o cortado fora da viewport.
-  const ref = anchorEl || el;
-  const rect = ref.getBoundingClientRect();
-  const margin = 8;
-  const maxLeft = Math.max(margin, window.innerWidth - 320 - margin);
-  const maxTop = Math.max(margin, window.innerHeight - 360 - margin);
-  const left = Math.min(Math.max(rect.left, margin), maxLeft);
-  const top = Math.min(Math.max(rect.bottom, margin), maxTop);
-  el.style.position = 'fixed';
-  el.style.right = 'auto';
-  el.style.bottom = 'auto';
-  el.style.height = '1px';
-  el.style.left = left + 'px';
-  el.style.top = top + 'px';
-  const restore = () => {
-    if (el.dataset.overlayCss) el.style.cssText = el.dataset.overlayCss;
-    el.removeEventListener('blur', restore);
-  };
-  el.addEventListener('blur', restore);
   if (el.showPicker) { try { el.showPicker(); return; } catch (e) { /* fallback abaixo */ } }
+  el.style.pointerEvents = 'auto';
   el.focus();
   el.click();
+  setTimeout(() => { el.style.pointerEvents = 'none'; }, 300);
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -125,18 +104,7 @@ function wireDateIcon(dispEl) {
       wrap.appendChild(picker);
     }
   }
-  // IMPORTANTE: o picker fica sobreposto (invisível) exatamente em cima do
-  // ícone 📅, com pointer-events ativo e tamanho real de área tocável — e
-  // não mais colapsado em 1x1px. Isso é o que garante abrir o calendário em
-  // celular: toque sintético via JS (button.onclick -> el.click()) não é
-  // confiável em navegadores mobile, que só abrem o seletor nativo de data
-  // em resposta a um toque genuíno do usuário diretamente no próprio
-  // <input type="date">. No desktop, isso também funciona nativamente
-  // (clicar no campo já abre o calendário do Chrome/Firefox), e o
-  // abrirDatePicker() no onclick do botão continua como reforço/fallback.
-  const OVERLAY_CSS = 'position:absolute;right:0;top:0;bottom:0;width:34px;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:2';
-  picker.style.cssText = OVERLAY_CSS;
-  picker.dataset.overlayCss = OVERLAY_CSS;
+  picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:1px;height:1px';
   if (picker.parentNode !== wrap) wrap.appendChild(picker);
   // força espaço pro ícone mesmo em campos com padding inline (ex: filtros
   // compactos do dashboard, que já trazem style="padding:5px 8px")
@@ -147,8 +115,7 @@ function wireDateIcon(dispEl) {
   btn.className = 'dp-btn';
   btn.title = 'Escolher data';
   btn.textContent = '📅';
-  btn.style.pointerEvents = 'none'; // decorativo: o toque real vai para o picker, que fica por cima
-  btn.onclick = () => abrirDatePicker(picker.id, dispEl);
+  btn.onclick = () => abrirDatePicker(picker.id);
   wrap.appendChild(btn);
 }
 function initDateIcons(root) {

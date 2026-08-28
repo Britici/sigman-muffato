@@ -591,7 +591,7 @@ function _buildCard(ordem) {
   const fotosIniciaisHtml = fotos.length
     ? '<div class="cac-fotos-grid"><span class="cac-fotos-label">📎 Fotos da Solicitação</span>' +
       fotos.map(url =>
-        '<img class="cac-photo-thumb" src="' + _esc(driveThumb(url)) + '" data-full="' + _esc(driveThumb(url)) + '" alt="Foto">'
+        '<img class="cac-photo-thumb" loading="lazy" decoding="async" src="' + _esc(driveThumb(url)) + '" data-full="' + _esc(driveThumb(url)) + '" alt="Foto">'
       ).join('') +
       '</div>'
     : '';
@@ -603,7 +603,7 @@ function _buildCard(ordem) {
     if (!obs && !foto) return '';
     let html = '<div class="cac-etapa-obs"><b>Etapa ' + (e.idx+1) + ' — ' + e.label + '</b>';
     if (obs) html += '<div>' + _esc(obs) + '</div>';
-    if (foto) html += '<div style="margin-top:6px"><img class="cac-photo-thumb" src="' + _esc(driveThumb(foto)) + '" data-full="' + _esc(driveThumb(foto)) + '" alt="Foto etapa"></div>';
+    if (foto) html += '<div style="margin-top:6px"><img class="cac-photo-thumb" loading="lazy" decoding="async" src="' + _esc(driveThumb(foto)) + '" data-full="' + _esc(driveThumb(foto)) + '" alt="Foto etapa"></div>';
     html += '</div>';
     return html;
   }).join('');
@@ -756,7 +756,7 @@ function _abrirModal(ordem, etapaIdx, el) {
   const fotoAtualHtml = fotoAtual
     ? '<div style="margin-bottom:8px">' +
         '<span style="font-size:.75rem;color:var(--txt3);display:block;margin-bottom:4px">Foto atual:</span>' +
-        '<img class="cac-photo-thumb" src="' + _esc(driveThumb(fotoAtual)) + '" data-full="' + _esc(driveThumb(fotoAtual)) + '" alt="Foto atual">' +
+        '<img class="cac-photo-thumb" loading="lazy" decoding="async" src="' + _esc(driveThumb(fotoAtual)) + '" data-full="' + _esc(driveThumb(fotoAtual)) + '" alt="Foto atual">' +
       '</div>'
     : '';
 
@@ -825,25 +825,25 @@ function _abrirModal(ordem, etapaIdx, el) {
   const fotoPrevEl = overlay.querySelector('#m-foto-preview');
 
   fotoDropEl.addEventListener('click', () => fotoInpEl.click());
-  fotoInpEl.addEventListener('change', function () {
+  fotoInpEl.addEventListener('change', async function () {
     const file = this.files[0];
     if (!file||!file.type.startsWith('image/')) return;
-    _modalFotoFile = file; _modalFotoMime = file.type;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      _modalFotoB64 = ev.target.result.split(',')[1];
-      fotoPrevEl.innerHTML = `
-        <div class="cac-foto-modal-thumb">
-          <img src="${ev.target.result}" alt="${_esc(file.name)}">
-          <span>${_esc(file.name)} · ${(file.size/1024).toFixed(0)} KB</span>
-          <button type="button" id="m-foto-remover">✕</button>
-        </div>`;
-      overlay.querySelector('#m-foto-remover').addEventListener('click', () => {
-        _modalFotoFile=null;_modalFotoB64=null;_modalFotoMime=null;
-        fotoInpEl.value=''; fotoPrevEl.innerHTML='';
-      });
-    };
-    reader.readAsDataURL(file);
+    _modalFotoFile = file; _modalFotoMime = 'image/jpeg';
+    // _compressFile (index.html, mesma da abertura de OS): redimensiona
+    // pra no máx 1920x1080 e comprime até ~1MB antes de virar base64.
+    // Antes ia a foto crua da câmera, sem limite algum de tamanho.
+    const { dataUrl, sizeKb } = await _compressFile(file);
+    _modalFotoB64 = dataUrl.split(',')[1];
+    fotoPrevEl.innerHTML = `
+      <div class="cac-foto-modal-thumb">
+        <img src="${dataUrl}" alt="${_esc(file.name)}">
+        <span>${_esc(file.name)} · ${sizeKb} KB</span>
+        <button type="button" id="m-foto-remover">✕</button>
+      </div>`;
+    overlay.querySelector('#m-foto-remover').addEventListener('click', () => {
+      _modalFotoFile=null;_modalFotoB64=null;_modalFotoMime=null;
+      fotoInpEl.value=''; fotoPrevEl.innerHTML='';
+    });
   });
 
   /* Fechar */
@@ -882,6 +882,7 @@ function _abrirModal(ordem, etapaIdx, el) {
 
     try {
       /* Upload foto desta etapa (coluna própria) */
+      let fotoFalhou = false;
       if (_modalFotoB64 && etapa.fotoCol && _opts.gsUrl) {
         try {
           const ext = (_modalFotoFile?.name?.split('.').pop()||'jpg').toLowerCase();
@@ -893,7 +894,8 @@ function _abrirModal(ordem, etapaIdx, el) {
             base64: _modalFotoB64
           });
           if (fr.ok && fr.fileUrl) payload[etapa.fotoCol] = fr.fileUrl;
-        } catch(fotoErr) { console.warn('Foto não enviada:', fotoErr); }
+          else fotoFalhou = true;
+        } catch(fotoErr) { console.warn('Foto não enviada:', fotoErr); fotoFalhou = true; }
       }
 
       const r = await _post(_opts.gsUrl, {
@@ -905,7 +907,10 @@ function _abrirModal(ordem, etapaIdx, el) {
       Object.assign(ordem, payload);
       fechar();
       _renderLista(el);
-      _toast(el, `✅ Etapa ${etapaIdx+1} ${isDone?'atualizada':'registrada'}!`, 'ok');
+      _toast(el, fotoFalhou
+        ? `⚠️ Etapa ${etapaIdx+1} salva, mas a foto não foi enviada (conexão lenta?). Tente anexar de novo.`
+        : `✅ Etapa ${etapaIdx+1} ${isDone?'atualizada':'registrada'}!`,
+        fotoFalhou ? 'warn' : 'ok');
     } catch(err) {
       _toast(el, '❌ '+err.message, 'err');
       this.disabled = false;

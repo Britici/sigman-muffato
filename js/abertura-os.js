@@ -229,7 +229,7 @@ function abrirConcluir(id, tipo) {
       <div style="font-weight:600;margin:4px 0">${item.sala} · ${item.maq}</div>
       <div style="font-size:14px;color:var(--txt3)">${item.tipo} · ${item.prioridade||''}</div>
       ${item.desc?`<div style="font-size:14px;color:var(--txt2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bord)">${item.desc}</div>`:''}
-      ${(()=>{const fs=item.fotos&&item.fotos.length?item.fotos:(item.fotoUrl?[item.fotoUrl]:[]);return fs.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)"><div style="font-size:13px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto(s) da Solicitação</div><div style="display:flex;flex-wrap:wrap;gap:6px">${fs.map(u=>`<a href="${u}" target="_blank"><img src="${driveThumb(u)}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--bord)" alt="Foto"></a>`).join('')}</div></div>`:''})()}
+      ${(()=>{const fs=item.fotos&&item.fotos.length?item.fotos:(item.fotoUrl?[item.fotoUrl]:[]);return fs.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bord)"><div style="font-size:13px;font-weight:700;color:var(--txt3);font-variant:small-caps;margin-bottom:6px">📷 Foto(s) da Solicitação</div><div style="display:flex;flex-wrap:wrap;gap:6px">${fs.map(u=>`<a href="${u}" target="_blank"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--bord)" alt="Foto"></a>`).join('')}</div></div>`:''})()}
     </div>`;
   sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
   ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(fid=>sv(fid,''));

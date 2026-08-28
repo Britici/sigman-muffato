@@ -76,7 +76,7 @@ function renderExec() {
     <td style="font-size:14px">${o.manut}</td>
     <td style="font-family:var(--fm);font-size:13px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td style="width:52px;text-align:center">
-      ${(()=>{const fs=o.fotos&&o.fotos.length?o.fotos:(o.fotoUrl?[o.fotoUrl]:[]);return fs.length?`<div class="foto-wrap" style="display:inline-block"><img src="${driveThumb(fs[0])}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bord);cursor:zoom-in;display:block" alt="Foto" onclick="abrirFotoLightbox('${fs[0]}')" onerror="this.style.display='none'">${fs.length>1?`<span style="font-size:10px;color:var(--txt3);display:block;text-align:center">+${fs.length-1}</span>`:''}</div>`:`<span style="font-size:13px;color:var(--txt3)">—</span>`})()}
+      ${(()=>{const fs=o.fotos&&o.fotos.length?o.fotos:(o.fotoUrl?[o.fotoUrl]:[]);return fs.length?`<div class="foto-wrap" style="display:inline-block"><img src="${driveThumb(fs[0])}" loading="lazy" decoding="async" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bord);cursor:zoom-in;display:block" alt="Foto" onclick="abrirFotoLightbox('${fs[0]}')" onerror="this.style.display='none'">${fs.length>1?`<span style="font-size:10px;color:var(--txt3);display:block;text-align:center">+${fs.length-1}</span>`:''}</div>`:`<span style="font-size:13px;color:var(--txt3)">—</span>`})()}
     </td>
     <td><div style="display:flex;gap:4px;flex-wrap:nowrap">
       <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
@@ -92,40 +92,13 @@ function abrirRAC(osNumero) {
   }
   const o = db.ordens.find(x => x.numero === osNumero);
   if (!o) { showToast('OS não encontrada.', 'er'); return; }
-  _racrOsRef = osNumero;
+  _racrPreencherDeOS(o);
 
-  // Popula sala com option única (readonly via disabled)
-  const salaSel = document.getElementById('racr-sala');
-  if (salaSel) {
-    salaSel.innerHTML = `<option value="${o.sala}">${o.sala}</option>`;
-    salaSel.setAttribute('disabled', '');
+  const osSel = document.getElementById('racr-os');
+  if (osSel) {
+    osSel.innerHTML = `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`;
+    osSel.setAttribute('disabled', '');
   }
-  // Popula equip com option única (readonly via disabled)
-  const equipSel = document.getElementById('racr-equip');
-  if (equipSel) {
-    equipSel.innerHTML = `<option value="${o.maq}">${o.maq}</option>`;
-    equipSel.setAttribute('disabled', '');
-  }
-  // Data e hora
-  const dtEl = document.getElementById('racr-data');
-  const dtDispEl = document.getElementById('racr-data_disp');
-  const hrEl = document.getElementById('racr-hora');
-  if (dtEl) { dtEl.value = o.data || today(); dtEl.setAttribute('readonly', ''); }
-  if (dtDispEl) { dtDispEl.value = fd(o.data || today()); dtDispEl.setAttribute('readonly', ''); }
-  if (hrEl) { hrEl.value = o.ini || new Date().toTimeString().slice(0,5); hrEl.setAttribute('readonly', ''); }
-  // Falha e ação imediata da OS
-  const falhaEl = document.getElementById('racr-falha');
-  const imediataEl = document.getElementById('racr-imediata');
-  const respManuEl = document.getElementById('racr-resp-manu');
-  if (falhaEl) falhaEl.value = o.prob || '';
-  if (imediataEl) imediataEl.value = o.acao || '';
-  if (respManuEl) respManuEl.value = o.manut || '';
-  // Limpa campos de análise
-  ['racr-causa','racr-p1','racr-p2','racr-p3','racr-p4','racr-p5',
-   'racr-preventiva','racr-resp-prod','racr-exec'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
   closeM('m-det');
   openM('mb-racr');
 }
@@ -171,7 +144,7 @@ function editarOS(numero) {
   const existGrid = document.getElementById('eoe-fotos-exist');
   const fs = o.fotos && o.fotos.length ? o.fotos : (o.fotoUrl ? [o.fotoUrl] : []);
   existGrid.innerHTML = fs.length
-    ? fs.map(u => `<a href="${u}" target="_blank"><img src="${driveThumb(u)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)" title="Clique para ampliar"></a>`).join('')
+    ? fs.map(u => `<a href="${u}" target="_blank"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)" title="Clique para ampliar"></a>`).join('')
     : '<span style="color:var(--txt3);font-size:13px">Sem fotos</span>';
   renderPhotoGrid('eoe');
   openM('m-edit-exec');

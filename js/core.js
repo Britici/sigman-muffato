@@ -255,7 +255,17 @@ function apiQueueFailed(body) {
   } catch(e) {}
 }
 
+// Trava de reentrância: numa conexão lenta, um flush pode levar mais que
+// os 45s do intervalo abaixo. Sem essa trava, o próximo tick do setInterval
+// (que não espera o anterior terminar) lê a MESMA fila ainda não gravada de
+// volta no localStorage e reenvia os mesmos itens — risco de duplicar
+// registros no Sheets. Com a trava, um flush em andamento bloqueia o
+// próximo até terminar.
+let _flushEmAndamento = false;
+
 async function apiFlushQueue() {
+  if (_flushEmAndamento) return;
+  _flushEmAndamento = true;
   try {
     const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
     if (!fila.length) return;
@@ -264,13 +274,17 @@ async function apiFlushQueue() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(item.body)
+        body: JSON.stringify(item.body),
+        signal: AbortSignal.timeout(40000)
       }).then(r => r.json()).catch(() => null);
       if (!res || !res.ok) restante.push(item);
     }
     localStorage.setItem('sigman_fila', JSON.stringify(restante));
     if (!restante.length) showApiStatus('online');
-  } catch(e) {}
+  } catch(e) {
+  } finally {
+    _flushEmAndamento = false;
+  }
 }
 
 // Tenta reenviar fila a cada 30 segundos
