@@ -29,11 +29,11 @@ async function init() {
   if (sess) {
     try {
       const s = JSON.parse(sess);
-      let u = s.user || db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+      let u = s.user || db.usuarios.find(x => x.login === s.login);
 
       if (!u && USE_API) {
         try { await apiLoadAll(); } catch(e) {}
-        u = db.usuarios.find(x => x.login === s.login && x.senha === s.senha);
+        u = db.usuarios.find(x => x.login === s.login);
       }
 
       if (u) {

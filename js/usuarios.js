@@ -132,7 +132,7 @@ async function salvarUsuario() {
       Senha_Hash: 'mudar123', Ativo: 'sim', Criado_Em: new Date().toISOString()
     });
     if (!res || !res.ok) { showAlert('al-usr', 'Erro ao criar usuário: ' + (res && res.error || 'sem conexão'), 'err'); return; }
-    db.usuarios.push({ login, nome, cargo, tipo: perfil, senha: 'mudar123', ativo: true });
+    db.usuarios.push({ login, nome, cargo, tipo: perfil, mudarSenha: true, ativo: true });
     showAlert('al-usr', 'Usuário criado. Senha inicial: mudar123', 'ok');
   } else {
     const res = await apiUpdate('usuarios', origLogin, 'Login', { Nome: nome, Cargo: cargo, Tipo_Acesso: perfil });
@@ -154,7 +154,7 @@ async function resetarSenhaUsuario(login) {
   const res = await apiUpdate('usuarios', login, 'Login', { Senha_Hash: 'mudar123' });
   if (!res || !res.ok) { showAlert('al-usr', 'Erro ao resetar senha: ' + (res && res.error || 'sem conexão'), 'err'); return; }
   const u = db.usuarios.find(x => x.login === login);
-  if (u) u.senha = 'mudar123';
+  if (u) u.mudarSenha = true;
   showAlert('al-usr', `Senha de ${login} resetada para mudar123.`, 'ok');
   renderUsuarios();
 }

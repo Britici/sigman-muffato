@@ -514,30 +514,26 @@ async function apiLoadAll(silent = false, force = false) {
     }));
   }
 
-  // Usuários — Sheets é a fonte de verdade; Senha_Hash do Sheets é usada diretamente.
-  // Se o usuário mudou a senha pelo app, a versão local tem prioridade.
-  const localUsers = JSON.parse(localStorage.getItem('sigman_users') || '[]');
+  // Usuários — o backend NUNCA envia Senha_Hash/senha em texto puro (removido
+  // do readAll no Code.gs). O login é validado no servidor (action 'login').
+  // db.usuarios aqui só serve pra listar/editar usuários na tela de Admin —
+  // não guarda mais senha nenhuma, nem local nem remota.
   if (d.usuarios && d.usuarios.length) {
     // Mantém TODOS os usuários (ativos e desativados) — desativar não é excluir.
-    // Login continua funcionando normalmente pra quem está ativo.
     db.usuarios = d.usuarios
       .filter(r => r.Login)
-      .map(r => {
-        const loc = localUsers.find(u => u.login === r.Login);
-        // Prioridade: senha alterada no app (localStorage) > Senha_Hash do Sheets > fallback
-        const senha = loc ? loc.senha : (r.Senha_Hash || 'mudar123');
-        return {
-          login: r.Login,
-          nome: r.Nome,
-          cargo: r.Cargo || '',
-          tipo: r.Tipo_Acesso,
-          senha,
-          ativo: String(r.Ativo).toLowerCase() !== 'nao'
-        };
-      });
-  } else if (localUsers.length) {
-    db.usuarios = localUsers;
+      .map(r => ({
+        login: r.Login,
+        nome: r.Nome,
+        cargo: r.Cargo || '',
+        tipo: r.Tipo_Acesso,
+        mudarSenha: !!r.MudarSenha, // true = senha ainda é a padrão de reset, precisa trocar
+        ativo: String(r.Ativo).toLowerCase() !== 'nao'
+      }));
   }
+  // sigman_users (cache local de senha) não é mais usado — se existir de uma
+  // sessão antiga, remove pra não deixar senha em texto puro no localStorage.
+  localStorage.removeItem('sigman_users');
 
   // Ativos (Salas e Máquinas) — substitui completamente pelo Sheets (reflete exclusões)
   if (d.salas && d.salas.length) {
