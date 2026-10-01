@@ -114,8 +114,15 @@ async function salvarMS() {
   const manualUrl = v('ms-manual-url').trim();
   const credenciais = _msCredAtual.filter(c => c.tipo || c.usuario || c.senha);
 
+  // ID sempre gerado aqui no cliente, inclusive pra registro novo — nunca
+  // mais deixado pro servidor gerar (Code.gs antes usava 'MS_'+Date.now(),
+  // que mudava a cada chamada; se essa gravação desse timeout e caísse na
+  // fila offline, o retry gerava um ID diferente e duplicava a credencial
+  // sem nenhum aviso). Com o mesmo ID em toda tentativa, o Code.gs consegue
+  // fazer upsert e o retry só atualiza o que já foi criado, em vez de duplicar.
+  const id = _msRegistroAtual ? _msRegistroAtual.id : gerarIdLocal('MS');
   const row = {
-    id: _msRegistroAtual ? _msRegistroAtual.id : null,
+    id,
     sala,
     equipamento: maquina,
     manualUrl,

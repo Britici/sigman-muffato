@@ -316,8 +316,33 @@ function showApiStatus(status) {
   }
 }
 
+// Gera um identificador único por tentativa de gravação. Usado como
+// idempotencyKey: se o apiPost falhar e cair na fila offline, o mesmo
+// `body` (já com essa chave dentro) é reenviado depois por apiFlushQueue —
+// então o Code.gs consegue perceber "isso já foi gravado" e não duplicar,
+// mesmo se a 1ª tentativa tiver na real terminado no servidor antes do
+// timeout do cliente.
+function gerarIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'idk-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
+// ID de registro gerado no cliente (usado hoje por manuais-senhas.js pra
+// registro novo). Diferente de gerarIdempotencyKey: este vira o ID
+// persistido na planilha (coluna ID), não só uma chave de dedup — precisa
+// ser único por registro, mas estável entre tentativas do MESMO registro
+// (a chamada só acontece 1x por registro novo, então isso é garantido).
+function gerarIdLocal(prefixo) {
+  const sufixo = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Date.now() + '-' + Math.random().toString(36).slice(2);
+  return prefixo + '_' + sufixo;
+}
+
 // Envia nova linha para o Sheets
-function apiAppend(sheet, row) { return apiPost({ action:'append', sheet, row, usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' }); }
+function apiAppend(sheet, row) {
+  return apiPost({ action:'append', sheet, row, idempotencyKey: gerarIdempotencyKey(), usuario: (typeof CU!=='undefined'&&CU)?CU.nome:'' });
+}
 
 // Append com retry automático de número sequencial (OS-/PL-/SOL-).
 // Corrige a corrida entre dois usuários gerando o mesmo número quase
