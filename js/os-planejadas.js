@@ -5,6 +5,172 @@
 
 var planSort = { col: 'numero', dir: 'desc' };
 
+// ── Abas Preventivas / Outras + geração manual ───────────────────────
+// Preventivas = Tipo 'Preventiva' (criadas pelo backend). A geração diária
+// é do servidor; aqui o PCM vê o que vence hoje e pode gerar à mão.
+var planAba = 'outras';
+var planPrev = null;     // último retorno de previewPreventivas
+var planPrevMsg = '';    // resultado da última geração manual
+var _prevBusy = false;
+
+function _escPl(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function _qtdPl(x) { return Array.isArray(x) ? x.length : (Number(x) || 0); }
+
+function ehPreventivaPl_(p) { return p.tipo === 'Preventiva'; }
+
+// Só Administração (único perfil com o menu PCM). O servidor NÃO checa perfil:
+// isto só esconde o botão.
+function podeGerarPreventivas() {
+  return !!(typeof CU !== 'undefined' && CU && CU.tipo === 'administracao');
+}
+
+function filtrarPlan_() {
+  const tx  = (v('fp-tx') || '').toLowerCase();
+  const tp  = v('fp-tp');
+  const sl  = v('fp-sl');
+  const st  = v('fp-st');
+  const dtI = v('fp-dt-ini');
+  const dtF = v('fp-dt-fim');
+  let data = db.planejadas.filter(p => planAba === 'preventivas' ? ehPreventivaPl_(p) : !ehPreventivaPl_(p));
+  if (tx)  data = data.filter(p => [p.numero, p.sala, p.maq, p.tipo].some(x => x && x.toLowerCase().includes(tx)));
+  if (tp)  data = data.filter(p => p.tipo === tp);
+  if (sl)  data = data.filter(p => p.sala === sl);
+  if (st)  data = data.filter(p => p.status === st);
+  if (dtI) data = data.filter(p => p.prazo >= dtI);
+  if (dtF) data = data.filter(p => p.prazo <= dtF);
+  return data;
+}
+
+function setPlanAba(aba) {
+  if (aba !== 'preventivas' && aba !== 'outras') return;
+  planAba = aba;
+  const tp = document.getElementById('fp-tp');
+  if (tp) tp.value = ''; // o filtro de tipo conflita com a aba
+  renderPlan();
+}
+
+function ensurePlanAbasUI_() {
+  if (document.getElementById('plan-abas')) return;
+  const tb  = document.getElementById('tb-plan');
+  const tbl = tb && tb.closest('table');
+  if (!tbl || !tbl.parentNode) return;
+  const bar = document.createElement('div');
+  bar.id = 'plan-abas';
+  bar.style.cssText = 'display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap';
+  bar.innerHTML =
+    '<button id="pab-preventivas" class="btn btn-sm" onclick="setPlanAba(\'preventivas\')"></button>' +
+    '<button id="pab-outras" class="btn btn-sm" onclick="setPlanAba(\'outras\')"></button>';
+  const panel = document.createElement('div');
+  panel.id = 'plan-prev-panel';
+  panel.style.cssText = 'display:none;margin:0 0 14px;padding:12px 14px;border:1px solid var(--brd,#2a3140);border-radius:8px';
+  tbl.parentNode.insertBefore(panel, tbl);
+  tbl.parentNode.insertBefore(bar, panel);
+}
+
+function atualizarAbasPlan_() {
+  ensurePlanAbasUI_();
+  const abertas = db.planejadas.filter(p => p.status !== 'Concluída');
+  const nP = abertas.filter(ehPreventivaPl_).length;
+  const nO = abertas.length - nP;
+  const bP = document.getElementById('pab-preventivas');
+  const bO = document.getElementById('pab-outras');
+  if (bP) { bP.textContent = 'Preventivas (' + nP + ')'; bP.className = 'btn btn-sm ' + (planAba === 'preventivas' ? 'btn-g' : 'btn-gh'); }
+  if (bO) { bO.textContent = 'Outras (' + nO + ')';      bO.className = 'btn btn-sm ' + (planAba === 'outras' ? 'btn-g' : 'btn-gh'); }
+  renderPrevPanel_();
+}
+
+function renderPrevPanel_() {
+  const el = document.getElementById('plan-prev-panel');
+  if (!el) return;
+  el.style.display = planAba === 'preventivas' ? 'block' : 'none';
+  if (planAba !== 'preventivas') return;
+
+  const pode  = podeGerarPreventivas();
+  const prev  = planPrev;
+  const total = prev && prev.ok ? (prev.totalASerGerado || 0) : 0;
+  let corpo = '';
+
+  if (_prevBusy) {
+    corpo = '<div style="color:var(--txt2)">Consultando o servidor… pode levar até 1 minuto.</div>';
+  } else if (prev && !prev.ok) {
+    corpo = '<div style="color:var(--red)">Erro: ' + _escPl(prev.error || 'sem resposta do servidor') + '</div>';
+  } else if (prev) {
+    const itens = prev.itens || [];
+    const MAX = 40;
+    corpo = '<div style="margin-bottom:6px"><strong>' + total + '</strong> O.S. a gerar hoje</div>';
+    if (itens.length) {
+      corpo += '<div style="max-height:220px;overflow:auto"><table style="width:100%;font-size:13px"><thead><tr>' +
+        '<th style="text-align:left">Sala</th><th style="text-align:left">Máquina</th><th style="text-align:left">Tag</th>' +
+        '<th style="text-align:left">Periodicidade</th><th style="text-align:left">Prazo</th></tr></thead><tbody>' +
+        itens.slice(0, MAX).map(i => '<tr><td>' + _escPl(i.sala) + '</td><td>' + _escPl(i.maquina) + '</td><td>' +
+          _escPl(i.tag) + '</td><td>' + _escPl(i.periodicidade) + '</td><td>' + _escPl(fd(i.prazoLimite)) + '</td></tr>').join('') +
+        '</tbody></table></div>';
+      if (itens.length > MAX) corpo += '<div style="color:var(--txt2);font-size:12px;margin-top:4px">+ ' + (itens.length - MAX) + ' não listadas</div>';
+    }
+    if (prev.semReferencia) {
+      corpo += '<div style="color:var(--txt2);font-size:12px;margin-top:6px">' + prev.semReferencia +
+        ' máquina(s) ainda sem data de agendamento (entram na agenda na próxima geração).</div>';
+    }
+  } else {
+    corpo = '<div style="color:var(--txt2)">Clique em “Verificar vencimentos” para ver o que vence hoje.</div>';
+  }
+
+  el.innerHTML =
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">' +
+      '<button class="btn btn-sm btn-gh" onclick="verificarPreventivas()"' + (_prevBusy ? ' disabled' : '') + '>Verificar vencimentos</button>' +
+      (pode ? '<button class="btn btn-sm btn-g" onclick="gerarPreventivasAgora()"' + ((_prevBusy || total <= 0) ? ' disabled' : '') + '>Gerar agora</button>' : '') +
+      (!pode ? '<span style="color:var(--txt2);font-size:12px">Geração manual: somente Administração.</span>' : '') +
+    '</div>' + corpo +
+    (planPrevMsg ? '<div style="margin-top:8px;font-size:13px">' + _escPl(planPrevMsg) + '</div>' : '');
+}
+
+async function verificarPreventivas() {
+  if (_prevBusy) return;
+  _prevBusy = true; planPrevMsg = ''; renderPrevPanel_();
+  try {
+    const r = await apiGet({ action: 'previewPreventivas' });
+    planPrev = r || { ok: false, error: 'Sem resposta do servidor.' };
+  } finally {
+    _prevBusy = false; renderPrevPanel_();
+  }
+}
+
+async function gerarPreventivasAgora() {
+  if (!podeGerarPreventivas()) { showToast('Somente Administração pode gerar preventivas.', 'er'); return; }
+  if (_prevBusy) return;
+  const total = planPrev && planPrev.ok ? (planPrev.totalASerGerado || 0) : 0;
+  if (total <= 0) { showToast('Verifique os vencimentos antes de gerar.', 'war'); return; }
+  if (!confirm('Gerar ' + total + ' O.S. preventiva(s) agora?')) return;
+
+  _prevBusy = true; planPrevMsg = ''; renderPrevPanel_();
+  let res = null;
+  try {
+    // noQueueOnFail: não reenviar sozinho depois (evita gerar em duplicidade)
+    res = await apiPost({ action: 'gerarPreventivasManual', usuario: (CU && CU.nome) || '' }, true);
+  } finally {
+    _prevBusy = false;
+  }
+  planPrev = null;
+  if (res && res.ok) {
+    const nC = _qtdPl(res.criadas), nF = _qtdPl(res.falhas);
+    planPrevMsg = 'Geradas: ' + nC + (nF ? ' · Falhas: ' + nF + ' (tentam de novo na próxima geração)' : '') +
+      (res.agendadas ? ' · Máquinas agendadas: ' + res.agendadas : '');
+    showToast(planPrevMsg);
+  } else if (res) {
+    planPrevMsg = 'Erro do servidor: ' + (res.error || 'desconhecido');
+    showToast(planPrevMsg, 'er');
+  } else {
+    planPrevMsg = 'Sem resposta do servidor. A geração pode ter sido concluída: confira a lista e use “Verificar vencimentos” antes de tentar de novo.';
+    showToast('Sem resposta do servidor. Confira a lista antes de repetir.', 'war');
+  }
+  await apiLoadAll(true, true);
+  renderPlan();
+}
+
 function sortPlan(col) {
   if (planSort.col === col) {
     planSort.dir = planSort.dir === 'asc' ? 'desc' : 'asc';
@@ -27,20 +193,9 @@ function renderPlan() {
   });
   if (changed) saveDB();
 
-  const tx  = (v('fp-tx') || '').toLowerCase();
-  const tp  = v('fp-tp');
-  const sl  = v('fp-sl');
-  const st  = v('fp-st');
-  const dtI = v('fp-dt-ini');
-  const dtF = v('fp-dt-fim');
+  let data = filtrarPlan_();
 
-  let data = [...db.planejadas];
-  if (tx)  data = data.filter(p => [p.numero, p.sala, p.maq, p.tipo].some(x => x && x.toLowerCase().includes(tx)));
-  if (tp)  data = data.filter(p => p.tipo === tp);
-  if (sl)  data = data.filter(p => p.sala === sl);
-  if (st)  data = data.filter(p => p.status === st);
-  if (dtI) data = data.filter(p => p.prazo >= dtI);
-  if (dtF) data = data.filter(p => p.prazo <= dtF);
+  atualizarAbasPlan_();
 
   const { col, dir } = planSort;
   const prioMap = { 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
@@ -100,19 +255,7 @@ function renderPlanDebounced() {
 }
 
 function exportPlanCSV() {
-  const tx  = (v('fp-tx') || '').toLowerCase();
-  const tp  = v('fp-tp');
-  const sl  = v('fp-sl');
-  const st  = v('fp-st');
-  const dtI = v('fp-dt-ini');
-  const dtF = v('fp-dt-fim');
-  let data = [...db.planejadas];
-  if (tx)  data = data.filter(p => [p.numero, p.sala, p.maq, p.tipo].some(x => x && x.toLowerCase().includes(tx)));
-  if (tp)  data = data.filter(p => p.tipo === tp);
-  if (sl)  data = data.filter(p => p.sala === sl);
-  if (st)  data = data.filter(p => p.status === st);
-  if (dtI) data = data.filter(p => p.prazo >= dtI);
-  if (dtF) data = data.filter(p => p.prazo <= dtF);
+  let data = filtrarPlan_();
   if (!data.length) { showToast('Sem dados para exportar com os filtros selecionados.', 'war'); return; }
   const h = ['PL_Numero','Sala','Maquina','Tipo','Prioridade','Prazo','Horas_Turno','Status','Descricao'];
   const rows = data.map(p => [
@@ -123,7 +266,7 @@ function exportPlanCSV() {
   const csv = [h, ...rows].map(r => r.join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
-  a.download = `SIGMAN_Planejadas_${today()}${tp?'_'+tp:''}${sl?'_'+sl:''}${st?'_'+st:''}.csv`;
+  a.download = `SIGMAN_Planejadas_${today()}_${planAba}${v('fp-tp')?'_'+v('fp-tp'):''}${v('fp-sl')?'_'+v('fp-sl'):''}${v('fp-st')?'_'+v('fp-st'):''}.csv`;
   a.click();
 }
 
