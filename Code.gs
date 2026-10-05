@@ -4,6 +4,27 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v13 — preventivas: ciclos em múltiplos de 7 + agendamento permanente
+//   • PERIODICIDADE_DIAS: Mensal 28, Trimestral 91, Semestral 182, Anual 364.
+//     A máquina vence sempre no mesmo dia da semana (30 dias empurrava 2 dias
+//     por ciclo e jogava OS em fim de semana).
+//   • Máquina SEM Ultima_Preventiva_Gerada não gera mais OS (antes usava
+//     Criado_Em e disparava rajada). Quem dá a data é agendarPreventivasInterno_
+//     (dia útil com vaga, 6 OS/dia), chamada no início de toda geração real —
+//     ativo novo entra na agenda sozinho. Preview e geração mostram
+//     semReferencia (máquinas ainda sem data).
+//   • A semeadura temporária da v12 virou agendamento permanente
+//     (agendarPreventivasPreview/Real); feriados 2026-2027 em AGENDAR_FERIADOS.
+// v12 — preventivas: preparo para a primeira geração
+//   • Maquinas no SCHEMAS agora inclui Ultima_Preventiva_Gerada.
+//   • Removidos setupPreventivaAutomaticaColuna e setupIdempotencyKeyColunasGeral
+//     (já rodaram; colunas existem).
+//   • Salas fora da preventiva automática (SALAS_FORA_PREVENTIVA): UTILIDADES,
+//     SECUNDÁRIA e as 3 de efluentes. Vale para preview e geração real.
+//   • Ativo lido por ativoSim_(): aceita 'Não'/'nao'/'N'/'false' etc. (antes só
+//     'nao' sem acento; 'Não' passava como ativo). Vale também no login.
+//   • Ultima_Preventiva_Gerada lida por dataLocal_(): texto 'yyyy-MM-dd' é
+//     interpretado em data LOCAL (new Date('yyyy-MM-dd') dá UTC e recuava 1 dia).
 // v11 — correções + limpeza
 //   • salvarManualSenha: upsert por ID agora ATÔMICO (um único comLock).
 //     Antes, updateRow e appendRow tomavam lock separados: dois envios
@@ -138,7 +159,8 @@ var SCHEMAS = {
   ],
   'Maquinas': [
     'ID_Maquina','Sala','Nome','Tag','Criticidade',
-    'Periodicidade_Preventiva','Descricao','Ativo','Criado_Em','Idempotency_Key'
+    'Periodicidade_Preventiva','Descricao','Ativo','Criado_Em','Idempotency_Key',
+    'Ultima_Preventiva_Gerada'
   ],
   'Ordens_Executadas': [
     'OS_Numero','Data','Sala','Maquina','Tag_Maquina','Tipo','Prioridade',
@@ -452,7 +474,7 @@ function achouIdempotencyKeyRecente(sh, headers, idempotencyKey, minutos) {
 // idempotencyKey (opcional): protege contra o mesmo append ser reenviado
 // duas vezes (retry da fila offline do core.js depois de um timeout em que
 // o servidor já tinha terminado de gravar da primeira vez). Só tem efeito
-// em abas com coluna Idempotency_Key (ver SCHEMAS + setupIdempotencyKeyColunasGeral);
+// em abas com coluna Idempotency_Key (ver SCHEMAS);
 // nas demais, achouIdempotencyKeyRecente() no-opa e o comportamento é o de
 // sempre. Isso NÃO substitui a checagem de NUMERO_DUPLICADO (que já cobre
 // ordens/planejadas/solicitacoes) — cobre os demais sheets (salas, maquinas,
@@ -644,7 +666,7 @@ function verificarLogin(login, senha) {
 
     if (!ok) return { ok: false, error: 'Usuário ou senha incorretos.' };
 
-    var ativo = ativoIdx >= 0 ? String(data[i][ativoIdx]).toLowerCase() !== 'nao' : true;
+    var ativo = ativoIdx >= 0 ? ativoSim_(data[i][ativoIdx]) : true;
     if (!ativo) return { ok: false, error: 'Usuário desativado. Fale com a Administração.' };
 
     var user = {
@@ -1055,55 +1077,47 @@ function carregarPlanoPreventiva(nomeModelo) {
 //                                     expor na tela de PCM/admin).
 //   - criarTriggerPreventivas()    → rodar UMA vez no editor pra agendar o
 //                                     disparo diário (5h).
-//   - Pré-requisito: setupPreventivaAutomaticaColuna() rodado 1x (idempotente).
+//   - Pré-requisito: coluna Ultima_Preventiva_Gerada em Maquinas (já existe).
 // ═══════════════════════════════════════════════════════════════════════════
 
 var PERIODICIDADE_DIAS = {
   'Semanal':    7,
-  'Mensal':     30,
-  'Trimestral': 90,
-  'Semestral':  180,
-  'Anual':      365
+  'Mensal':     28,   // múltiplos de 7: mesmo dia da semana em todo ciclo
+  'Trimestral': 91,
+  'Semestral':  182,
+  'Anual':      364
 };
 
-function setupPreventivaAutomaticaColuna() {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName('Maquinas');
-  if (!sh) { Logger.log('❌ Aba Maquinas não encontrada'); return; }
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  if (headers.indexOf('Ultima_Preventiva_Gerada') >= 0) {
-    Logger.log('⏭ Ultima_Preventiva_Gerada já existe — nada a fazer.');
-    return;
-  }
-  var col = sh.getLastColumn() + 1;
-  sh.getRange(1, col).setValue('Ultima_Preventiva_Gerada');
-  sh.getRange(1, col).setBackground('#C41230').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10);
-  sh.autoResizeColumn(col);
-  Logger.log('✅ Ultima_Preventiva_Gerada adicionada em Maquinas (col ' + col + ')');
+// Salas que NÃO entram na preventiva automática (decisão 01/10/2026: "não
+// tratar ainda"). Comparação sem acento/caixa/espaços nas pontas.
+var SALAS_FORA_PREVENTIVA = [
+  'UTILIDADES', 'SECUNDARIA',
+  'EFLUENTE INDUSTRIAL', 'EFLUENTES FINAIS', 'TRATAMENTO EFLUENTES'
+];
+
+function semAcento_(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
 
-// Adiciona Idempotency_Key nas abas que passaram a suportar dedup genérico
-// via appendRow (Salas, Maquinas, Usuarios, Preventiva, Historico —
-// OrdensCompra e RAC já tinham desde antes). Idempotente: pula a aba que já
-// tem a coluna. Rodar 1x manual no editor antes de usar em produção — sem
-// isso, achouIdempotencyKeyRecente() simplesmente no-opa nessas abas (sem
-// quebrar nada, só sem proteção ainda).
-function setupIdempotencyKeyColunasGeral() {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  ['Salas', 'Maquinas', 'Usuarios', 'Preventiva', 'Historico'].forEach(function(nome) {
-    var sh = ss.getSheetByName(nome);
-    if (!sh) { Logger.log('❌ Aba ' + nome + ' não encontrada — pulando.'); return; }
-    var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    if (headers.indexOf('Idempotency_Key') >= 0) {
-      Logger.log('⏭ ' + nome + ' já tem Idempotency_Key — nada a fazer.');
-      return;
-    }
-    var col = sh.getLastColumn() + 1;
-    sh.getRange(1, col).setValue('Idempotency_Key');
-    sh.getRange(1, col).setBackground('#C41230').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10);
-    sh.autoResizeColumn(col);
-    Logger.log('✅ Idempotency_Key adicionada em ' + nome + ' (col ' + col + ')');
-  });
+function salaForaPreventiva_(sala) {
+  return SALAS_FORA_PREVENTIVA.indexOf(semAcento_(sala).toUpperCase()) >= 0;
+}
+
+// Ativo: só é "inativo" quando o valor diz isso. Vazio = ativo.
+function ativoSim_(v) {
+  var s = semAcento_(v).toLowerCase();
+  return ['nao', 'n', 'false', '0', 'inativo', 'desativado', 'off'].indexOf(s) < 0;
+}
+
+// Data da célula → Date em horário LOCAL. Texto 'yyyy-MM-dd' vira meia-noite
+// local (new Date('yyyy-MM-dd') seria UTC e, no fuso -03, cairia no dia anterior).
+function dataLocal_(v) {
+  if (v instanceof Date) return new Date(v.getTime());
+  var s = String(v === null || v === undefined ? '' : v).trim();
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  return new Date(v);
 }
 
 // dryRun=true: só calcula e devolve o que SERIA gerado, sem gravar nada.
@@ -1124,7 +1138,14 @@ function gerarPreventivasAutomaticas(dryRun) {
     return { ok: false, error: 'Geração de preventivas já em andamento (outra execução segurando o lock). Tente novamente em instantes.' };
   }
   try {
-    return gerarPreventivasAutomaticasInterno_(dryRun);
+    var ag = null;
+    if (!dryRun) {
+      ag = agendarPreventivasInterno_(false); // dá data às máquinas novas antes de gerar
+      if (!ag.ok) return ag;
+    }
+    var res = gerarPreventivasAutomaticasInterno_(dryRun);
+    if (ag && res && res.ok) res.agendadas = ag.gravadas;
+    return res;
   } catch (e) {
     return { ok: false, error: e.toString() };
   } finally {
@@ -1143,39 +1164,36 @@ function gerarPreventivasAutomaticasInterno_(dryRun) {
   var idxNome    = headers.indexOf('Nome');
   var idxTag     = headers.indexOf('Tag');
   var idxPeriod  = headers.indexOf('Periodicidade_Preventiva');
-  var idxCriado  = headers.indexOf('Criado_Em');
-  var idxGerada  = headers.indexOf('Ultima_Preventiva_Gerada'); // -1 se setup não rodou ainda
+  var idxGerada  = headers.indexOf('Ultima_Preventiva_Gerada'); // -1 se a coluna não existir
 
   if (idxPeriod < 0) {
     return { ok: false, error: 'Coluna Periodicidade_Preventiva não encontrada em Maquinas.' };
   }
-
-  // Sem essa coluna, uma execução real não teria onde gravar a data de
-  // referência — geraria a mesma preventiva de novo a cada rodada, pra
-  // sempre, sem ninguém perceber (o erro só apareceria como OS duplicada
-  // dias depois). Dry-run pode rodar sem a coluna (só não sabe a data real
-  // de última geração e usa Criado_Em como referência); geração real, não.
-  if (!dryRun && idxGerada < 0) {
-    return { ok: false, error: 'Coluna Ultima_Preventiva_Gerada não existe em Maquinas ainda. Rode setupPreventivaAutomaticaColuna() uma vez antes de gerar de verdade.' };
+  // Sem Ultima_Preventiva_Gerada não há referência de data: a coluna é obrigatória.
+  if (idxGerada < 0) {
+    return { ok: false, error: 'Coluna Ultima_Preventiva_Gerada não existe em Maquinas. Crie o cabeçalho na planilha.' };
   }
 
   var hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   var geradas = [];
+  var semReferencia = 0; // sem data de referência: ficam de fora até o agendamento dar uma
 
   for (var i = 1; i < dataMaq.length; i++) {
     var linha = dataMaq[i];
-    var ativo = idxAtivo >= 0 ? String(linha[idxAtivo]).toLowerCase() !== 'nao' : true;
+    var ativo = idxAtivo >= 0 ? ativoSim_(linha[idxAtivo]) : true;
     if (!ativo) continue;
 
     var periodicidade = String(linha[idxPeriod] || '').trim();
     var intervaloDias = PERIODICIDADE_DIAS[periodicidade];
     if (!intervaloDias) continue; // sem periodicidade reconhecida, ignora
+    if (salaForaPreventiva_(linha[idxSala])) continue; // sala fora do escopo (ver SALAS_FORA_PREVENTIVA)
 
-    var ultimaGerada = idxGerada >= 0 ? linha[idxGerada] : null;
-    var referencia = ultimaGerada ? new Date(ultimaGerada) : new Date(linha[idxCriado] || hoje);
-    if (isNaN(referencia.getTime())) referencia = hoje;
+    var ultimaGerada = linha[idxGerada];
+    if (ultimaGerada === '' || ultimaGerada === null || ultimaGerada === undefined) { semReferencia++; continue; }
+    var referencia = dataLocal_(ultimaGerada);
+    if (isNaN(referencia.getTime())) { semReferencia++; continue; }
     referencia.setHours(0, 0, 0, 0);
 
     var proximaData = new Date(referencia.getTime() + intervaloDias * 24 * 60 * 60 * 1000);
@@ -1197,7 +1215,7 @@ function gerarPreventivasAutomaticasInterno_(dryRun) {
     var itens = geradas.map(function(g) {
       return { sala: g.sala, maquina: g.maquina, tag: g.tag, periodicidade: g.periodicidade, prazoLimite: g.prazoLimite };
     });
-    return { ok: true, dryRun: true, totalASerGerado: itens.length, itens: itens };
+    return { ok: true, dryRun: true, totalASerGerado: itens.length, semReferencia: semReferencia, itens: itens };
   }
 
   // Execução real: grava as OS_Planejadas. appendComNumero_ não abre lock
@@ -1230,8 +1248,187 @@ function gerarPreventivasAutomaticasInterno_(dryRun) {
   });
 
   Logger.log('✅ gerarPreventivasAutomaticas — ' + criadas.length + ' criada(s), ' + falhas.length + ' falha(s).');
-  return { ok: true, dryRun: false, criadas: criadas, falhas: falhas };
+  return { ok: true, dryRun: false, criadas: criadas, falhas: falhas, semReferencia: semReferencia };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AGENDAMENTO DAS PREVENTIVAS (1ª carga + ativos novos)
+// ─────────────────────────────────────────────────────────────────────────
+// Máquina SEM Ultima_Preventiva_Gerada não gera OS. Esta rotina dá a ela um
+// primeiro vencimento FUTURO, em dia útil, no primeiro dia com vaga
+// (AGENDAR_CAPACIDADE_DIA OS/dia, contando também a volta dos ciclos das
+// máquinas já agendadas) e grava
+//   Ultima_Preventiva_Gerada = vencimento − periodicidade.
+// As periodicidades são múltiplos de 7: a máquina vence sempre no mesmo dia
+// da semana (sem OS em fim de semana, sem drift). Atraso antigo é zerado.
+// Roda sozinha no início de toda geração real (inclusive a diária das 5h),
+// então ativo novo cadastrado entra na agenda no dia seguinte. À mão:
+//   agendarPreventivasPreview() (não grava) / agendarPreventivasReal().
+// Só mexe em máquina ativa, dentro do escopo e SEM data. Pode rodar sempre.
+// ═══════════════════════════════════════════════════════════════════════════
+var AGENDAR_INICIO_MIN     = '2026-10-13'; // não agenda antes desta data (yyyy-MM-dd); passou? usa o próximo dia útil
+var AGENDAR_CAPACIDADE_DIA = 6;
+var AGENDAR_JANELA_DIAS    = 91;           // 1º vencimento cai em até min(periodicidade, 91) dias
+var AGENDAR_HORIZONTE_DIAS = 364;          // até onde a carga futura é contada
+// Feriados nacionais (só afetam o 1º vencimento; ciclos seguintes repetem o dia da semana).
+// Feriado local/emenda: acrescentar aqui.
+var AGENDAR_FERIADOS = [
+  '2026-10-12', '2026-11-02', '2026-11-20', '2026-12-25',
+  '2027-01-01', '2027-03-26', '2027-04-21', '2027-09-07',
+  '2027-10-12', '2027-11-02', '2027-11-15'
+];
+
+function chaveData_(d) {
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function somaDias_(d, n) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+function diffDias_(a, b) { // b − a, em dias de calendário
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+function ehDiaUtil_(d) {
+  var w = d.getDay();
+  return w !== 0 && w !== 6 && AGENDAR_FERIADOS.indexOf(chaveData_(d)) < 0;
+}
+
+function inicioAgendamento_(hoje) {
+  var ini = somaDias_(hoje, 1);
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(AGENDAR_INICIO_MIN);
+  if (m) {
+    var min = new Date(+m[1], +m[2] - 1, +m[3]);
+    if (min > ini) ini = min;
+  }
+  while (!ehDiaUtil_(ini)) ini = somaDias_(ini, 1);
+  return ini;
+}
+
+function agendarPreventivas_(dryRun) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return { ok: false, error: 'Outra execução segurando o lock. Tente novamente em instantes.' };
+  }
+  try {
+    return agendarPreventivasInterno_(dryRun);
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  } finally {
+    if (!dryRun) invalidarCacheReadAll_();
+    lock.releaseLock();
+  }
+}
+
+// SEM lock próprio: chamar de dentro de um lock já ativo.
+function agendarPreventivasInterno_(dryRun) {
+  var cap = AGENDAR_CAPACIDADE_DIA, H = AGENDAR_HORIZONTE_DIAS;
+  if (!(cap > 0)) return { ok: false, error: 'AGENDAR_CAPACIDADE_DIA inválida.' };
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  var ini = inicioAgendamento_(hoje);
+
+  var sh   = getSheet('maquinas');
+  var data = sh.getDataRange().getValues();
+  var h    = data[0];
+  var iAtivo = h.indexOf('Ativo'), iSala = h.indexOf('Sala');
+  var iPer = h.indexOf('Periodicidade_Preventiva'), iGer = h.indexOf('Ultima_Preventiva_Gerada');
+  if (iPer < 0 || iGer < 0) {
+    return { ok: false, error: 'Faltam colunas em Maquinas (Periodicidade_Preventiva / Ultima_Preventiva_Gerada).' };
+  }
+
+  var carga = {}; // offset de calendário (a partir de ini) → OS já agendadas, incluindo a volta dos ciclos
+  var soma = function (off, dias, delta) {
+    for (var o = off; o < H; o += dias) carga[o] = (carga[o] || 0) + delta;
+  };
+  var ordemSala = {}, nSalas = 0, novos = [];
+  var cont = { foraEscopo: 0, jaTemData: 0, invalidas: 0 };
+
+  for (var i = 1; i < data.length; i++) {
+    var l = data[i];
+    if (iAtivo >= 0 && !ativoSim_(l[iAtivo])) continue;
+    var dias = PERIODICIDADE_DIAS[String(l[iPer] || '').trim()];
+    if (!dias) continue;
+    if (salaForaPreventiva_(l[iSala])) { cont.foraEscopo++; continue; }
+    var g = l[iGer];
+    if (g === '' || g === null || g === undefined) {
+      var sala = String(l[iSala]);
+      if (!(sala in ordemSala)) ordemSala[sala] = nSalas++;
+      novos.push({ linha: i, sala: sala, dias: dias, ord: ordemSala[sala] });
+      continue;
+    }
+    var ult = dataLocal_(g);
+    if (isNaN(ult.getTime())) { cont.invalidas++; continue; }
+    cont.jaTemData++;
+    var venc = somaDias_(ult, dias);
+    var atraso = diffDias_(venc, ini);
+    if (atraso > 0) venc = somaDias_(venc, Math.ceil(atraso / dias) * dias);
+    soma(diffDias_(ini, venc), dias, 1);
+  }
+
+  // Mais frequentes primeiro; dentro disso, por sala (técnico atende a sala toda no mesmo dia).
+  novos.sort(function (a, b) { return (a.dias - b.dias) || (a.ord - b.ord) || (a.linha - b.linha); });
+  var uteis = [];
+  for (var d0 = 0; d0 < AGENDAR_JANELA_DIAS; d0++) if (ehDiaUtil_(somaDias_(ini, d0))) uteis.push(d0);
+
+  var forcadas = 0;
+  novos.forEach(function (it) {
+    var janela = Math.min(it.dias, AGENDAR_JANELA_DIAS);
+    var escolhido = -1, melhor = -1, picoMelhor = 1e9;
+    for (var q = 0; q < uteis.length && uteis[q] < janela; q++) {
+      var o2 = uteis[q], pico = 0;
+      for (var r = o2; r < H; r += it.dias) { var c = carga[r] || 0; if (c > pico) pico = c; }
+      if (pico < cap) { escolhido = o2; break; }
+      if (pico < picoMelhor) { picoMelhor = pico; melhor = o2; }
+    }
+    if (escolhido < 0) { escolhido = melhor >= 0 ? melhor : (uteis.length ? uteis[0] : 0); forcadas++; }
+    soma(escolhido, it.dias, 1);
+    it.vence  = somaDias_(ini, escolhido);
+    it.ultima = somaDias_(it.vence, -it.dias);
+  });
+
+  var porDia = {}, porSala = {};
+  novos.forEach(function (it) {
+    var c = chaveData_(it.vence);
+    porDia[c] = (porDia[c] || 0) + 1;
+    var ps = porSala[it.sala] || (porSala[it.sala] = { n: 0, de: c, ate: c });
+    ps.n++; if (c < ps.de) ps.de = c; if (c > ps.ate) ps.ate = c;
+  });
+  var maxCarga = 0, diasAcimaCap = 0;
+  Object.keys(carga).forEach(function (k) {
+    if (carga[k] > maxCarga) maxCarga = carga[k];
+    if (carga[k] > cap) diasAcimaCap++;
+  });
+
+  if (!dryRun && novos.length) {
+    // Só mexe na coluna Ultima_Preventiva_Gerada; preserva o que já existe nas demais linhas.
+    var rng  = sh.getRange(2, iGer + 1, data.length - 1, 1);
+    var vals = rng.getValues();
+    novos.forEach(function (it) { vals[it.linha - 1][0] = it.ultima; });
+    rng.setValues(vals);
+    rng.setNumberFormat('yyyy-mm-dd');
+  }
+
+  return {
+    ok: true, dryRun: !!dryRun, inicio: chaveData_(ini), capacidadeDia: cap,
+    novas: novos.length, gravadas: dryRun ? 0 : novos.length,
+    jaTemData: cont.jaTemData, foraEscopo: cont.foraEscopo, datasInvalidas: cont.invalidas,
+    acimaDaCapacidade: forcadas, maxCarga: maxCarga, diasAcimaCap: diasAcimaCap,
+    porDia: porDia, porSala: porSala
+  };
+}
+
+function agendarLog_(r) {
+  if (!r.ok) { Logger.log('ERRO: ' + r.error); return; }
+  Logger.log((r.dryRun ? 'PREVIEW (nada gravado)' : 'GRAVADO: ' + r.gravadas + ' linha(s)') + ' | inicio=' + r.inicio + ' cap/dia=' + r.capacidadeDia);
+  Logger.log('novas=' + r.novas + ' jaTemData=' + r.jaTemData + ' foraEscopo=' + r.foraEscopo + ' datasInvalidas=' + r.datasInvalidas);
+  Logger.log('acimaDaCapacidade=' + r.acimaDaCapacidade + ' maxCarga=' + r.maxCarga + ' diasAcimaCap=' + r.diasAcimaCap);
+  Logger.log('porDia=' + JSON.stringify(r.porDia));
+  Logger.log('porSala=' + JSON.stringify(r.porSala));
+}
+
+function agendarPreventivasPreview() { agendarLog_(agendarPreventivas_(true)); }
+function agendarPreventivasReal()    { agendarLog_(agendarPreventivas_(false)); }
 
 // Rodar UMA VEZ, manualmente, depois de validar o preview e testar
 // gerarPreventivasAutomaticas(false). Agenda o disparo diário às 5h (antes do
