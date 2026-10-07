@@ -271,8 +271,14 @@ function salvarEdit() {
   } else if(_editType==='plan') {
     const p = db.planejadas.find(x => x.numero === _editIdx);
     if (!p) return;
-    p.sala = v('ep-sala') || p.sala;
-    p.maq = v('ep-maq') || p.maq;
+    // epResolverOutro_ troca "__outros__" pelo texto livre digitado (ex. "Outros: Doca 3");
+    // retorna null se "Outros" foi escolhido sem texto — aí não altera o valor salvo.
+    const novaSala = typeof epResolverOutro_ === 'function' ? epResolverOutro_('ep-sala', 'ep-sala-outro') : v('ep-sala');
+    const novoMaq  = typeof epResolverOutro_ === 'function' ? epResolverOutro_('ep-maq', 'ep-maq-outro') : v('ep-maq');
+    if (novaSala === null) { showToast('Descreva o local em "Outros".', 'er'); return; }
+    if (novoMaq  === null) { showToast('Descreva o ativo em "Outros".', 'er'); return; }
+    p.sala = novaSala || p.sala;
+    p.maq = novoMaq || p.maq;
     p.tipo = v('ep-tipo') || p.tipo;
     p.prioridade = v('ep-prio') || p.prioridade;
     p.prazo = v('ep-prazo') || p.prazo;

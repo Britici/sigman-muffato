@@ -8,7 +8,7 @@ var planSort = { col: 'numero', dir: 'desc' };
 // ── Abas Preventivas / Outras + geração manual ───────────────────────
 // Preventivas = Tipo 'Preventiva' (criadas pelo backend). A geração diária
 // é do servidor; aqui o PCM vê o que vence hoje e pode gerar à mão.
-var planAba = 'outras';
+var planAba = 'outras'; // 'preventivas' | 'outras' | 'solicitacoes'
 var planPrev = null;     // último retorno de previewPreventivas
 var planPrevMsg = '';    // resultado da última geração manual
 var _prevBusy = false;
@@ -45,8 +45,22 @@ function filtrarPlan_() {
   return data;
 }
 
+// Solicitações da Produção — só consulta/execução aqui; a criação e a lista de
+// concluídas continuam na tela de Solicitação. Sem prazo: ordenado por criticidade.
+function filtrarSol_() {
+  const tx = (v('fp-tx') || '').toLowerCase();
+  const tp = v('fp-tp');
+  const sl = v('fp-sl');
+  let data = (db.solicitacoes || []).filter(s => s.status !== 'Concluída');
+  if (tx) data = data.filter(s => [s.numero, s.sala, s.maq, s.tipo].some(x => x && x.toLowerCase().includes(tx)));
+  if (tp) data = data.filter(s => s.tipo === tp);
+  if (sl) data = data.filter(s => s.sala === sl);
+  data.sort((a, b) => getCriticidadeMaq(a.maq) - getCriticidadeMaq(b.maq)); // mais crítico primeiro
+  return data;
+}
+
 function setPlanAba(aba) {
-  if (aba !== 'preventivas' && aba !== 'outras') return;
+  if (['preventivas', 'outras', 'solicitacoes'].indexOf(aba) < 0) return;
   planAba = aba;
   const tp = document.getElementById('fp-tp');
   if (tp) tp.value = ''; // o filtro de tipo conflita com a aba
@@ -63,12 +77,17 @@ function ensurePlanAbasUI_() {
   bar.style.cssText = 'display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap';
   bar.innerHTML =
     '<button id="pab-preventivas" class="btn btn-sm" onclick="setPlanAba(\'preventivas\')"></button>' +
-    '<button id="pab-outras" class="btn btn-sm" onclick="setPlanAba(\'outras\')"></button>';
+    '<button id="pab-outras" class="btn btn-sm" onclick="setPlanAba(\'outras\')"></button>' +
+    '<button id="pab-solicitacoes" class="btn btn-sm" onclick="setPlanAba(\'solicitacoes\')"></button>';
   const panel = document.createElement('div');
   panel.id = 'plan-prev-panel';
   panel.style.cssText = 'display:none;margin:0 0 14px;padding:12px 14px;border:1px solid var(--brd,#2a3140);border-radius:8px';
+  const solPanel = document.createElement('div');
+  solPanel.id = 'plan-sol-panel';
+  solPanel.style.cssText = 'display:none';
   tbl.parentNode.insertBefore(panel, tbl);
   tbl.parentNode.insertBefore(bar, panel);
+  tbl.parentNode.insertBefore(solPanel, tbl); // fica logo antes da tabela, que é escondida nesta aba
 }
 
 function atualizarAbasPlan_() {
@@ -76,11 +95,56 @@ function atualizarAbasPlan_() {
   const abertas = db.planejadas.filter(p => p.status !== 'Concluída');
   const nP = abertas.filter(ehPreventivaPl_).length;
   const nO = abertas.length - nP;
+  const nS = (db.solicitacoes || []).filter(s => s.status !== 'Concluída').length;
   const bP = document.getElementById('pab-preventivas');
   const bO = document.getElementById('pab-outras');
-  if (bP) { bP.textContent = 'Preventivas (' + nP + ')'; bP.className = 'btn btn-sm ' + (planAba === 'preventivas' ? 'btn-g' : 'btn-gh'); }
-  if (bO) { bO.textContent = 'Outras (' + nO + ')';      bO.className = 'btn btn-sm ' + (planAba === 'outras' ? 'btn-g' : 'btn-gh'); }
+  const bS = document.getElementById('pab-solicitacoes');
+  if (bP) { bP.textContent = 'Preventivas (' + nP + ')';     bP.className = 'btn btn-sm ' + (planAba === 'preventivas'   ? 'btn-g' : 'btn-gh'); }
+  if (bO) { bO.textContent = 'Outras (' + nO + ')';          bO.className = 'btn btn-sm ' + (planAba === 'outras'       ? 'btn-g' : 'btn-gh'); }
+  if (bS) { bS.textContent = 'Solicitações (' + nS + ')';    bS.className = 'btn btn-sm ' + (planAba === 'solicitacoes' ? 'btn-g' : 'btn-gh'); }
+
+  const tb  = document.getElementById('tb-plan');
+  const tbl = tb && tb.closest('table');
+  if (tbl) tbl.style.display = planAba === 'solicitacoes' ? 'none' : '';
+
   renderPrevPanel_();
+  renderSolPanel_();
+}
+
+function tipoCorrecaoMelhoriaBadge_(tipo) {
+  const cor = tipo === 'Melhoria' ? 'var(--org,#d97706)' : 'var(--red)';
+  return '<span style="font-size:11px;font-weight:600;color:' + cor + '">' + _escPl(tipo || '—') + '</span>';
+}
+
+function renderSolPanel_() {
+  const el = document.getElementById('plan-sol-panel');
+  if (!el) return;
+  el.style.display = planAba === 'solicitacoes' ? 'block' : 'none';
+  if (planAba !== 'solicitacoes') return;
+
+  const lista = filtrarSol_();
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação pendente.</p></div>';
+    return;
+  }
+  el.innerHTML = lista.map(s => {
+    // Mesma regra de quem abre O.S. (ROLES.administracao/.manutencao têm 'abertura'
+    // em core.js; produção e diretoria não têm).
+    const podeExecutar = typeof CU !== 'undefined' && CU &&
+      (CU.tipo === 'administracao' || CU.tipo === 'manutencao');
+    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+      'padding:10px 0;border-bottom:1px solid var(--bord,#2a3140);gap:10px">' +
+      '<div>' +
+        '<span class="osn">' + _escPl(s.numero) + '</span>' +
+        '<div style="font-size:15px;font-weight:500;margin-top:2px">' + _escPl(s.sala) + ' · ' + _escPl(s.maq) + '</div>' +
+        '<div style="font-size:13px;color:var(--txt3)">' + _escPl(fd((s.criadoEm || '').slice(0, 10))) + ' · ' + _escPl(s.solicitante) + '</div>' +
+        (s.desc ? '<div style="font-size:14px;color:var(--txt2);margin-top:3px">' + _escPl(s.desc) + '</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">' +
+        tipoCorrecaoMelhoriaBadge_(s.tipo) + getCriticidadeBadge(s.maq) +
+        (podeExecutar ? '<button class="btn btn-sm btn-g" onclick="abrirConcluir(\'' + s.numero.replace(/'/g, "\\'") + '\',\'sol\')">✓ Executar</button>' : '') +
+      '</div></div>';
+  }).join('');
 }
 
 function renderPrevPanel_() {
@@ -182,6 +246,7 @@ function sortPlan(col) {
 }
 
 function renderPlan() {
+  if (!document.getElementById('tb-plan')) return; // página de Planejadas não está aberta
   populateSalaFilter('fp-sl');
   const t = today();
   let changed = false;
@@ -270,11 +335,15 @@ function exportPlanCSV() {
   a.click();
 }
 
+function _outroSel_(v) { return v === '__outros__' || /^Outros:\s*/.test(String(v || '')); }
+function _outroTxt_(v) { return String(v || '').replace(/^Outros:\s*/, ''); }
+
 function editarPlan(id) {
   const p = db.planejadas.find(x => x.numero === id);
   if (!p) return;
   document.getElementById('me-t').textContent = 'Editar O.S. Planejada — ' + p.numero;
 
+  const salaEhOutro = _outroSel_(p.sala), maqEhOutro = _outroSel_(p.maq);
   const salasOpts = db.salas.sort().map(s =>
     `<option value="${s}"${s===p.sala?' selected':''}>${s}</option>`
   ).join('');
@@ -286,18 +355,26 @@ function editarPlan(id) {
 
   document.getElementById('me-b').innerHTML = `
     <div class="fg"><label>Sala / Local</label>
-      <select id="ep-sala" onchange="epFiltrarMaq()">
+      <select id="ep-sala" onchange="epFiltrarMaq();epSyncOutro()">
         <option value="">Selecione...</option>
         ${salasOpts}
-        <option value="__outros__"${p.sala==='__outros__'?' selected':''}>Outros</option>
+        <option value="__outros__"${salaEhOutro?' selected':''}>Outros</option>
       </select>
     </div>
+    <div class="fg" id="ep-sala-outro-wrap" style="display:${salaEhOutro?'':'none'}">
+      <label>Qual local? (Outros)</label>
+      <input type="text" id="ep-sala-outro" maxlength="80" value="${_escPl(salaEhOutro?_outroTxt_(p.sala):'')}">
+    </div>
     <div class="fg"><label>Máquina / Ativo</label>
-      <select id="ep-maq">
+      <select id="ep-maq" onchange="epSyncOutro()">
         <option value="">Selecione...</option>
         ${maqsOpts}
-        <option value="__outros__"${p.maq==='__outros__'?' selected':''}>Outros</option>
+        <option value="__outros__"${maqEhOutro?' selected':''}>Outros</option>
       </select>
+    </div>
+    <div class="fg" id="ep-maq-outro-wrap" style="display:${maqEhOutro?'':'none'}">
+      <label>Qual ativo? (Outros)</label>
+      <input type="text" id="ep-maq-outro" maxlength="80" value="${_escPl(maqEhOutro?_outroTxt_(p.maq):'')}">
     </div>
     <div class="fg"><label>Tipo de Serviço</label>
       <select id="ep-tipo">
@@ -350,6 +427,24 @@ function epFiltrarMaq() {
       `<option value="${m.nome}">${m.nome}${m.tag?' ('+m.tag+')':''}</option>`
     ).join('') +
     '<option value="__outros__">Outros</option>';
+}
+
+// Mostra/esconde os campos de texto livre de "Outros" no modal de edição de Planejada.
+function epSyncOutro() {
+  const slSel = document.getElementById('ep-sala'), mqSel = document.getElementById('ep-maq');
+  const slWrap = document.getElementById('ep-sala-outro-wrap'), mqWrap = document.getElementById('ep-maq-outro-wrap');
+  if (slWrap) slWrap.style.display = (slSel && slSel.value === '__outros__') ? '' : 'none';
+  if (mqWrap) mqWrap.style.display = (mqSel && mqSel.value === '__outros__') ? '' : 'none';
+}
+
+// Lê ep-sala/ep-maq já resolvendo "Outros" + texto livre para "Outros: <texto>".
+// Retorna null se "Outros" foi escolhido sem preencher o texto.
+function epResolverOutro_(selId, outroId) {
+  const sel = document.getElementById(selId);
+  const val = sel ? sel.value : '';
+  if (val !== '__outros__') return val;
+  const texto = (document.getElementById(outroId)?.value || '').trim();
+  return texto ? 'Outros: ' + texto : null;
 }
   
 function delPlan(id) {

@@ -3,15 +3,29 @@
    Muffato Foods
    ══════════════════════════════════════════════════════════════════ */
 
+// "Outros" em Sala/Máquina: sem isto, o valor gravado era o código interno
+// "__outros__", sem indicar o quê. Troca pelo texto digitado, ex. "Outros: Doca 3".
+function resolverOutro_(prefixo, campo, rotulo) {
+  const bruto = v(prefixo + '-' + campo);
+  if (bruto !== '__outros__') return { valor: bruto, erro: null };
+  const texto = v(prefixo + '-' + campo + '-outro').trim();
+  if (!texto) return { valor: null, erro: 'Descreva o(a) ' + rotulo + ' em "Outros".' };
+  return { valor: 'Outros: ' + texto, erro: null };
+}
+
 let _savingOS = false;
 async function salvarOS() {
   if (_savingOS) return;
-  const sala = v('ab-sl'), maq = v('ab-mq'), tipo = v('ab-tp'),
+  const tipo = v('ab-tp'),
         pr   = v('ab-pr'), manut = v('ab-mn').trim(), data = v('ab-dt'),
         ini  = v('ab-in').trim(), fim  = v('ab-fm').trim(),
         prob = v('ab-pb').trim(), acao = v('ab-ac').trim(),
         acaoPrev = v('ab-ap').trim(),
         parada = v('ab-parada');
+  const rSala = resolverOutro_('ab', 'sl', 'local'), rMaq = resolverOutro_('ab', 'mq', 'ativo');
+  if (rSala.erro) { showAlert('al-ab', rSala.erro, 'er'); return; }
+  if (rMaq.erro)  { showAlert('al-ab', rMaq.erro, 'er'); return; }
+  const sala = rSala.valor, maq = rMaq.valor;
   if (!sala||!maq||!tipo||!pr||!manut||!data||!ini||!fim||!prob||!acao) {
     showAlert('al-ab','Preencha todos os campos obrigatórios: Sala, Máquina, Tipo, Prioridade, Manutentor, Data, Hora Início, Hora Fim, Problema e Ação Executada.','er'); return;
   }
@@ -69,7 +83,8 @@ async function salvarOS() {
 }
 
 function clearAb() {
-  ['ab-sl','ab-mq','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-ap','ab-parada'].forEach(id=>sv(id,''));
+  ['ab-sl','ab-mq','ab-sl-outro','ab-mq-outro','ab-tp','ab-pr','ab-in','ab-fm','ab-pb','ab-ac','ab-ap','ab-parada'].forEach(id=>sv(id,''));
+  if (typeof syncOutro === 'function') syncOutro('ab');
   sv('ab-dt', today());
   if (CU && CU.tipo !== 'producao') sv('ab-mn', CU.nome);
   clearPhotos('ab');
@@ -81,9 +96,13 @@ function clearAb() {
 let _savingPlan = false;
 async function salvarPlan() {
   if (_savingPlan) return;
-  const sala=v('pl-sl'),maq=v('pl-mq'),tipo=v('pl-tp'),
+  const tipo=v('pl-tp'),
         pr=v('pl-pr'),prazo=v('pl-pz'),desc=v('pl-ds').trim(),
         horas=parseInt(v('pl-horas'))||8;
+  const rSala = resolverOutro_('pl', 'sl', 'local'), rMaq = resolverOutro_('pl', 'mq', 'ativo');
+  if (rSala.erro) { showAlert('al-pl', rSala.erro, 'er'); return; }
+  if (rMaq.erro)  { showAlert('al-pl', rMaq.erro, 'er'); return; }
+  const sala = rSala.valor, maq = rMaq.valor;
   if (!sala||!maq||!tipo||!pr||!prazo) { showAlert('al-pl','Preencha todos os campos obrigatórios.','er'); return; }
   _savingPlan = true;
   setBtnBusy('pl', true);
@@ -115,7 +134,7 @@ async function salvarPlan() {
     setBtnBusy('pl', false);
   }
 }
-function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');}
+function clearPl(){['pl-sl','pl-mq','pl-sl-outro','pl-mq-outro','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=>sv(id,''));sv('pl-horas','8');if(typeof syncOutro==='function')syncOutro('pl');}
   
 // ══════════════════════════════════════════════════════════════════════
 // SOLICITAÇÕES
@@ -123,8 +142,12 @@ function clearPl(){['pl-sl','pl-mq','pl-tp','pl-pr','pl-pz','pl-ds'].forEach(id=
 let _savingSol = false;
 async function salvarSol() {
   if (_savingSol) return;
-  const sala=v('sol-sl'),maq=v('sol-mq'),tipo=v('sol-tp'),
+  const tipo=v('sol-tp'),
         pr=v('sol-pr'),desc=v('sol-ds').trim();
+  const rSala = resolverOutro_('sol', 'sl', 'local'), rMaq = resolverOutro_('sol', 'mq', 'ativo');
+  if (rSala.erro) { showAlert('al-sol', rSala.erro, 'er'); return; }
+  if (rMaq.erro)  { showAlert('al-sol', rMaq.erro, 'er'); return; }
+  const sala = rSala.valor, maq = rMaq.valor;
   if (!sala||!maq||!tipo||!pr||!desc){showAlert('al-sol','Preencha todos os campos.','er');return;}
   _savingSol = true;
   setBtnBusy('sol', true);
@@ -159,7 +182,8 @@ async function salvarSol() {
   }
 }
 function clearSol() {
-  ['sol-sl','sol-mq','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
+  ['sol-sl','sol-mq','sol-sl-outro','sol-mq-outro','sol-tp','sol-pr','sol-ds'].forEach(id=>sv(id,''));
+  if (typeof syncOutro === 'function') syncOutro('sol');
   clearPhotos('sol');
 }
 
@@ -178,6 +202,7 @@ function renderSol() {
     return dir === 'asc' ? cmp : -cmp;
   });
   const c = document.getElementById('sol-lista');
+  if (!c) return; // tela de Solicitação não está aberta nesta página (ex.: chamado via aba de Planejadas)
   const cC = document.getElementById('sol-lista-concluidas');
   const rowHtml = s => {
     const osGerada = (db.ordens.find(o => o.origem==='sol' && o.origemNum===s.numero)||{}).numero;
@@ -259,7 +284,11 @@ async function concluir() {
     fotoUrl:item.fotoUrl||'',criadoEm:agora,origem:_ctp,origemNum:item.numero};
   db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
   logEdit('Concluiu', item.numero, item.sala + ' · ' + item.maq);
-  if(_ctp==='plan')renderPlan();else renderSol();updStats();
+  // Atualiza qualquer tela aberta: a mesma conclusão pode ter sido disparada
+  // da tela de Solicitação OU da aba "Solicitações" em Planejadas.
+  if (typeof renderPlan === 'function') renderPlan();
+  if (typeof renderSol === 'function') renderSol();
+  updStats();
   if(_ctp==='plan'){apiUpdate('planejadas',item.numero,'PL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,Servico_Executado:desc,Concluido_Em:agora});}
   else{apiUpdate('solicitacoes',item.numero,'SOL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Servico_Executado:desc,Concluido_Em:agora});}
   const row = {OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
