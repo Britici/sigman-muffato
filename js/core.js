@@ -555,6 +555,7 @@ async function apiLoadAll(silent = false, force = false) {
         mudarSenha: !!r.MudarSenha, // true = senha ainda é a padrão de reset, precisa trocar
         ativo: String(r.Ativo).toLowerCase() !== 'nao'
       }));
+    if (typeof populateMnSelects === 'function') populateMnSelects();
   }
   // sigman_users (cache local de senha) não é mais usado — se existir de uma
   // sessão antiga, remove pra não deixar senha em texto puro no localStorage.

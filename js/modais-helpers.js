@@ -5,6 +5,8 @@
 function verDet(id,tipo) {
   const item=tipo==='os'
     ?db.ordens.find(o=>o.numero===id)
+    :tipo==='sol'
+    ?db.solicitacoes.find(s=>s.numero===id)
     :db.planejadas.find(p=>p.numero===id);
   if(!item)return;
   document.getElementById('md-n').textContent=item.numero;
@@ -33,6 +35,22 @@ function verDet(id,tipo) {
       ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
     const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
     waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
+  } else if(tipo==='sol'){
+    rows+=`
+      <div class="dr"><span class="dl">Status</span><span class="dv">${stBadge(item.status)}</span></div>
+      <div class="dr"><span class="dl">Solicitante</span><span class="dv">${item.solicitante||'—'}</span></div>
+      <div class="dr"><span class="dl">Data da Solicitação</span><span class="dv">${fd((item.criadoEm||'').slice(0,10))}</span></div>
+      <div class="dr"><span class="dl">Serviço Solicitado</span><span class="dv">${item.desc||'—'}</span></div>
+      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>`:''}
+      ${item.dtExec?`<div class="dr"><span class="dl">Data da Execução</span><span class="dv">${fd(item.dtExec)}</span></div>`:''}
+      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}
+      ${(()=>{
+        const fs = item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[]);
+        if (!fs.length) return '';
+        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${driveThumb(fs[0])}" loading="lazy" decoding="async" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto Solicitação" onclick="abrirFotoImprimir('${fs[0]}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${fs[0]}')">🖨️</button></div></span></div>`;
+        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${u}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
+      })()}`;
+    waEl.style.display='none';waBtn.style.display='none';
   } else {
     rows+=`
       <div class="dr"><span class="dl">Prazo</span><span class="dv">${fd(item.prazo)}</span></div>
@@ -60,7 +78,7 @@ function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa')
 function imprimirDetOS() {
   if (!_curDet) return;
   const {item, tipo} = _curDet;
-  const titulo = tipo==='os' ? 'ORDEM DE SERVIÇO EXECUTADA' : 'ORDEM DE SERVIÇO PLANEJADA';
+  const titulo = tipo==='os' ? 'ORDEM DE SERVIÇO EXECUTADA' : tipo==='sol' ? 'SOLICITAÇÃO DE MANUTENÇÃO' : 'ORDEM DE SERVIÇO PLANEJADA';
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>${titulo}</title>
@@ -101,6 +119,12 @@ h1{font-size:17px;color:#C41230;margin-bottom:2px}
   <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${item.fim||'—'}</div></div>
   <div class="info-box"><div class="info-label">Duração (min)</div><div class="info-val">${item.durMin||'—'}</div></div>
   <div class="info-box"><div class="info-label">Parada (min)</div><div class="info-val">${item.paradaMin||'—'}</div></div>
+  `:tipo==='sol'?`
+  <div class="info-box"><div class="info-label">Status</div><div class="info-val">${item.status||'—'}</div></div>
+  <div class="info-box"><div class="info-label">Solicitante</div><div class="info-val">${item.solicitante||'—'}</div></div>
+  <div class="info-box"><div class="info-label">Data da Solicitação</div><div class="info-val">${fd((item.criadoEm||'').slice(0,10))}</div></div>
+  ${item.manut?`<div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${item.manut}</div></div>`:''}
+  ${item.dtExec?`<div class="info-box"><div class="info-label">Data da Execução</div><div class="info-val">${fd(item.dtExec)}</div></div>`:''}
   `:`
   <div class="info-box"><div class="info-label">Prazo Limite</div><div class="info-val">${fd(item.prazo)}</div></div>
   <div class="info-box"><div class="info-label">Status</div><div class="info-val">${item.status||'—'}</div></div>
@@ -110,6 +134,9 @@ ${tipo==='os'?`
 <div class="section"><div class="section-title">Problema / Ocorrência</div><div class="section-content">${item.prob||'—'}</div></div>
 <div class="section"><div class="section-title">Ação / Serviço Executado</div><div class="section-content">${item.acao||'—'}</div></div>
 ${item.acaoPrev?`<div class="section"><div class="section-title">Ação Preventiva Identificada</div><div class="section-content">${item.acaoPrev}</div></div>`:''}
+`:tipo==='sol'?`
+<div class="section"><div class="section-title">Serviço Solicitado</div><div class="section-content">${item.desc||'—'}</div></div>
+${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${item.desc2}</div></div>`:''}
 `:`
 <div class="section"><div class="section-title">Serviço Planejado</div><div class="section-content">${item.desc||'—'}</div></div>
 ${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${item.desc2}</div></div>`:''}

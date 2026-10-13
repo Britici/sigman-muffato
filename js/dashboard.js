@@ -169,7 +169,7 @@ function renderDash() {
   // KPI Cards
   const corColor = disponib >= metaDisp ? 'var(--grn)' : disponib >= metaDisp-10 ? 'var(--org)' : 'var(--red)';
     document.getElementById('d-stats').innerHTML = `
-    <div class=\"sc-card\" style=\"background:var(--surf);border:1px solid var(--bord);padding:14px;display:flex;flex-direction:column;gap:10px\">
+    <div class=\"sc-card\" style=\"gap:10px\">
       <div style=\"display:flex;align-items:center;gap:8px\">
         <div style=\"font-size:22px\">${salaComAlerta.length === 0 ? '🟢' : '🔴'}</div>
         <div>
@@ -241,10 +241,24 @@ function renderDash() {
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${total ? Math.round(predi/total*100) : 0}% do total</div>
     </div>
     <div class="sc-card ${plAtras > 0 ? 'c-r' : 'c-o'}" onclick="irParaCard('planejadas')" style="cursor:pointer">
-      <div class="sc-lbl">Backlog OS</div>
+      <div class="sc-lbl${plAtras > 0 ? ' blink-txt' : ''}">Backlog OS</div>
       <div class="sc-val">${plOpen}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">${plAtras} atrasadas</div>
     </div>`;
+
+  // Alerta piscante ao lado do bloco de atualização: solicitação da produção em
+  // aberto (db.solicitacoes) OU O.S. planejada atrasada (plAtras, já calculado acima).
+  const solProdAbertas = (db.solicitacoes || []).filter(s => s.status !== 'Concluída').length;
+  const alertIco = document.getElementById('dash-alert-ico');
+  if (alertIco) {
+    const temAlerta = solProdAbertas > 0 || plAtras > 0;
+    alertIco.style.display = temAlerta ? 'inline-flex' : 'none';
+    alertIco.title = temAlerta
+      ? [solProdAbertas > 0 ? solProdAbertas + ' solicitação(ões) em aberto' : '',
+         plAtras > 0 ? plAtras + ' O.S. planejada(s) atrasada(s)' : '']
+          .filter(Boolean).join(' · ')
+      : '';
+  }
 
   // Gauge + PCM Ring + Trend + Próximas + Top Máquinas
   renderGauge('d-gauge', disponib, metaDisp);

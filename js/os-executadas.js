@@ -134,6 +134,17 @@ function editarOS(numero) {
   _eoePhotos.length = 0;
   document.getElementById('eoe-num').textContent = numero;
   sv('eoe-dt', o.data);
+  // Edição de OS antiga: se o manutentor gravado não é mais de nível
+  // Administração/Manutenção, mantém o valor como opção extra neste modal
+  // para não apagar o nome ao salvar.
+  (function () {
+    const sel = document.getElementById('eoe-mn');
+    if (sel && o.manut && ![...sel.options].some(op => op.value === o.manut)) {
+      const op = document.createElement('option');
+      op.value = o.manut; op.textContent = o.manut;
+      sel.appendChild(op);
+    }
+  })();
   sv('eoe-mn', o.manut);
   sv('eoe-in', o.ini || '');
   sv('eoe-fm', o.fim || '');

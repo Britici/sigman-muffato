@@ -71,7 +71,12 @@ function ensurePlanAbasUI_() {
   if (document.getElementById('plan-abas')) return;
   const tb  = document.getElementById('tb-plan');
   const tbl = tb && tb.closest('table');
-  if (!tbl || !tbl.parentNode) return;
+  // .tw é só o wrapper com scroll/borda da tabela, sem padding — inserir ali
+  // dentro deixa os botões colados na borda. O card (com padding de 18px) é
+  // o pai do .tw; inserimos como irmãos do .tw, dentro do card.
+  const tw   = tbl && tbl.closest('.tw');
+  const card = tw && tw.parentNode;
+  if (!tw || !card) return;
   const bar = document.createElement('div');
   bar.id = 'plan-abas';
   bar.style.cssText = 'display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap';
@@ -81,13 +86,15 @@ function ensurePlanAbasUI_() {
     '<button id="pab-solicitacoes" class="btn btn-sm" onclick="setPlanAba(\'solicitacoes\')"></button>';
   const panel = document.createElement('div');
   panel.id = 'plan-prev-panel';
-  panel.style.cssText = 'display:none;margin:0 0 14px;padding:12px 14px;border:1px solid var(--brd,#2a3140);border-radius:8px';
+  panel.className = 'card'; // mesmo padding/borda dos outros cards da tela (antes era CSS avulso)
+  panel.style.cssText = 'display:none;margin:0 0 14px';
   const solPanel = document.createElement('div');
   solPanel.id = 'plan-sol-panel';
-  solPanel.style.cssText = 'display:none';
-  tbl.parentNode.insertBefore(panel, tbl);
-  tbl.parentNode.insertBefore(bar, panel);
-  tbl.parentNode.insertBefore(solPanel, tbl); // fica logo antes da tabela, que é escondida nesta aba
+  solPanel.className = 'card'; // igual ao card de "Solicitações Concluídas" da tela de Solicitação
+  solPanel.style.cssText = 'display:none;margin:0 0 14px';
+  card.insertBefore(panel, tw);
+  card.insertBefore(bar, panel);
+  card.insertBefore(solPanel, tw); // fica logo antes da tabela, que é escondida nesta aba
 }
 
 function atualizarAbasPlan_() {
@@ -132,6 +139,10 @@ function renderSolPanel_() {
     // em core.js; produção e diretoria não têm).
     const podeExecutar = typeof CU !== 'undefined' && CU &&
       (CU.tipo === 'administracao' || CU.tipo === 'manutencao');
+    // Normalmente esta aba só lista não concluídas (filtrarSol_), então
+    // osGerada tende a não existir aqui — mas mantemos a mesma regra de
+    // "Ver" da tela de Solicitação por consistência, caso isso mude.
+    const osGerada = (db.ordens.find(o => o.origem==='sol' && o.origemNum===s.numero)||{}).numero;
     return '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
       'padding:10px 0;border-bottom:1px solid var(--bord,#2a3140);gap:10px">' +
       '<div>' +
@@ -143,6 +154,9 @@ function renderSolPanel_() {
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">' +
         tipoCorrecaoMelhoriaBadge_(s.tipo) + getCriticidadeBadge(s.maq) +
         (podeExecutar ? '<button class="btn btn-sm btn-g" onclick="abrirConcluir(\'' + s.numero.replace(/'/g, "\\'") + '\',\'sol\')">✓ Executar</button>' : '') +
+        (osGerada
+          ? '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + osGerada.replace(/'/g, "\\'") + '\',\'os\')">Ver</button>'
+          : '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + s.numero.replace(/'/g, "\\'") + '\',\'sol\')">Ver</button>') +
       '</div></div>';
   }).join('');
 }
