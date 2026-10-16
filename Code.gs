@@ -4,6 +4,25 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v14 — SEGURANÇA: sessão por token + permissão por perfil no servidor
+//   • login emite token assinado (HMAC-SHA256, segredo em Script Properties).
+//     Validade ociosa 12h (renovada a cada uso, no máx. a cada 30 min) e teto
+//     absoluto de 7 dias. O token NÃO carrega perfil: perfil/ativo/senha vêm
+//     da aba Usuarios a cada validação (cache 60s) — desativar usuário, mudar
+//     perfil ou trocar/resetar senha derruba/atualiza a sessão em até 60s.
+//   • TODA ação exige token, exceto ping e login. ACL por ação e por aba
+//     (ACL_LEITURA / ACL_ESCRITA / ACL_GET). Aba fora da lista = negado.
+//   • "usuario" dos logs, Solicitante de compras e RACR vêm do token, não do cliente.
+//   • trocarSenha: só vale quando a senha atual é o sentinela 'mudar123'
+//     (antes qualquer um trocava a senha de qualquer login sem autenticar).
+//   • Login com bloqueio: 5 falhas → 10 min bloqueado (CacheService).
+//   • uploadFoto: só imagem, limite de tamanho, nome/pasta sanitizados.
+//   • Erros trazem "code" (AUTH, FORBIDDEN, VALIDATION, NOTFOUND, DUP, BUSY,
+//     LOCKED) para o cliente decidir entre reenviar ou descartar.
+//   • ROLLOUT: AUTH_ENFORCE=false aceita chamadas SEM token (clientes antigos);
+//     com token, valida e aplica ACL mesmo assim. Depois que todos estiverem no
+//     frontend novo, mudar para true e publicar nova versão.
+//   • Rodar UMA vez no editor: setupSessionSecret().
 // v13 — preventivas: ciclos em múltiplos de 7 + agendamento permanente
 //   • PERIODICIDADE_DIAS: Mensal 28, Trimestral 91, Semestral 182, Anual 364.
 //     A máquina vence sempre no mesmo dia da semana (30 dias empurrava 2 dias
@@ -265,7 +284,7 @@ function comLock(fn) {
   var lock = LockService.getScriptLock();
   var gotLock = lock.tryLock(10000);
   if (!gotLock) {
-    return { ok: false, error: 'Sistema ocupado (outra gravação em andamento). Tente novamente em instantes.' };
+    return { ok: false, code: 'BUSY', error: 'Sistema ocupado (outra gravação em andamento). Tente novamente em instantes.' };
   }
   try {
     return fn();
@@ -294,49 +313,345 @@ function logGravacao(usuario, acao, sheetKey, idRef, status, detalhe) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SESSÃO E AUTORIZAÇÃO (v14)
+// ═══════════════════════════════════════════════════════════════════════════
+var AUTH_ENFORCE     = false;            // true = exige token em toda ação (exceto ping/login)
+var SESSAO_IDLE_H    = 12;               // validade a partir do último uso
+var SESSAO_MAX_H     = 168;              // teto absoluto desde o login (7 dias)
+var SESSAO_RENOVA_MS = 30 * 60 * 1000;   // só emite token novo se o atual tem mais de 30 min
+var SESSAO_TROCA_MS  = 15 * 60 * 1000;   // token de troca obrigatória de senha: 15 min
+var LOGIN_MAX_FALHAS = 5;
+var LOGIN_BLOQUEIO_S = 600;
+var USR_CACHE_TTL_S  = 60;
+var UPLOAD_MAX_B64   = 14000000;         // ~10 MB binário
+
+var P_ADM = 'administracao', P_MAN = 'manutencao', P_PRO = 'producao', P_DIR = 'diretoria';
+var P_TODOS = [P_ADM, P_MAN, P_PRO, P_DIR];
+var P_OPER  = [P_ADM, P_MAN];
+var P_GEST  = [P_ADM, P_MAN, P_DIR];
+
+// MATRIZ DE ACESSO (regra de 15/10/2026) — telas e o que cada uma precisa do servidor:
+//   produção     → Solicitação de O.S.
+//   diretoria    → Dashboard, Solicitação de O.S., O.S. Executadas (somente consulta)
+//   manutenção   → Dashboard e O.S. Planejadas (concluir planejadas/solicitações), O.S. Executadas,
+//                  Abertura de O.S., Inspeção Diária, Manuais e Senhas (só leitura)
+//   administração→ tudo (inclui PCM: planejamento, preventiva, RACR, compras; ativos; usuários)
+// Mantenha estas tabelas e ROLES (js/core.js) iguais: tela sem permissão no servidor
+// aparece como erro, e permissão sem tela é superfície de ataque à toa.
+
+// Leitura por aba (action 'read' e variantes).
+var ACL_LEITURA = {
+  salas: P_TODOS, maquinas: P_TODOS, usuarios: P_TODOS, ordens: P_TODOS,
+  planejadas: P_TODOS, solicitacoes: P_TODOS, configuracoes: P_TODOS,
+  inspecoes: P_OPER, racs: [P_ADM], historico: P_GEST, compras: P_GEST,
+  preventiva: [P_ADM], manuaisSenhas: P_OPER
+};
+
+// Escrita por aba e operação. Aba/operação ausente = negado.
+// racs, manuaisSenhas e compras (criação) só entram por salvarRACR,
+// salvarManualSenha e addOrdemCompra, que têm regra própria no doPost.
+var ACL_ESCRITA = {
+  ordens:        { append: P_OPER, update: P_OPER, delete: P_OPER },
+  planejadas:    { append: [P_ADM], update: P_OPER, delete: P_OPER }, // criar = Planejamento (PCM, só admin); concluir/excluir(5 min) = Planejadas e Dashboard
+  solicitacoes:  { append: [P_ADM, P_PRO, P_DIR], update: P_OPER, delete: [P_ADM] },
+  inspecoes:     { append: P_OPER },
+  preventiva:    { append: [P_ADM] },
+  historico:     { append: P_TODOS },
+  salas:         { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
+  maquinas:      { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
+  usuarios:      { append: [P_ADM], update: [P_ADM] },
+  configuracoes: { append: [P_ADM], update: [P_ADM] },
+  compras:       { update: [P_ADM] }
+};
+
+function own_(obj, k) { return Object.prototype.hasOwnProperty.call(obj, k); }
+function perfilNorm_(v) { return semAcento_(v).toLowerCase().replace(/\s+/g, ''); }
+function negar_(msg) { return { ok: false, code: 'FORBIDDEN', error: msg || 'Sem permissão para esta ação.' }; }
+function erroAuth_(msg) { return { ok: false, code: 'AUTH', error: msg || 'Sessão inválida ou expirada. Faça login novamente.' }; }
+// sess === null só ocorre em modo compatível (AUTH_ENFORCE=false, cliente sem token).
+function pode_(sess, perfis) { return !sess || perfis.indexOf(sess.tipo) >= 0; }
+
+var _segredoMemo = null; // vale só dentro desta execução (cada request começa do zero)
+function segredoSessao_() {
+  if (_segredoMemo) return _segredoMemo;
+  var props = PropertiesService.getScriptProperties();
+  var s = props.getProperty('SESSION_SECRET');
+  if (s) { _segredoMemo = s; return s; }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    s = props.getProperty('SESSION_SECRET');
+    if (!s) {
+      s = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+      props.setProperty('SESSION_SECRET', s);
+    }
+    _segredoMemo = s;
+    return s;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Rodar UMA vez no editor (evita corrida na criação do segredo). Rodar de novo
+// NÃO troca o segredo existente; para derrubar todas as sessões: rotacionarSegredoSessao().
+function setupSessionSecret() {
+  segredoSessao_();
+  Logger.log('✅ SESSION_SECRET pronto.');
+}
+
+// Derruba TODAS as sessões abertas (todos precisam fazer login de novo).
+function rotacionarSegredoSessao() {
+  PropertiesService.getScriptProperties().deleteProperty('SESSION_SECRET');
+  _segredoMemo = null;
+  segredoSessao_();
+  Logger.log('✅ Segredo rotacionado: todas as sessões foram invalidadas.');
+}
+
+function assinar_(texto) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(texto, segredoSessao_()));
+}
+
+function iguais_(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  var r = 0;
+  for (var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+// "Versão" da senha: muda sempre que Senha_Hash muda (troca/reset) e invalida
+// os tokens antigos. É um HMAC truncado — não expõe nada do hash armazenado.
+function pvDe_(armazenado) {
+  return assinar_('pv:' + String(armazenado)).substring(0, 12);
+}
+
+function emitirToken_(login, pv, origemMs, restrito) {
+  var agora = Date.now();
+  var o = origemMs || agora;
+  var exp = restrito
+    ? agora + SESSAO_TROCA_MS
+    : Math.min(agora + SESSAO_IDLE_H * 3600000, o + SESSAO_MAX_H * 3600000);
+  var corpo = Utilities.base64EncodeWebSafe(
+    JSON.stringify({ l: login, i: agora, x: exp, o: o, p: pv, r: restrito ? 1 : 0 }),
+    Utilities.Charset.UTF_8
+  );
+  return corpo + '.' + assinar_(corpo);
+}
+
+// Geração própria do cache de usuários: só muda quando a aba Usuarios é gravada pelo
+// sistema (append/update/delete em 'usuarios', troca de senha, migração de hash).
+// Antes dividia a geração do readAll, que muda a CADA gravação: depois de qualquer
+// OS salva, a próxima leitura reabria a planilha só para validar o login.
+function invalidarCacheUsuarios_() {
+  try {
+    CacheService.getScriptCache().put('usr_gen', String(Date.now()) + '_' + Math.floor(Math.random() * 1000000), 21600);
+  } catch (e) {}
+}
+
+// Usuário "ao vivo" (perfil, ativo, versão da senha). Cache de 60s; edição feita direto
+// na planilha demora até 60s para valer, edição pelo sistema vale na hora.
+function usuarioPorLogin_(login) {
+  var low = String(login || '').toLowerCase();
+  if (!low) return null;
+  var cache = null, ck = null;
+  try {
+    cache = CacheService.getScriptCache();
+    ck = 'u:' + (cache.get('usr_gen') || '0') + ':' + low.substring(0, 100);
+    var c = cache.get(ck);
+    if (c) return JSON.parse(c);
+  } catch (e) { cache = null; }
+
+  var data = getSheet('usuarios').getDataRange().getValues();
+  var h = data[0];
+  var iL = h.indexOf('Login'), iS = h.indexOf('Senha_Hash'), iN = h.indexOf('Nome');
+  var iT = h.indexOf('Tipo_Acesso'), iA = h.indexOf('Ativo');
+  if (iL < 0 || iS < 0) return null;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][iL]).toLowerCase() !== low) continue;
+    var armazenado = String(data[i][iS] || '');
+    var u = {
+      login: String(data[i][iL]),
+      nome:  iN >= 0 ? String(data[i][iN]) : '',
+      tipo:  iT >= 0 ? perfilNorm_(data[i][iT]) : '',
+      ativo: iA >= 0 ? ativoSim_(data[i][iA]) : true,
+      pv:    pvDe_(armazenado),
+      mudar: armazenado === 'mudar123'
+    };
+    if (cache) { try { cache.put(ck, JSON.stringify(u), USR_CACHE_TTL_S); } catch (e2) {} }
+    return u;
+  }
+  return null;
+}
+
+// → { ok:true, sess } | { ok:false, code:'AUTH', error }
+function validarToken_(token) {
+  if (!token || typeof token !== 'string') return erroAuth_('Sessão ausente. Faça login.');
+  var partes = token.split('.');
+  if (partes.length !== 2) return erroAuth_();
+  if (!iguais_(assinar_(partes[0]), partes[1])) return erroAuth_();
+  var p;
+  try {
+    p = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(partes[0])).getDataAsString());
+  } catch (e) { return erroAuth_(); }
+  var agora = Date.now();
+  if (!p || !p.l || !(p.x > agora) || !(p.o + SESSAO_MAX_H * 3600000 > agora)) {
+    return erroAuth_('Sessão expirada. Faça login novamente.');
+  }
+  var u = usuarioPorLogin_(p.l);
+  if (!u || !u.ativo || u.pv !== p.p) {
+    return erroAuth_('Sessão encerrada (acesso alterado). Faça login novamente.');
+  }
+  var sess = { login: u.login, nome: u.nome, tipo: u.tipo, restrito: !!p.r, origem: p.o, novoToken: null };
+  if (!p.r && (agora - p.i) > SESSAO_RENOVA_MS) {
+    sess.novoToken = emitirToken_(u.login, u.pv, p.o, false);
+  }
+  return { ok: true, sess: sess };
+}
+
+// → { sess } | { erro }
+function autenticar_(token) {
+  if (!AUTH_ENFORCE && !token) return { sess: null };
+  var r = validarToken_(token);
+  return r.ok ? { sess: r.sess } : { erro: r };
+}
+
+function resp_(r, sess) {
+  if (sess && sess.novoToken && r && typeof r === 'object') r.tk = sess.novoToken;
+  return jsonOut(r);
+}
+
+function respRaw_(jsonStr, sess) {
+  if (sess && sess.novoToken) {
+    jsonStr = jsonStr.slice(0, -1) + ',"tk":' + JSON.stringify(sess.novoToken) + '}';
+  }
+  return jsonOutRaw_(jsonStr);
+}
+
+function checarLeitura_(sess, sheet) {
+  if (!own_(SHEET_NAMES, sheet) || !own_(ACL_LEITURA, sheet)) return negar_('Aba não permitida para leitura.');
+  if (!pode_(sess, ACL_LEITURA[sheet])) return negar_();
+  return null;
+}
+
+function checarEscrita_(sess, acao, sheet) {
+  if (!own_(SHEET_NAMES, sheet) || !own_(ACL_ESCRITA, sheet) || !own_(ACL_ESCRITA[sheet], acao)) {
+    return negar_('Operação não permitida: ' + acao + ' em ' + sheet);
+  }
+  if (!pode_(sess, ACL_ESCRITA[sheet][acao])) return negar_();
+  return null;
+}
+
 function doGet(e) {
   if (!e || !e.parameter) {
-    return jsonOut({ ok: true, msg: 'SIGMAN API v5 online', ts: new Date().toISOString() });
+    return jsonOut({ ok: true, msg: 'SIGMAN API v14 online', ts: new Date().toISOString() });
   }
+  var sess = null;
   try {
     var p = e.parameter;
-    if (p.action === 'ping')                return jsonOut({ ok: true, ts: new Date().toISOString() });
-    if (p.action === 'readAll')             return jsonOutRaw_('{"ok":true,"data":' + readAllJson_() + '}');
-    if (p.action === 'read')                return jsonOut({ ok: true, data: readSheet(p.sheet) });
-    if (p.action === 'readHistorico')       return jsonOut({ ok: true, data: readSheet('historico') });
-    if (p.action === 'readCompras')         return jsonOut({ ok: true, data: readSheet('compras') });
-    if (p.action === 'readInspecoes')       return jsonOut({ ok: true, data: readSheet('inspecoes') });
-    if (p.action === 'readRacs')            return jsonOut({ ok: true, data: readSheet('racs') });
-    if (p.action === 'readManuaisSenhas')   return jsonOut({ ok: true, data: readSheet('manuaisSenhas') });
-    if (p.action === 'previewPreventivas')  return jsonOut(gerarPreventivasAutomaticas(true));
-    if (p.action === 'planos_list')         return jsonOut(listarPlanosPreventiva());
-    if (p.action === 'planos_get')          return jsonOut(carregarPlanoPreventiva(p.modelo));
-    return jsonOut({ ok: false, error: 'GET action desconhecida: ' + p.action });
-  } catch(err) {
+    if (p.action === 'ping') return jsonOut({ ok: true, ts: new Date().toISOString() });
+
+    var a = autenticar_(p.token);
+    if (a.erro) return jsonOut(a.erro);
+    sess = a.sess;
+    if (sess && sess.restrito) return jsonOut(erroAuth_('Troca de senha pendente.'));
+
+    var nega = null;
+    switch (p.action) {
+      case 'readAll':
+        return respRaw_('{"ok":true,"data":' + readAllJson_() + '}', sess);
+      case 'read':
+        nega = checarLeitura_(sess, p.sheet);
+        return resp_(nega || { ok: true, data: readSheet(p.sheet) }, sess);
+      case 'readHistorico':
+        nega = checarLeitura_(sess, 'historico');
+        return resp_(nega || { ok: true, data: readSheet('historico') }, sess);
+      case 'readCompras':
+        nega = checarLeitura_(sess, 'compras');
+        return resp_(nega || { ok: true, data: readSheet('compras') }, sess);
+      case 'readInspecoes':
+        nega = checarLeitura_(sess, 'inspecoes');
+        return resp_(nega || { ok: true, data: readSheet('inspecoes') }, sess);
+      case 'readRacs':
+        nega = checarLeitura_(sess, 'racs');
+        return resp_(nega || { ok: true, data: readSheet('racs') }, sess);
+      case 'readManuaisSenhas':
+        nega = checarLeitura_(sess, 'manuaisSenhas');
+        return resp_(nega || { ok: true, data: readSheet('manuaisSenhas') }, sess);
+      case 'previewPreventivas': // consulta aberta a quem tem a tela Planejadas; GERAR continua só admin
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(gerarPreventivasAutomaticas(true), sess);
+      case 'planos_list':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(listarPlanosPreventiva(), sess);
+      case 'planos_get':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(carregarPlanoPreventiva(p.modelo), sess);
+    }
+    return resp_({ ok: false, error: 'GET action desconhecida: ' + p.action }, sess);
+  } catch (err) {
     return jsonOut({ ok: false, error: err.toString() });
   }
 }
 
 function doPost(e) {
   if (!e || !e.postData) return jsonOut({ ok: false, error: 'POST sem dados' });
+  var sess = null;
   try {
     var d = JSON.parse(e.postData.contents);
-    var usuario = d.usuario || '';
-    if (d.action === 'append')              return jsonOut(appendRow(d.sheet, d.row, usuario, d.idempotencyKey));
-    if (d.action === 'update')              return jsonOut(updateRow(d.sheet, d.id, d.idCol, d.row, usuario));
-    if (d.action === 'delete')              return jsonOut(deleteRow(d.sheet, d.id, d.idCol, usuario));
-    if (d.action === 'importarTodos')       return jsonOut(importarTodos(d.payload));
-    if (d.action === 'uploadFoto')          return jsonOut(uploadFoto(d.numero, d.fileName, d.mimeType, d.base64));
-    if (d.action === 'appendBatch')         return jsonOut(appendBatch(d.sheet, d.rows, usuario));
-    if (d.action === 'salvarRACR')          return jsonOut(salvarRACR(d.racr));
-    if (d.action === 'encerrarRACR')        return jsonOut(encerrarRACR(d.id, usuario));
-    if (d.action === 'addOrdemCompra')      return jsonOut(addOrdemCompra(d.dados));
-    if (d.action === 'salvarManualSenha')   return jsonOut(salvarManualSenha(d.dados, usuario));
-    if (d.action === 'login')               return jsonOut(verificarLogin(d.login, d.senha));
-    if (d.action === 'trocarSenha')         return jsonOut(trocarSenha(d.login, d.novaSenha));
-    if (d.action === 'gerarPreventivasManual') return jsonOut(gerarPreventivasAutomaticas(false));
-    return jsonOut({ ok: false, error: 'POST action desconhecida: ' + d.action });
-  } catch(err) {
+    if (d.action === 'login') return jsonOut(verificarLogin(d.login, d.senha));
+
+    var a = autenticar_(d.token);
+    if (a.erro) return jsonOut(a.erro);
+    sess = a.sess;
+    if (sess && sess.restrito && d.action !== 'trocarSenha') return jsonOut(erroAuth_('Troca de senha pendente.'));
+
+    // Com sessão, o nome vem do token (o cliente não escolhe quem é).
+    var usuario = sess ? sess.nome : (d.usuario || '');
+    var nega = null;
+
+    switch (d.action) {
+      case 'append':
+        nega = checarEscrita_(sess, 'append', d.sheet);
+        return resp_(nega || appendRow(d.sheet, d.row, usuario, d.idempotencyKey), sess);
+      case 'appendBatch':
+        nega = checarEscrita_(sess, 'append', d.sheet);
+        if (!nega && (!Array.isArray(d.rows) || d.rows.length > 500)) nega = { ok: false, code: 'VALIDATION', error: 'Lote inválido (máx. 500 linhas).' };
+        return resp_(nega || appendBatch(d.sheet, d.rows, usuario), sess);
+      case 'update':
+        nega = checarEscrita_(sess, 'update', d.sheet);
+        return resp_(nega || updateRow(d.sheet, d.id, d.idCol, d.row, usuario), sess);
+      case 'delete':
+        nega = checarEscrita_(sess, 'delete', d.sheet);
+        return resp_(nega || deleteRow(d.sheet, d.id, d.idCol, usuario), sess);
+      case 'importarTodos':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(importarTodos(d.payload || {}), sess);
+      case 'uploadFoto':
+        if (!pode_(sess, P_TODOS)) return resp_(negar_(), sess);
+        return resp_(uploadFoto(d.numero, d.fileName, d.mimeType, d.base64), sess);
+      case 'salvarRACR':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        if (d.racr && sess) d.racr.usuario = sess.nome;
+        return resp_(salvarRACR(d.racr || {}), sess);
+      case 'encerrarRACR':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(encerrarRACR(d.id, usuario), sess);
+      case 'addOrdemCompra':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        if (d.dados && sess) d.dados.solicitante = sess.nome;
+        return resp_(addOrdemCompra(d.dados || {}), sess);
+      case 'salvarManualSenha':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(salvarManualSenha(d.dados, usuario), sess);
+      case 'trocarSenha':
+        return resp_(trocarSenha(sess, d.login, d.novaSenha), sess);
+      case 'gerarPreventivasManual':
+        if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
+        return resp_(gerarPreventivasAutomaticas(false), sess);
+    }
+    return resp_({ ok: false, error: 'POST action desconhecida: ' + d.action }, sess);
+  } catch (err) {
     return jsonOut({ ok: false, error: err.toString() });
   }
 }
@@ -483,7 +798,7 @@ function appendRow(key, rowObj, usuario, idempotencyKey) {
   var erro = validarObrigatorios(key, rowObj, false);
   if (erro) {
     logGravacao(usuario, 'append', key, idRefDe(rowObj), 'falha', erro);
-    return { ok: false, error: erro };
+    return { ok: false, code: 'VALIDATION', error: erro };
   }
   var resultado = comLock(function() {
     var sh      = getSheet(key);
@@ -502,7 +817,7 @@ function appendRow(key, rowObj, usuario, idempotencyKey) {
         var coluna = sh.getRange(2, numColIdx + 1, sh.getLastRow() - 1, 1).getValues();
         for (var i = 0; i < coluna.length; i++) {
           if (String(coluna[i][0]) === String(numVal)) {
-            return { ok: false, error: 'NUMERO_DUPLICADO', numeroConflito: numVal };
+            return { ok: false, code: 'DUP', error: 'NUMERO_DUPLICADO', numeroConflito: numVal };
           }
         }
       }
@@ -515,6 +830,7 @@ function appendRow(key, rowObj, usuario, idempotencyKey) {
     sh.appendRow(row);
     return { ok: true, sheet: key };
   });
+  if (key === 'usuarios') invalidarCacheUsuarios_();
   logGravacao(usuario, 'append', key, idRefDe(rowObj), resultado.ok ? 'sucesso' : 'falha', resultado.error || '');
   return resultado;
 }
@@ -570,14 +886,14 @@ function updateRow(key, id, idCol, newData, usuario) {
   var erro = validarObrigatorios(key, newData, true);
   if (erro) {
     logGravacao(usuario, 'update', key, id, 'falha', erro);
-    return { ok: false, error: erro };
+    return { ok: false, code: 'VALIDATION', error: erro };
   }
   var resultado = comLock(function() {
     var sh      = getSheet(key);
     var data    = sh.getDataRange().getValues();
     var headers = data[0];
     var idIdx   = headers.indexOf(idCol);
-    if (idIdx < 0) return { ok: false, error: 'Coluna não encontrada: ' + idCol };
+    if (idIdx < 0) return { ok: false, code: 'VALIDATION', error: 'Coluna não encontrada: ' + idCol };
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][idIdx]) === String(id)) {
         var row = headers.map(function(h, j) {
@@ -587,8 +903,9 @@ function updateRow(key, id, idCol, newData, usuario) {
         return { ok: true };
       }
     }
-    return { ok: false, error: 'Não encontrado: ' + id };
+    return { ok: false, code: 'NOTFOUND', error: 'Não encontrado: ' + id };
   });
+  if (key === 'usuarios') invalidarCacheUsuarios_();
   logGravacao(usuario, 'update', key, id, resultado.ok ? 'sucesso' : 'falha', resultado.error || '');
   return resultado;
 }
@@ -598,14 +915,16 @@ function deleteRow(key, id, idCol, usuario) {
     var sh    = getSheet(key);
     var data  = sh.getDataRange().getValues();
     var idIdx = data[0].indexOf(idCol);
+    if (idIdx < 0) return { ok: false, code: 'VALIDATION', error: 'Coluna não encontrada: ' + idCol };
     for (var i = data.length - 1; i >= 1; i--) {
       if (String(data[i][idIdx]) === String(id)) {
         sh.deleteRow(i + 1);
         return { ok: true };
       }
     }
-    return { ok: false, error: 'Não encontrado: ' + id };
+    return { ok: false, code: 'NOTFOUND', error: 'Não encontrado: ' + id };
   });
+  if (key === 'usuarios') invalidarCacheUsuarios_();
   logGravacao(usuario, 'delete', key, id, resultado.ok ? 'sucesso' : 'falha', resultado.error || '');
   return resultado;
 }
@@ -627,9 +946,34 @@ function hashSenha_(login, senha) {
   return 'h1:' + hex;
 }
 
+function loginChaveFalha_(login) { return 'lf:' + String(login).toLowerCase().substring(0, 60); }
+
+function loginBloqueado_(login) {
+  try {
+    var n = parseInt(CacheService.getScriptCache().get(loginChaveFalha_(login)), 10);
+    return n >= LOGIN_MAX_FALHAS;
+  } catch (e) { return false; }
+}
+
+function loginFalhou_(login) {
+  try {
+    var c = CacheService.getScriptCache(), k = loginChaveFalha_(login);
+    var n = parseInt(c.get(k), 10) || 0;
+    c.put(k, String(n + 1), LOGIN_BLOQUEIO_S);
+  } catch (e) {}
+}
+
+function loginOk_(login) {
+  try { CacheService.getScriptCache().remove(loginChaveFalha_(login)); } catch (e) {}
+}
+
 function verificarLogin(login, senha) {
   if (!login || !senha) return { ok: false, error: 'Usuário ou senha incorretos.' };
   login = String(login).trim();
+  senha = String(senha);
+  if (loginBloqueado_(login)) {
+    return { ok: false, code: 'LOCKED', error: 'Muitas tentativas incorretas. Aguarde 10 minutos e tente de novo.' };
+  }
 
   var sh      = getSheet('usuarios');
   var data    = sh.getDataRange().getValues();
@@ -648,6 +992,7 @@ function verificarLogin(login, senha) {
     if (String(data[i][loginIdx]).toLowerCase() !== login.toLowerCase()) continue;
 
     var stored = String(data[i][senhaIdx] || '');
+    var finalStored = stored;
     var ok = false;
 
     if (stored.indexOf('h1:') === 0) {
@@ -660,15 +1005,17 @@ function verificarLogin(login, senha) {
       if (ok && stored !== 'mudar123') {
         var novoHash = hashSenha_(login, senha);
         var rowFixa = i + 1, colFixa = senhaIdx + 1;
-        comLock(function() { sh.getRange(rowFixa, colFixa).setValue(novoHash); });
+        var mig = comLock(function() { sh.getRange(rowFixa, colFixa).setValue(novoHash); return { ok: true }; });
+        if (mig && mig.ok) { finalStored = novoHash; invalidarCacheUsuarios_(); } // se o lock falhar, segue em texto puro (migra no próximo login)
       }
     }
 
-    if (!ok) return { ok: false, error: 'Usuário ou senha incorretos.' };
+    if (!ok) { loginFalhou_(login); return { ok: false, error: 'Usuário ou senha incorretos.' }; }
 
     var ativo = ativoIdx >= 0 ? ativoSim_(data[i][ativoIdx]) : true;
     if (!ativo) return { ok: false, error: 'Usuário desativado. Fale com a Administração.' };
 
+    loginOk_(login);
     var user = {
       login: data[i][loginIdx],
       nome:  nomeIdx  >= 0 ? data[i][nomeIdx]  : '',
@@ -676,33 +1023,48 @@ function verificarLogin(login, senha) {
       tipo:  tipoIdx  >= 0 ? data[i][tipoIdx]  : '',
       ativo: true
     };
-    return { ok: true, user: user, mustChangePassword: (stored === 'mudar123') };
+    var mudar = (finalStored === 'mudar123');
+    // mudar=true → token restrito (15 min), só serve para trocarSenha.
+    return { ok: true, user: user, mustChangePassword: mudar, token: emitirToken_(String(user.login), pvDe_(finalStored), 0, mudar) };
   }
 
+  loginFalhou_(login); // login inexistente conta igual (não revela quais logins existem)
   return { ok: false, error: 'Usuário ou senha incorretos.' };
 }
 
-function trocarSenha(login, novaSenha) {
-  if (!login || !novaSenha || String(novaSenha).length < 4) {
-    return { ok: false, error: 'Senha inválida (mínimo 4 caracteres).' };
-  }
-  if (novaSenha === 'mudar123') {
-    return { ok: false, error: 'Escolha uma senha diferente de "mudar123".' };
-  }
-  return comLock(function() {
+// Só troca quando a senha atual é o sentinela 'mudar123' (reset pela Administração
+// ou usuário novo). Não existe troca voluntária: sem senha antiga, ela seria
+// uma porta para tomar conta de uma sessão roubada.
+// sess=null só em modo compatível (cliente antigo, sem token): aceita o login do
+// corpo, mas a regra do sentinela continua valendo.
+function trocarSenha(sess, loginLegado, novaSenha) {
+  novaSenha = String(novaSenha === undefined || novaSenha === null ? '' : novaSenha);
+  if (novaSenha.length < 4) return { ok: false, code: 'VALIDATION', error: 'Senha inválida (mínimo 4 caracteres).' };
+  if (novaSenha === 'mudar123') return { ok: false, code: 'VALIDATION', error: 'Escolha uma senha diferente de "mudar123".' };
+  var login = sess ? sess.login : String(loginLegado || '');
+  if (!login) return { ok: false, code: 'VALIDATION', error: 'Login ausente.' };
+
+  var res = comLock(function() {
     var sh       = getSheet('usuarios');
     var data     = sh.getDataRange().getValues();
     var headers  = data[0];
     var loginIdx = headers.indexOf('Login');
     var senhaIdx = headers.indexOf('Senha_Hash');
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][loginIdx]).toLowerCase() === String(login).toLowerCase()) {
-        sh.getRange(i + 1, senhaIdx + 1).setValue(hashSenha_(login, novaSenha));
-        return { ok: true };
+      if (String(data[i][loginIdx]).toLowerCase() === login.toLowerCase()) {
+        if (String(data[i][senhaIdx] || '') !== 'mudar123') {
+          return negar_('A troca de senha só é permitida após reset pela Administração.');
+        }
+        var novoHash = hashSenha_(String(data[i][loginIdx]), novaSenha);
+        sh.getRange(i + 1, senhaIdx + 1).setValue(novoHash);
+        return { ok: true, hash: novoHash, login: String(data[i][loginIdx]) };
       }
     }
-    return { ok: false, error: 'Usuário não encontrado.' };
+    return { ok: false, code: 'NOTFOUND', error: 'Usuário não encontrado.' };
   });
+  if (!res.ok) return res;
+  invalidarCacheUsuarios_();
+  return { ok: true, token: emitirToken_(res.login, pvDe_(res.hash), sess ? sess.origem : 0, false) };
 }
 
 function addOrdemCompra(dados) {
@@ -942,6 +1304,14 @@ function importarTodos(payload) {
 
 function uploadFoto(numero, fileName, mimeType, base64) {
   try {
+    if (typeof base64 !== 'string' || !base64.length) return { ok: false, code: 'VALIDATION', error: 'Arquivo vazio.' };
+    if (base64.length > UPLOAD_MAX_B64) return { ok: false, code: 'VALIDATION', error: 'Arquivo grande demais (máx. ~10 MB).' };
+    mimeType = String(mimeType || 'image/jpeg').toLowerCase();
+    if (!/^image\/(jpeg|jpg|png|webp|gif|heic|heif)$/.test(mimeType)) {
+      return { ok: false, code: 'VALIDATION', error: 'Tipo de arquivo não permitido (só imagem).' };
+    }
+    numero   = String(numero || 'SEM_NUMERO').replace(/[^A-Za-z0-9_\-]/g, '_').substring(0, 60);
+    fileName = String(fileName || (numero + '.jpg')).replace(/[\\\/:*?"<>|]/g, '_').substring(0, 100);
     var rootFolder    = DriveApp.getRootFolder();
     var sigmanFolders = rootFolder.getFoldersByName('sigman');
     var sigmanFolder  = sigmanFolders.hasNext()
@@ -1072,9 +1442,7 @@ function carregarPlanoPreventiva(nomeModelo) {
 // Como usar:
 //   - GET  previewPreventivas      → dry-run: mostra o que SERIA gerado hoje,
 //                                     sem gravar nada.
-//   - POST gerarPreventivasManual  → gera de verdade (sem checagem de perfil
-//                                     no servidor, como todo o arquivo — só
-//                                     expor na tela de PCM/admin).
+//   - POST gerarPreventivasManual  → gera de verdade (somente administração — checado no servidor desde a v14).
 //   - criarTriggerPreventivas()    → rodar UMA vez no editor pra agendar o
 //                                     disparo diário (5h).
 //   - Pré-requisito: coluna Ultima_Preventiva_Gerada em Maquinas (já existe).

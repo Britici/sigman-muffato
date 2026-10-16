@@ -809,21 +809,21 @@
      </div>
   </div></div>
   
-  <script src="js/core.js?v=202608261950"></script>
-  <script src="js/helpers.js?v=202608261950"></script>
+  <script src="js/core.js?v=202610151100"></script>
+  <script src="js/helpers.js?v=202610151700"></script>
   <script src="js/modais-helpers.js?v=202608261950"></script>
-  <script src="js/utils-offline.js?v=202608261950"></script>
-  <script src="js/dashboard.js?v=202608261950"></script>
+  <script src="js/utils-offline.js?v=202610141000"></script>
+  <script src="js/dashboard.js?v=202610151700"></script>
   <script src="js/os-planejadas.js?v=202608261950"></script>
   <script src="js/os-executadas.js?v=202608261950"></script>
-  <script src="js/abertura-os.js?v=202608261950"></script>
+  <script src="js/abertura-os.js?v=202610151700"></script>
   <script src="js/inspecao.js?v=202608261950"></script>
   <script src="js/ativos.js?v=202608261950"></script>
   <script src="js/usuarios.js?v=202608261950"></script>
   <script src="js/preventiva.js?v=202608261950"></script>
   <script src="js/racr.js?v=202608261950"></script>
   <script src="js/modulo-compras-solicitacao.js?v=202608261950"></script>
-  <script src="js/modulo-compras-acompanhamento.js?v=202608261950"></script>
+  <script src="js/modulo-compras-acompanhamento.js?v=202610141000"></script>
   <script src="js/manuais-senhas.js?v=202608261950"></script>
   
 <script>
@@ -866,6 +866,10 @@ async function doLogin() {
 
   const user = res.user; // { login, nome, cargo, tipo, ativo } — nunca vem senha/hash daqui
 
+  // v14: o servidor emite um token de sessão. Sem ele (Code.gs antigo) não há como seguir.
+  if (!res.token) { lAlert('Servidor desatualizado (sem autenticação v14). Avise a Administração.'); return; }
+  setToken(res.token); // se mustChangePassword, é um token restrito (15 min) que só serve para trocar a senha
+
   if (res.mustChangePassword) {
     exigirTrocaSenha(user);
     return;
@@ -874,6 +878,24 @@ async function doLogin() {
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, user }));
   enterApp();
+  posLoginCarregar();
+}
+
+// Antes do login não há token, então o readAll (que antes rodava na tela de login)
+// não pode mais acontecer ali: carrega os dados logo depois de entrar.
+function posLoginCarregar() {
+  apiFlushQueue(); // reenvia o que ficou pendente deste usuário
+  if (typeof USE_API === 'undefined' || !USE_API) return;
+  apiLoadAll(true, true).then(() => {
+    if (!CU) return;
+    populateAll(); updStats(); updateNavDots();
+    const pgAtual = document.querySelector('.pg.on');
+    const pid = pgAtual ? pgAtual.id.replace('pg-', '') : '';
+    if (pid === 'dashboard')   renderDash();
+    if (pid === 'planejadas')  renderPlan();
+    if (pid === 'executadas')  renderExec();
+    if (pid === 'solicitacao') renderSol();
+  }).catch(() => {});
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -891,6 +913,7 @@ function exigirTrocaSenha(user) {
 
 function cancelarTrocaSenha() {
   _pendingLoginUser = null;
+  setToken(''); // descarta o token restrito
   document.getElementById('lf-troca-senha').style.display = 'none';
   document.getElementById('lf-login').style.display = 'block';
 }
@@ -904,8 +927,12 @@ async function confirmarTrocaSenha() {
   if (p1 === 'mudar123') { lAlert('Escolha uma senha diferente de "mudar123".'); return; }
 
   const login = _pendingLoginUser.login;
-  const res = await apiPost({ action: 'trocarSenha', login, novaSenha: p1 }, true);
-  if (!res || !res.ok) { lAlert('Não foi possível salvar a nova senha (sem conexão). Tente novamente.'); return; }
+  // O servidor usa o login do TOKEN (restrito); não enviamos login nem senha antiga.
+  const res = await apiPost({ action: 'trocarSenha', novaSenha: p1 }, true);
+  if (res && res.code === 'AUTH') { lAlert('Tempo esgotado (15 min). Entre de novo com a senha provisória.'); cancelarTrocaSenha(); return; }
+  if (!res) { lAlert('Não foi possível salvar a nova senha (sem conexão). Tente novamente.'); return; }
+  if (!res.ok || !res.token) { lAlert(res.error || 'Não foi possível salvar a nova senha.'); return; }
+  setToken(res.token); // token completo; o restrito deixou de valer
 
   CU = { ..._pendingLoginUser, mudarSenha: false };
   localStorage.setItem('sigman_sess', JSON.stringify({ login, user: CU }));
@@ -913,6 +940,7 @@ async function confirmarTrocaSenha() {
   document.getElementById('lf-troca-senha').style.display = 'none';
   document.getElementById('lf-login').style.display = 'block';
   enterApp();
+  posLoginCarregar();
 }
 
 function doLogout() {
@@ -920,6 +948,7 @@ function doLogout() {
   clearInterval(_dashTimer);
   localStorage.removeItem('sigman_sess');
   localStorage.removeItem('sigman_lastpage');
+  setToken(''); // a fila offline NÃO é apagada: volta a ser enviada no próximo login do mesmo usuário
   CU = null;
   document.getElementById('app').classList.remove('on');
   document.getElementById('loading-screen').style.display = 'none';
@@ -1334,18 +1363,15 @@ async function uploadFotos(numero, photosArr) {
   const resultados = await Promise.all(photosArr.map(async (p, i) => {
     try {
       const ext = (p.file.name.split('.').pop() || 'jpg').toLowerCase();
-      const resp = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'uploadFoto', numero,
-          fileName: numero + '_' + (i + 1) + '.' + ext,
-          mimeType: p.file.type || 'image/jpeg',
-          base64: p.b64
-        }),
-        signal: AbortSignal.timeout(40000)
-      });
-      const r = await resp.json();
-      return r.ok ? r.fileUrl : null;
+      // apiPost anexa o token, trata sessão expirada e tem o mesmo timeout (40s).
+      // noQueueOnFail: foto (base64) nunca vai para a fila do localStorage.
+      const r = await apiPost({
+        action: 'uploadFoto', numero,
+        fileName: numero + '_' + (i + 1) + '.' + ext,
+        mimeType: p.file.type || 'image/jpeg',
+        base64: p.b64
+      }, true);
+      return (r && r.ok) ? r.fileUrl : null;
     } catch(e) { console.warn('Foto não enviada:', e); return null; }
   }));
   const urls = resultados.filter(Boolean);
