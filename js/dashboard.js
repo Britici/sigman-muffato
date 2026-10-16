@@ -305,7 +305,7 @@ function renderDash() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(p.prioridade)}${stBadge(p.status)}
-          ${CU&&CU.tipo!=='producao'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
+          ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
         </div>
       </div>`).join('');
 
@@ -322,7 +322,7 @@ function renderDash() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(s.prioridade)}
-          ${CU && CU.tipo !== 'producao'
+          ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))
             ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`            : stBadge(s.status)}
         </div>
       </div>`).join('');

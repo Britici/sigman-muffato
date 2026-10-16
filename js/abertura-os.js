@@ -216,7 +216,7 @@ function renderSol() {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         ${prio(s.prioridade)}${stBadge(s.status)}
-        ${CU&&CU.tipo!=='producao'&&s.status==='Não Executada'
+        ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))&&s.status==='Não Executada'
           ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`:''}
         ${osGerada
           ?`<button class="btn btn-sm btn-gh" onclick="verDet('${osGerada}','os')">Ver</button>`

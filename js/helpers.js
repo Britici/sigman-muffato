@@ -429,14 +429,21 @@ img{max-width:100%;max-height:85vh;object-fit:contain;box-shadow:0 4px 20px rgba
   win.document.close();
 }
 
+// Quem pode CONCLUIR/EXECUTAR planejadas e solicitações (botões do Dashboard e da
+// tela de Solicitação). Diretoria e produção só consultam. O servidor aplica a mesma regra.
+function podeConcluir() {
+  return !!(typeof CU !== 'undefined' && CU && (CU.tipo === 'administracao' || CU.tipo === 'manutencao'));
+}
+
 // ══════════════════════════════════════════════════════════════════════
-// CONTROLE DE EDIÇÃO/EXCLUSÃO — 5 min para não-admin
+// CONTROLE DE EDIÇÃO/EXCLUSÃO — 5 min para manutenção (admin sempre)
 // ══════════════════════════════════════════════════════════════════════
 // Retorna true se o usuário pode editar/excluir o registro:
 //   • Admin: sempre pode
 //   • Outros: somente nos primeiros 5 minutos após a criação
 function podeEditar(criadoEm) {
   if (CU && CU.tipo === 'administracao') return true;
+  if (!CU || CU.tipo !== 'manutencao') return false; // diretoria e produção só consultam
   if (!criadoEm) return false;
   // Usa o horário sincronizado com o servidor (ver core.js), não o relógio
   // bruto do dispositivo — evita que a janela de 5 min seja furada por um

@@ -173,7 +173,7 @@ const ROLES = {
   },
   manutencao: {
     label: 'Manutenção',
-    menus: ['dashboard','planejadas','executadas','abertura','inspecao','manuais-senhas']
+    menus: ['dashboard','planejadas','executadas','abertura','inspecao','manuais-senhas'] // manuais-senhas é só visualização (regra 15/10/2026)
   },
   producao: {
     label: 'Produção',
@@ -194,15 +194,49 @@ let _dashAutoRf = false; // auto-refresh dashboard ativo?
 // ══════════════════════════════════════════════════════════════════════
 // API — comunicação com Google Sheets
 // ══════════════════════════════════════════════════════════════════════
+// ── Sessão (token emitido pelo login do Code.gs v14) ─────────────────────
+// O token é assinado pelo servidor e expira lá (12h sem uso, teto 7 dias).
+// Guardá-lo em localStorage é o mesmo nível de exposição da sessão que já
+// existia; quem decide se vale é SEMPRE o servidor.
+const TK_KEY = 'sigman_tk';
+function getToken() { try { return localStorage.getItem(TK_KEY) || ''; } catch (e) { return ''; } }
+function setToken(t) { try { if (t) localStorage.setItem(TK_KEY, t); else localStorage.removeItem(TK_KEY); } catch (e) {} }
+// Cópia do corpo com o token atual (o corpo guardado na fila NUNCA leva token).
+function comToken(body) { return Object.assign({}, body, { token: getToken() }); }
+
+let _sessaoEncerrando = false;
+function sessaoInvalida(msg) {
+  if (_sessaoEncerrando) return;
+  _sessaoEncerrando = true;
+  setTimeout(() => { _sessaoEncerrando = false; }, 1500);
+  setToken('');
+  if (!CU) return; // tela de login: nada a derrubar
+  showToast(msg || 'Sessão expirada. Faça login novamente.', 'war', 7000);
+  if (typeof doLogout === 'function') doLogout();
+}
+
+// Passa por aqui TODA resposta do servidor: guarda o token renovado (tk) e,
+// se a sessão não vale mais, encerra o app.
+function authAplicarResposta(json) {
+  if (!json || typeof json !== 'object') return;
+  if (json.tk) setToken(json.tk);
+  if (json.code === 'AUTH') sessaoInvalida(json.error);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// API — comunicação com Google Sheets
+// ══════════════════════════════════════════════════════════════════════
 async function apiGet(params, _tentativa = 1) {
   if (!USE_API) return null;
   const MAX_TENTATIVAS = 3;
   const TIMEOUT_MS = 35000; // 35s cobre o cold start do Apps Script
   try {
-    const q = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const q = Object.entries({ ...params, token: getToken() }).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
     const res = await fetch(API_URL + '?' + q, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
+    const json = await res.json();
+    authAplicarResposta(json);
+    return json;
   } catch(e) {
     const isTimeout = e.name === 'TimeoutError' || e.name === 'AbortError';
     console.warn(`[API GET] ${isTimeout ? 'Timeout' : 'Erro'} (tentativa ${_tentativa}/${MAX_TENTATIVAS}) — ${e.message}`);
@@ -217,40 +251,82 @@ async function apiGet(params, _tentativa = 1) {
   }
 }
 
+// Erros em que reenviar o MESMO corpo só repetiria a recusa: não entram na
+// fila (e, se já estavam nela, vão para a "fila morta" em vez de ficar em loop).
+const FILA_ERROS_PERMANENTES = ['FORBIDDEN', 'VALIDATION', 'NOTFOUND', 'DUP'];
+const FILA_KEY = 'sigman_fila';
+const FILA_MORTA_KEY = 'sigman_fila_morta';
+const FILA_MAX_TENTATIVAS = 8;                    // recusas do servidor (não conta queda de rede)
+const FILA_MAX_IDADE_MS = 7 * 24 * 3600 * 1000;   // mais velho que isso não é reenviado
+
+function _erroPermanente(json) {
+  return !!json && (FILA_ERROS_PERMANENTES.includes(json.code) || json.error === 'NUMERO_DUPLICADO');
+}
+
 // noQueueOnFail: quando true, uma resposta ok:false do servidor NÃO vai
 // pra fila de retry offline (usado em retries imediatos, ex: número
 // duplicado — reenviar o mesmo body só repetiria o mesmo erro). Falha de
 // REDE (catch) continua indo pra fila normalmente, preservando o
 // comportamento offline-first em qualquer caso.
+// Recusa permanente (sem permissão, dado inválido, não encontrado) NUNCA entra
+// na fila. Sessão expirada (AUTH) entra: é reenviada depois do próximo login.
 async function apiPost(body, noQueueOnFail) {
   if (!USE_API) return null;
+  const dono = (typeof CU !== 'undefined' && CU) ? CU.login : ''; // CU pode virar null se a sessão cair no meio
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(comToken(body)),
       signal: AbortSignal.timeout(40000)
     });
     const json = await res.json();
+    authAplicarResposta(json);
     if (!json.ok) {
-      console.error('[API POST] Erro:', json.error);
-      if (!noQueueOnFail) apiQueueFailed(body);
+      console.error('[API POST] Erro:', json.code || '', json.error);
+      if (!noQueueOnFail) {
+        if (_erroPermanente(json)) {
+          _filaMorta({ body, ts: Date.now(), user: dono }, json.error || json.code);
+          showToast('⚠️ O servidor recusou uma gravação: ' + (json.error || json.code), 'war', 6000);
+        } else {
+          apiQueueFailed(body, dono);
+        }
+      }
       return json; // objeto com ok:false — caller distingue com 'res && res.ok'
     }
     return json;
   } catch(e) {
     console.error('[API POST]', e.message);
-    if (!noQueueOnFail) apiQueueFailed(body);
+    if (!noQueueOnFail) apiQueueFailed(body, dono);
     return null; // falha de rede/timeout — sinal de offline preservado
   }
 }
 
-// Fila de operações que falharam
-function apiQueueFailed(body) {
+function _filaLer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } }
+function _filaGravar(k, arr) { try { localStorage.setItem(k, JSON.stringify(arr)); } catch (e) {} }
+
+// "Fila morta": o que o servidor recusou de vez (ou que passou do limite). Fica
+// guardada (máx. 100) para conferência — nada some em silêncio.
+function _filaMorta(item, erro) {
+  const m = _filaLer(FILA_MORTA_KEY);
+  m.push({ ...item, erro: String(erro || ''), morreuEm: Date.now() });
+  _filaGravar(FILA_MORTA_KEY, m.slice(-100));
+}
+window.sigmanFilaMorta = () => _filaLer(FILA_MORTA_KEY);
+
+// Fila de operações que falharam. Cada item guarda quem era o usuário: só o
+// mesmo login reenvia (o servidor atribui a gravação à sessão que envia).
+function apiQueueFailed(body, dono) {
   try {
-    const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
-    fila.push({ body, ts: Date.now() });
-    localStorage.setItem('sigman_fila', JSON.stringify(fila));
+    // Nunca guardar credenciais em localStorage.
+    if (!body || body.action === 'login' || body.action === 'trocarSenha') return;
+    const limpo = Object.assign({}, body); delete limpo.token;
+    const fila = _filaLer(FILA_KEY);
+    fila.push({
+      id: gerarIdLocal('q'), body: limpo, ts: Date.now(), tries: 0,
+      user: dono !== undefined ? dono : ((typeof CU !== 'undefined' && CU) ? CU.login : '')
+    });
+    localStorage.setItem(FILA_KEY, JSON.stringify(fila));
     showApiStatus('offline');
   } catch(e) {}
 }
@@ -265,32 +341,61 @@ let _flushEmAndamento = false;
 
 async function apiFlushQueue() {
   if (_flushEmAndamento) return;
+  if (!CU || !getToken()) return; // sem sessão não há como enviar; a fila espera o próximo login
   _flushEmAndamento = true;
+  let mortas = 0;
   try {
-    const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
+    const fila = _filaLer(FILA_KEY);
     if (!fila.length) return;
+    // Itens de versões antigas não tinham id: atribui e grava ANTES de qualquer await.
+    let semId = false;
+    fila.forEach(i => { if (!i.id) { i.id = gerarIdLocal('q'); semId = true; } });
+    if (semId) _filaGravar(FILA_KEY, fila);
+
     const restante = [];
+    let parar = false;
     for (const item of fila) {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(item.body),
-        signal: AbortSignal.timeout(40000)
-      }).then(r => r.json()).catch(() => null);
-      if (!res || !res.ok) restante.push(item);
+      // Pára na 1ª falha de rede/sessão: preserva a ordem (um append antes do update dele).
+      if (parar || (item.user && CU && item.user !== CU.login)) { restante.push(item); continue; }
+      if (Date.now() - (item.ts || 0) > FILA_MAX_IDADE_MS) { _filaMorta(item, 'expirado (> 7 dias)'); mortas++; continue; }
+
+      let json = null;
+      try {
+        const r = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(comToken(item.body)),
+          signal: AbortSignal.timeout(40000)
+        });
+        json = await r.json();
+      } catch (e) { json = null; }
+
+      authAplicarResposta(json); // AUTH → derruba a sessão; a fila continua guardada
+      if (json && json.ok) continue;                                  // enviado
+      if (!json || json.code === 'AUTH') { restante.push(item); parar = true; continue; }
+      if (json.code === 'BUSY') { restante.push(item); continue; }    // servidor ocupado: tenta no próximo ciclo, sem contar
+      item.tries = (item.tries || 0) + 1;
+      if (_erroPermanente(json) || item.tries >= FILA_MAX_TENTATIVAS) {
+        _filaMorta(item, json.error || json.code); mortas++;
+      } else {
+        restante.push(item);
+      }
     }
-    localStorage.setItem('sigman_fila', JSON.stringify(restante));
-    if (!restante.length) showApiStatus('online');
+    // Junta o que entrou na fila enquanto enviávamos (sem isso o flush apagava esses itens).
+    const idsEnviados = new Set(fila.map(i => i.id));
+    const novos = _filaLer(FILA_KEY).filter(i => !i.id || !idsEnviados.has(i.id));
+    _filaGravar(FILA_KEY, restante.concat(novos));
+    if (!restante.length && !novos.length) showApiStatus('online');
   } catch(e) {
   } finally {
     _flushEmAndamento = false;
+    if (mortas) showToast('⚠️ ' + mortas + ' registro(s) pendente(s) foram recusados pelo servidor e separados (console: sigmanFilaMorta()). Confira se estão no sistema.', 'war', 9000);
   }
 }
 
-// Tenta reenviar fila a cada 30 segundos
+// Tenta reenviar a fila a cada 45 segundos
 setInterval(async () => {
-  const fila = JSON.parse(localStorage.getItem('sigman_fila') || '[]');
-  if (fila.length > 0) await apiFlushQueue();
+  if (_filaLer(FILA_KEY).length > 0) await apiFlushQueue();
 }, 45000);
 
 function showApiStatus(status) {
@@ -359,6 +464,7 @@ function apiAppend(sheet, row) {
 // Retorna { ok, numero, offline } — numero pode diferir do original em row
 // se houve retry; o caller deve atualizar seu registro local com esse valor.
 async function apiAppendComRetryNumero(sheet, row, numeroCol, prefixo, counterProp, maxTentativas = 5) {
+  const dono = (typeof CU !== 'undefined' && CU) ? CU.login : ''; // a sessão pode cair no meio do laço
   for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
     const res = await apiPost({ action:'append', sheet, row, usuario:(typeof CU!=='undefined'&&CU)?CU.nome:'' }, true);
     if (res && res.ok) return { ok:true, numero: row[numeroCol] };
@@ -371,8 +477,9 @@ async function apiAppendComRetryNumero(sheet, row, numeroCol, prefixo, counterPr
     }
     // Falha de rede (res===null) ou outro erro de validação: mantém o
     // número já calculado e enfileira para sync posterior, como sempre.
-    apiQueueFailed({ action:'append', sheet, row, usuario:(typeof CU!=='undefined'&&CU)?CU.nome:'' });
-    return { ok:false, numero: row[numeroCol], offline: res === null };
+    // Recusa permanente (sem permissão / dado inválido) não vai pra fila: reenviar só repetiria o erro.
+    if (!_erroPermanente(res)) apiQueueFailed({ action:'append', sheet, row, usuario:(typeof CU!=='undefined'&&CU)?CU.nome:'' }, dono);
+    return { ok:false, numero: row[numeroCol], offline: res === null, error: res && res.error, code: res && res.code };
   }
   return { ok:false, numero:null, error:'Não foi possível gerar número único após ' + maxTentativas + ' tentativas.' };
 }
@@ -430,6 +537,7 @@ async function apiLoadAll(silent = false, force = false) {
     return;
   }
   const json = await apiGet({ action: 'readAll' });
+  if (json && json.code === 'AUTH') return; // sessão caiu: authAplicarResposta já avisou e fez logout
   if (!json || !json.ok) {
     if (!silent) {
       showToast('⚠️ Sheets indisponível — exibindo dados do cache local.', 'er', 5000);
