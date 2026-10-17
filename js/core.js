@@ -51,7 +51,7 @@ async function syncServerTime() {
 function agoraServidorMs() { return Date.now() + _serverOffsetMs; }
 
 // Sincroniza no carregamento e a cada 5 min (corrige drift ao longo do turno)
-syncServerTime();
+setTimeout(syncServerTime, 4000); // atrasado: não compete com o readAll no cold start do Apps Script
 setInterval(syncServerTime, 5 * 60 * 1000);
 
 // ══════════════════════════════════════════════════════════════════════
@@ -226,23 +226,55 @@ function authAplicarResposta(json) {
 // ══════════════════════════════════════════════════════════════════════
 // API — comunicação com Google Sheets
 // ══════════════════════════════════════════════════════════════════════
+// GETs só de leitura: podem ser disparados em duplicidade (hedging) sem efeito colateral.
+const _GET_SEGURO = /^(ping|read\w*|planos_list|planos_get|previewPreventivas)$/;
+const GET_TIMEOUT_MS   = 20000; // por tentativa (cold start do Apps Script costuma levar 3–8s)
+const GET_HEDGE_MS     = 7000;  // sem resposta em 7s → dispara um 2º pedido em paralelo
+const GET_MAX_TENTATIVAS = 4;
+
+function _fetchJson(url, ms) {
+  return fetch(url, { signal: AbortSignal.timeout(ms) }).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+// Uma tentativa = 1 pedido; se for leitura segura e demorar (ou falhar cedo), um 2º pedido
+// corre junto e vale a primeira resposta boa.
+function _umaTentativaGet(url, hedge) {
+  return new Promise((resolve, reject) => {
+    let feito = false, ativos = 0, hedgeUsado = !hedge, timer = null;
+    const lanca = () => { ativos++; _fetchJson(url, GET_TIMEOUT_MS).then(ok, ko); };
+    const ok = j => { if (feito) return; feito = true; clearTimeout(timer); resolve(j); };
+    const ko = e => {
+      ativos--;
+      if (feito) return;
+      if (!hedgeUsado) { hedgeUsado = true; clearTimeout(timer); lanca(); return; } // falhou cedo: não espera os 7s
+      if (ativos === 0) { feito = true; clearTimeout(timer); reject(e); }
+    };
+    lanca();
+    if (hedge) timer = setTimeout(() => { if (!feito && !hedgeUsado) { hedgeUsado = true; lanca(); } }, GET_HEDGE_MS);
+  });
+}
+
 async function apiGet(params, _tentativa = 1) {
   if (!USE_API) return null;
-  const MAX_TENTATIVAS = 3;
-  const TIMEOUT_MS = 35000; // 35s cobre o cold start do Apps Script
+  const seguro = _GET_SEGURO.test(String(params && params.action));
+  // Leituras auxiliares esperam o readAll em andamento (evita várias chamadas frias ao mesmo tempo).
+  if (_tentativa === 1 && _cargaEmCurso && /^(readHistorico|readCompras|readInspecoes|readRacs|readManuaisSenhas)$/.test(String(params.action))) {
+    try { await _cargaEmCurso; } catch (_) {}
+  }
   try {
     const q = Object.entries({ ...params, token: getToken() }).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    const res = await fetch(API_URL + '?' + q, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
+    const json = await _umaTentativaGet(API_URL + '?' + q, seguro);
     authAplicarResposta(json);
     return json;
   } catch(e) {
     const isTimeout = e.name === 'TimeoutError' || e.name === 'AbortError';
-    console.warn(`[API GET] ${isTimeout ? 'Timeout' : 'Erro'} (tentativa ${_tentativa}/${MAX_TENTATIVAS}) — ${e.message}`);
-    if (_tentativa < MAX_TENTATIVAS) {
-      // Espera 3s antes de tentar novamente (deixa o Apps Script acordar)
-      await new Promise(r => setTimeout(r, 3000));
+    console.warn(`[API GET] ${isTimeout ? 'Timeout' : 'Erro'} (tentativa ${_tentativa}/${GET_MAX_TENTATIVAS}) — ${e.message}`);
+    if (_tentativa < GET_MAX_TENTATIVAS) {
+      // Espera crescente (2s, 4s, 6s): deixa o Apps Script acordar / o Google estabilizar
+      await new Promise(r => setTimeout(r, 2000 * _tentativa));
       return apiGet(params, _tentativa + 1);
     }
     // Todas as tentativas falharam — avisa visualmente
@@ -527,8 +559,56 @@ function driveThumb(url) {
 function normStr(v) { return v === null || v === undefined ? '' : String(v); }
 
 // ── Carrega todos os dados do Sheets ────────────────────────────────────
-async function apiLoadAll(silent = false, force = false) {
-  if (!USE_API) return;
+// ── Carga completa (readAll) com: 1 execução por vez, faixa de "dados desatualizados" e
+//    reconexão automática a cada 30s enquanto o Sheets não responder.
+let _cargaEmCurso = null;
+let _retryCargaTimer = null;
+
+// juntar=true: quem chama (login/polling) aceita aproveitar um pedido já em andamento mesmo com force.
+function apiLoadAll(silent = false, force = false, juntar = false) {
+  if (!USE_API) return Promise.resolve();
+  let p;
+  const fim = () => { if (_cargaEmCurso === p) _cargaEmCurso = null; };
+  if (_cargaEmCurso) {
+    // Leitura comum: compartilha o pedido em andamento.
+    if (!force || juntar) return _cargaEmCurso;
+    // force (pós-gravação / polling): NÃO pode aproveitar um pedido que começou antes da gravação
+    // (traria o estado antigo). Espera o atual terminar e faz um novo.
+    const anterior = _cargaEmCurso;
+    p = anterior.catch(() => {}).then(() => _apiLoadAllImpl(silent, true)).finally(fim);
+  } else {
+    p = _apiLoadAllImpl(silent, force).finally(fim);
+  }
+  _cargaEmCurso = p;
+  return p;
+}
+
+function _marcarDesatualizado(on) {
+  try { if (typeof setOffline === 'function') setOffline(on); } catch (_) {}
+  const q = document.getElementById('offline-quando');
+  if (q) {
+    const t = Number(localStorage.getItem('sigman_last_load') || 0);
+    q.textContent = t ? ' Última atualização: ' + new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.' : '';
+  }
+  clearTimeout(_retryCargaTimer); _retryCargaTimer = null;
+  if (on) {
+    if (typeof CU !== 'undefined' && CU) _retryCargaTimer = setTimeout(() => { apiRetryAgora(); }, 30000);
+  } else {
+    const b = document.getElementById('api-status-bar');
+    if (b && b.style.display !== 'none') showApiStatus('online'); // tira o aviso vermelho antigo
+  }
+}
+
+async function apiRetryAgora() {
+  clearTimeout(_retryCargaTimer); _retryCargaTimer = null;
+  if (typeof CU === 'undefined' || !CU) return;
+  const antes = Number(localStorage.getItem('sigman_last_load') || 0);
+  try { await apiLoadAll(true, true); } catch (_) {}
+  const depois = Number(localStorage.getItem('sigman_last_load') || 0);
+  if (depois > antes && typeof rerenderAtual === 'function') rerenderAtual();
+}
+
+async function _apiLoadAllImpl(silent = false, force = false) {
   // TTL: só vai ao Sheets se passou mais de CACHE_TTL_MS desde o último readAll
   // force=true é usado após gravações (append/update/delete) para garantir consistência
   const lastLoad = Number(localStorage.getItem('sigman_last_load') || 0);
@@ -539,6 +619,7 @@ async function apiLoadAll(silent = false, force = false) {
   const json = await apiGet({ action: 'readAll' });
   if (json && json.code === 'AUTH') return; // sessão caiu: authAplicarResposta já avisou e fez logout
   if (!json || !json.ok) {
+    _marcarDesatualizado(true);
     if (!silent) {
       showToast('⚠️ Sheets indisponível — exibindo dados do cache local.', 'er', 5000);
       console.warn('[SIGMAN] Sheets indisponível, usando cache local');
@@ -546,6 +627,7 @@ async function apiLoadAll(silent = false, force = false) {
     return;
   }
   localStorage.setItem('sigman_last_load', String(Date.now()));
+  _marcarDesatualizado(false);
   const d = json.data;
 
   // Helper: parse array de fotos, com fallback lazy para Foto_URL (registros antigos)

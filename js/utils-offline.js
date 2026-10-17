@@ -43,8 +43,8 @@ async function init() {
         enterApp();
         document.getElementById('loading-screen').style.display = 'none';
         if (USE_API) {
-          apiLoadAll(false, true).then(() => { // não silencioso: loga "✅ Dados carregados do Sheets"
-            setOffline(false);
+          apiLoadAll(false, true, true).then(() => { // não silencioso: loga "✅ Dados carregados do Sheets"
+            // faixa de offline é controlada por apiLoadAll (_marcarDesatualizado)
             revalidarSessao();
             if (!CU) return;
             updStats(); updateNavDots();
