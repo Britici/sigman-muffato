@@ -87,6 +87,8 @@
 
   <main class="cont">
 
+   <div id="offline-banner">⚠️ <strong>Sheets indisponível</strong> — exibindo dados do cache local.<span id="offline-quando"></span> Tentando reconectar sozinho… <button class="btn btn-sm btn-gh" onclick="apiRetryAgora()" style="margin-left:auto;padding:0 10px;height:30px">Tentar agora</button></div>
+
    <!-- DASHBOARD -->
    <div class="pg" id="pg-dashboard">
     <div class="ph" style="flex-wrap:wrap;gap:8px;align-items:flex-end">
@@ -116,7 +118,6 @@
      <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:0 12px;height:34px;box-sizing:border-box">📄 PDF</button>
     </div>
     <div id="dash-banner" style="display:none"></div>
-    <div id="offline-banner">⚠️ <strong>Modo offline</strong> — dados do Google Sheets indisponíveis. Exibindo cache local.</div>
     <div class="stats" id="d-stats"></div>
 
   <!-- Disponibilidade + Meta PCM + Tendência na mesma linha -->
@@ -809,10 +810,10 @@
      </div>
   </div></div>
   
-  <script src="js/core.js?v=202610151100"></script>
+  <script src="js/core.js?v=202610171200"></script>
   <script src="js/helpers.js?v=202610151700"></script>
   <script src="js/modais-helpers.js?v=202608261950"></script>
-  <script src="js/utils-offline.js?v=202610171100"></script>
+  <script src="js/utils-offline.js?v=202610171200"></script>
   <script src="js/dashboard.js?v=202610151700"></script>
   <script src="js/os-planejadas.js?v=202608261950"></script>
   <script src="js/os-executadas.js?v=202608261950"></script>
@@ -886,16 +887,19 @@ async function doLogin() {
 function posLoginCarregar() {
   apiFlushQueue(); // reenvia o que ficou pendente deste usuário
   if (typeof USE_API === 'undefined' || !USE_API) return;
-  apiLoadAll(false, true).then(() => { // não silencioso: loga "✅ Dados carregados do Sheets"
-    if (!CU) return;
-    populateAll(); updStats(); updateNavDots();
-    const pgAtual = document.querySelector('.pg.on');
-    const pid = pgAtual ? pgAtual.id.replace('pg-', '') : '';
-    if (pid === 'dashboard')   renderDash();
-    if (pid === 'planejadas')  renderPlan();
-    if (pid === 'executadas')  renderExec();
-    if (pid === 'solicitacao') renderSol();
-  }).catch(() => {});
+  apiLoadAll(false, true, true).then(rerenderAtual).catch(() => {}); // não silencioso: loga "✅ Dados carregados do Sheets"
+}
+
+// Redesenha a tela atual com os dados recém-carregados.
+function rerenderAtual() {
+  if (!CU) return;
+  populateAll(); updStats(); updateNavDots();
+  const pgAtual = document.querySelector('.pg.on');
+  const pid = pgAtual ? pgAtual.id.replace('pg-', '') : '';
+  if (pid === 'dashboard')   renderDash();
+  if (pid === 'planejadas')  renderPlan();
+  if (pid === 'executadas')  renderExec();
+  if (pid === 'solicitacao') renderSol();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1020,7 +1024,7 @@ function enterApp() {
   // Inicia polling de atualização automática (só admin e manut)
   if (CU.tipo !== 'producao') {
     _pollTimer = setInterval(async () => {
-      await apiLoadAll(true, true);
+      await apiLoadAll(true, true, true);
       revalidarSessao();
       if (!CU) return;
       updStats();
