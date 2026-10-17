@@ -91,29 +91,29 @@
    <div class="pg" id="pg-dashboard">
     <div class="ph" style="flex-wrap:wrap;gap:8px;align-items:flex-end">
      <div class="pt"><small>Visão Geral</small>Dashboard</div>
-     <span id="dash-alert-ico" class="blink-ico" style="display:none;align-self:center;cursor:pointer" title="Há solicitação em aberto ou O.S. planejada atrasada" onclick="irParaAlertaDash()">⚠️</span>
-     <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 10px;font-size:14px;font-family:var(--fw);font-weight:600;cursor:pointer">
+     <span id="dash-alert-ico" class="blink-ico" style="display:none;align-self:flex-end;align-items:center;justify-content:center;height:34px;box-sizing:border-box;font-size:24px;line-height:1;cursor:pointer" title="Há solicitação em aberto ou O.S. planejada atrasada" onclick="irParaAlertaDash()">⚠️</span>
+     <select id="dash-periodo" onchange="renderDash()" style="background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:0 10px;height:34px;box-sizing:border-box;font-size:14px;font-family:var(--fw);font-weight:600;cursor:pointer">
       <option value="dia">Hoje</option>
       <option value="semana">Últimos 7 dias</option>
       <option value="mes" selected>Mês</option>
       <option value="ano">Ano</option>
       <option value="custom">Período Customizado</option>
      </select>
-     <div id="dash-custom-dates" style="display:none;gap:8px;align-items:center">
+     <div id="dash-custom-dates" style="display:none;gap:8px;align-items:center;height:34px">
       <label style="font-size:14px;color:var(--txt3);font-weight:600">Data Inicial:</label>
       <input type="hidden" id="dash-dt-ini">
-      <input type="text" id="dash-dt-ini_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:14px;width:100px">
+      <input type="text" id="dash-dt-ini_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:0 8px;height:34px;box-sizing:border-box;font-size:14px;width:100px">
       <label style="font-size:14px;color:var(--txt3);font-weight:600">Data Final:</label>
       <input type="hidden" id="dash-dt-fim">
-      <input type="text" id="dash-dt-fim_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:5px 8px;font-size:14px;width:100px">
+      <input type="text" id="dash-dt-fim_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" onchange="renderDash()" style="background:var(--inp);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:0 8px;height:34px;box-sizing:border-box;font-size:14px;width:100px">
      </div>
-     <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;padding:5px 2px;flex-shrink:0">
+     <div id="dash-rf-bar" style="display:flex;align-items:center;gap:6px;padding:0 2px;height:34px;flex-shrink:0">
        <span class="rf-dot off" id="rf-dot"></span>
-       <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:4px 10px">🔄 Atualizar</button>
-       <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:4px 10px;cursor:pointer;font-size:13px;font-family:var(--fw);font-weight:700">▶ 15s</button>
+       <button class="btn btn-sm btn-gh" onclick="renderDash()" style="padding:0 10px;height:34px;box-sizing:border-box">🔄 Atualizar</button>
+       <button class="btn btn-sm" id="rf-btn" onclick="toggleDashRefresh()" style="background:var(--surf3);color:var(--txt2);border:1px solid var(--bord);border-radius:var(--rs);padding:0 10px;height:34px;box-sizing:border-box;cursor:pointer;font-size:13px;font-family:var(--fw);font-weight:700">▶ 15s</button>
        <span id="rf-lbl" style="font-size:13px;color:var(--txt3);white-space:nowrap">Desligada</span>
      </div>
-     <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:5px 12px">📄 PDF</button>
+     <button class="btn btn-sm btn-gh" onclick="exportDashPDF()" style="margin-left:auto;padding:0 12px;height:34px;box-sizing:border-box">📄 PDF</button>
     </div>
     <div id="dash-banner" style="display:none"></div>
     <div id="offline-banner">⚠️ <strong>Modo offline</strong> — dados do Google Sheets indisponíveis. Exibindo cache local.</div>
@@ -812,7 +812,7 @@
   <script src="js/core.js?v=202610151100"></script>
   <script src="js/helpers.js?v=202610151700"></script>
   <script src="js/modais-helpers.js?v=202608261950"></script>
-  <script src="js/utils-offline.js?v=202610141000"></script>
+  <script src="js/utils-offline.js?v=202610171100"></script>
   <script src="js/dashboard.js?v=202610151700"></script>
   <script src="js/os-planejadas.js?v=202608261950"></script>
   <script src="js/os-executadas.js?v=202608261950"></script>
@@ -822,8 +822,8 @@
   <script src="js/usuarios.js?v=202608261950"></script>
   <script src="js/preventiva.js?v=202608261950"></script>
   <script src="js/racr.js?v=202608261950"></script>
-  <script src="js/modulo-compras-solicitacao.js?v=202608261950"></script>
-  <script src="js/modulo-compras-acompanhamento.js?v=202610141000"></script>
+  <script src="js/modulo-compras-solicitacao.js?v=202610171000"></script>
+  <script src="js/modulo-compras-acompanhamento.js?v=202610171000"></script>
   <script src="js/manuais-senhas.js?v=202608261950"></script>
   
 <script>
@@ -886,7 +886,7 @@ async function doLogin() {
 function posLoginCarregar() {
   apiFlushQueue(); // reenvia o que ficou pendente deste usuário
   if (typeof USE_API === 'undefined' || !USE_API) return;
-  apiLoadAll(true, true).then(() => {
+  apiLoadAll(false, true).then(() => { // não silencioso: loga "✅ Dados carregados do Sheets"
     if (!CU) return;
     populateAll(); updStats(); updateNavDots();
     const pgAtual = document.querySelector('.pg.on');

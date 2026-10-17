@@ -1307,11 +1307,20 @@ function uploadFoto(numero, fileName, mimeType, base64) {
     if (typeof base64 !== 'string' || !base64.length) return { ok: false, code: 'VALIDATION', error: 'Arquivo vazio.' };
     if (base64.length > UPLOAD_MAX_B64) return { ok: false, code: 'VALIDATION', error: 'Arquivo grande demais (máx. ~10 MB).' };
     mimeType = String(mimeType || 'image/jpeg').toLowerCase();
-    if (!/^image\/(jpeg|jpg|png|webp|gif|heic|heif)$/.test(mimeType)) {
-      return { ok: false, code: 'VALIDATION', error: 'Tipo de arquivo não permitido (só imagem).' };
+    if (!/^(image\/(jpeg|jpg|png|webp|gif|heic|heif)|application\/pdf)$/.test(mimeType)) {
+      return { ok: false, code: 'VALIDATION', error: 'Tipo de arquivo não permitido (só imagem ou PDF).' };
+    }
+    var ehPdf = (mimeType === 'application/pdf');
+    if (ehPdf) {
+      var cab;
+      try { cab = Utilities.base64Decode(base64.substring(0, 8)); } catch (e) { cab = []; }
+      if (String.fromCharCode(cab[0] & 255, cab[1] & 255, cab[2] & 255, cab[3] & 255) !== '%PDF') {
+        return { ok: false, code: 'VALIDATION', error: 'Arquivo não é um PDF válido.' };
+      }
     }
     numero   = String(numero || 'SEM_NUMERO').replace(/[^A-Za-z0-9_\-]/g, '_').substring(0, 60);
-    fileName = String(fileName || (numero + '.jpg')).replace(/[\\\/:*?"<>|]/g, '_').substring(0, 100);
+    fileName = String(fileName || (numero + (ehPdf ? '.pdf' : '.jpg'))).replace(/[\\\/:*?"<>|]/g, '_').substring(0, 100);
+    if (ehPdf && !/\.pdf$/i.test(fileName)) fileName += '.pdf';
     var rootFolder    = DriveApp.getRootFolder();
     var sigmanFolders = rootFolder.getFoldersByName('sigman');
     var sigmanFolder  = sigmanFolders.hasNext()
