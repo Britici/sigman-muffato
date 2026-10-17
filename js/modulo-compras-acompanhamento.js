@@ -441,9 +441,14 @@ async function _carregarOrdens(el, _tentativa = 1) {
   if (_tentativa === 1) lista.innerHTML = `<div class="cac-empty">Carregando ordens...</div>`;
   else lista.innerHTML = `<div class="cac-empty">⏳ Servidor demorando a responder — tentativa ${_tentativa}/${MAX_TENT}...</div>`;
   try {
-    const r = await fetch(`${_opts.gsUrl}?action=read&sheet=compras`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const r = await fetch(`${_opts.gsUrl}?action=read&sheet=compras&token=${encodeURIComponent(getToken())}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
+    authAplicarResposta(d);
+    if (d && d.ok === false) { // sem sessão / sem permissão: não adianta tentar de novo
+      lista.innerHTML = `<div class="cac-empty">❌ ${_esc(d.error || 'Acesso negado.')}</div>`;
+      return;
+    }
     _ordens = (d.data || []).sort((a, b) =>
       new Date(b.Data_Solicitacao) - new Date(a.Data_Solicitacao));
     _popularFiltroSala(el);
@@ -589,9 +594,10 @@ function _buildCard(ordem) {
 
   /* Fotos iniciais */
   const fotosIniciaisHtml = fotos.length
-    ? '<div class="cac-fotos-grid"><span class="cac-fotos-label">📎 Fotos da Solicitação</span>' +
-      fotos.map(url =>
-        '<img class="cac-photo-thumb" loading="lazy" decoding="async" src="' + _esc(driveThumb(url)) + '" data-full="' + _esc(driveThumb(url)) + '" alt="Foto">'
+    ? '<div class="cac-fotos-grid"><span class="cac-fotos-label">📎 Fotos / PDF da Solicitação</span>' +
+      fotos.map(url => /#pdf$/.test(url)
+        ? '<a href="' + _esc(url.replace(/#pdf$/, '')) + '" target="_blank" rel="noopener" title="Abrir PDF" style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:6px;border:1px solid var(--bord);background:var(--surf2);font-size:28px;text-decoration:none">📄</a>'
+        : '<img class="cac-photo-thumb" loading="lazy" decoding="async" src="' + _esc(driveThumb(url)) + '" data-full="' + _esc(driveThumb(url)) + '" alt="Foto">'
       ).join('') +
       '</div>'
     : '';
@@ -943,10 +949,12 @@ async function _post(url, payload, _tentativa = 1) {
   try {
     const r = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(comToken(payload)),
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
-    return await r.json();
+    const j = await r.json();
+    authAplicarResposta(j);
+    return j;
   } catch (e) {
     if (_tentativa < MAX_TENT) {
       await new Promise(res => setTimeout(res, 3000));

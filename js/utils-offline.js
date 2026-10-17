@@ -25,6 +25,8 @@ async function init() {
   loadTheme();
   loadDB();
 
+  // v14: sessão aberta antes da autenticação no servidor (sem token) não vale mais.
+  if (localStorage.getItem('sigman_sess') && !getToken()) localStorage.removeItem('sigman_sess');
   const sess = localStorage.getItem('sigman_sess');
   if (sess) {
     try {
@@ -41,7 +43,7 @@ async function init() {
         enterApp();
         document.getElementById('loading-screen').style.display = 'none';
         if (USE_API) {
-          apiLoadAll(true, true).then(() => {
+          apiLoadAll(false, true).then(() => { // não silencioso: loga "✅ Dados carregados do Sheets"
             setOffline(false);
             revalidarSessao();
             if (!CU) return;
@@ -60,10 +62,8 @@ async function init() {
     localStorage.removeItem('sigman_sess');
   }
 
-  if (USE_API) {
-    try { await apiLoadAll(false, true); setOffline(false); }
-    catch(e) { setOffline(true); }
-  }
+  // v14: sem token não há readAll na tela de login (os dados carregam após o login,
+  // em posLoginCarregar). O ping de syncServerTime já acorda o Apps Script.
 
   sv('ab-dt',today()); sv('mc-dt',today()); sv('insp-dt',today());
   document.getElementById('loading-screen').style.display='none';

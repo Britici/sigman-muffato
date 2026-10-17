@@ -277,7 +277,7 @@
     <!-- FOTOS -->
     <div class="csl-section">
       <div class="csl-section-title">
-        <span class="csl-section-dot"></span>Fotos
+        <span class="csl-section-dot"></span>Fotos ou PDF
         <span class="opt" style="margin-left:6px">(opcional)</span>
       </div>
       <div id="csl-drop" class="csl-foto-drop">
@@ -286,8 +286,8 @@
           <circle cx="8.5" cy="8.5" r="1.5"/>
           <polyline points="21 15 16 10 5 21"/>
         </svg>
-        📷 Clique para anexar fotos ou arraste aqui
-        <input type="file" id="csl-foto-input" accept="image/*" multiple style="display:none">
+        📷 Clique para anexar fotos ou PDF, ou arraste aqui
+        <input type="file" id="csl-foto-input" accept="image/*,application/pdf,.pdf" multiple style="display:none">
       </div>
       <div id="csl-preview" class="csl-foto-preview"></div>
     </div>
@@ -343,6 +343,21 @@
 
   function _addFotos(files, el) {
     files.forEach(async f => {
+      const ehPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      if (ehPdf) {
+        // PDF vai sem compressão. Limite 9 MB (base64 cresce ~33%; servidor aceita ~10 MB).
+        if (f.size > 9 * 1024 * 1024) { _toast(el, 'PDF "' + f.name + '" maior que 9 MB.', 'err'); return; }
+        const b64 = await new Promise((ok, no) => {
+          const rd = new FileReader();
+          rd.onload = () => ok(String(rd.result).split(',')[1] || '');
+          rd.onerror = () => no(rd.error);
+          rd.readAsDataURL(f);
+        }).catch(() => '');
+        if (!b64) { _toast(el, 'Não consegui ler o PDF "' + f.name + '".', 'err'); return; }
+        _fotos.push({ name: f.name, mime: 'application/pdf', b64, pdf: true });
+        _renderPreview(el);
+        return;
+      }
       if (!f.type.startsWith('image/')) return;
       // _compressFile (definida em index.html, mesma usada na abertura de
       // OS): redimensiona pra no máx 1920x1080 e comprime até ~1MB. Antes
@@ -358,7 +373,9 @@
     const c = el.querySelector('#csl-preview');
     c.innerHTML = _fotos.map((f, i) => `
       <div class="csl-thumb">
-        <img src="data:${f.mime};base64,${f.b64}" alt="${_esc(f.name)}">
+        ${f.pdf
+          ? '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:34px;background:var(--surf2)">📄</div>'
+          : `<img src="data:${f.mime};base64,${f.b64}" alt="${_esc(f.name)}">`}
         <button type="button" class="csl-thumb-del" data-i="${i}" title="Remover">✕</button>
         <span class="csl-thumb-name">${_esc(f.name)}</span>
       </div>`).join('');
@@ -417,9 +434,9 @@
           base64:   f.b64
         }, true);
         if (!r || !r.ok || !r.fileUrl) {
-          throw new Error(`Falha ao enviar a foto "${f.name}" (conexão lenta ou instável). Tente novamente.`);
+          throw new Error(`Falha ao enviar o arquivo "${f.name}" (conexão lenta ou instável). Tente novamente.`);
         }
-        return r.fileUrl;
+        return f.pdf ? r.fileUrl + '#pdf' : r.fileUrl;
       }));
 
       /* 2 — Criar ordem
