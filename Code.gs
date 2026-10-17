@@ -316,7 +316,7 @@ function logGravacao(usuario, acao, sheetKey, idRef, status, detalhe) {
 // ═══════════════════════════════════════════════════════════════════════════
 // SESSÃO E AUTORIZAÇÃO (v14)
 // ═══════════════════════════════════════════════════════════════════════════
-var AUTH_ENFORCE     = false;            // true = exige token em toda ação (exceto ping/login)
+var AUTH_ENFORCE     = true;             // true = exige token em toda ação (exceto ping/login)
 var SESSAO_IDLE_H    = 12;               // validade a partir do último uso
 var SESSAO_MAX_H     = 168;              // teto absoluto desde o login (7 dias)
 var SESSAO_RENOVA_MS = 30 * 60 * 1000;   // só emite token novo se o atual tem mais de 30 min
