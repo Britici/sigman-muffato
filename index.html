@@ -810,10 +810,10 @@
      </div>
   </div></div>
   
-  <script src="js/core.js?v=202610171200"></script>
+  <script src="js/core.js?v=202610182030"></script>
   <script src="js/helpers.js?v=202610151700"></script>
   <script src="js/modais-helpers.js?v=202608261950"></script>
-  <script src="js/utils-offline.js?v=202610171200"></script>
+  <script src="js/utils-offline.js?v=202610171700"></script>
   <script src="js/dashboard.js?v=202610151700"></script>
   <script src="js/os-planejadas.js?v=202608261950"></script>
   <script src="js/os-executadas.js?v=202608261950"></script>
@@ -876,6 +876,7 @@ async function doLogin() {
     return;
   }
 
+  garantirDonoDoCache(user); // cache local de outro login/perfil é descartado antes de abrir qualquer tela
   CU = user;
   localStorage.setItem('sigman_sess', JSON.stringify({ login, user }));
   enterApp();
@@ -938,6 +939,7 @@ async function confirmarTrocaSenha() {
   if (!res.ok || !res.token) { lAlert(res.error || 'Não foi possível salvar a nova senha.'); return; }
   setToken(res.token); // token completo; o restrito deixou de valer
 
+  garantirDonoDoCache(_pendingLoginUser);
   CU = { ..._pendingLoginUser, mudarSenha: false };
   localStorage.setItem('sigman_sess', JSON.stringify({ login, user: CU }));
   _pendingLoginUser = null;
@@ -970,6 +972,11 @@ function doLogout() {
 // ══════════════════════════════════════════════════════════════════════
 function revalidarSessao() {
   if (!CU) return;
+  // v15: o servidor só manda a lista de usuários a administração e manutenção.
+  // Sem a lista (produção, diretoria) não há o que comparar — e NÃO pode derrubar
+  // a sessão por isso. Para esses perfis, quem encerra a sessão é o servidor: a cada
+  // chamada ele confere usuário ativo e versão da senha e responde AUTH (sessaoInvalida).
+  if (!db.usuarios || !db.usuarios.length) return;
   const fresh = db.usuarios.find(x => x.login === CU.login);
   if (!fresh || fresh.ativo === false || fresh.mudarSenha === true) {
     if (typeof showToast === 'function') {

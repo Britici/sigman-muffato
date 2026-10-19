@@ -4,6 +4,14 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v15 — readAll FILTRADO POR PERFIL (AUTH_ENFORCE = true)
+//   • readAll só devolve as abas que o perfil pode ler (ACL_LEITURA); as demais
+//     voltam como [] (o cliente não quebra) e nem são lidas da planilha.
+//   • ACL_LEITURA é a ÚNICA fonte: a action 'read' e o readAll usam a mesma tabela.
+//     Antes o readAll ignorava a ACL e mandava até 'preventiva' para todo login.
+//   • O cache do readAll agora é POR PERFIL (chave 'ra:<gen>:<perfil>:').
+//   • Perfil fora da lista (Tipo_Acesso com erro de digitação) recebe tudo vazio.
+//
 // v14 — SEGURANÇA: sessão por token + permissão por perfil no servidor
 //   • login emite token assinado (HMAC-SHA256, segredo em Script Properties).
 //     Validade ociosa 12h (renovada a cada uso, no máx. a cada 30 min) e teto
@@ -120,15 +128,18 @@ function invalidarCacheReadAll_() {
   }
 }
 
-// Devolve o JSON (string) de readAll(), do cache quando possível.
-function readAllJson_() {
+// Devolve o JSON (string) de readAll(sess), do cache quando possível.
+// O cache é por perfil: cada perfil enxerga um conjunto diferente de abas.
+// sess === null (modo compatível, sem token) usa a chave '*' e recebe tudo.
+function readAllJson_(sess) {
   var cache = null;
   var gen = '0';
   var prefixo = '';
+  var perfilChave = sess ? String(sess.tipo || '').replace(/[^a-z0-9_]/g, '').substring(0, 30) : '*';
   try {
     cache   = CacheService.getScriptCache();
     gen     = cacheGenReadAll_(cache);
-    prefixo = 'ra:' + gen + ':';
+    prefixo = 'ra:' + gen + ':' + perfilChave + ':';
     var n = parseInt(cache.get(prefixo + 'n'), 10);
     if (n > 0) {
       var keys = [];
@@ -147,7 +158,7 @@ function readAllJson_() {
     cache = null;
   }
 
-  var json = JSON.stringify(readAll());
+  var json = JSON.stringify(readAll(sess));
 
   if (cache) {
     try {
@@ -340,10 +351,18 @@ var P_GEST  = [P_ADM, P_MAN, P_DIR];
 // Mantenha estas tabelas e ROLES (js/core.js) iguais: tela sem permissão no servidor
 // aparece como erro, e permissão sem tela é superfície de ataque à toa.
 
-// Leitura por aba (action 'read' e variantes).
+// Leitura por aba. Vale para a action 'read' e variantes E para o readAll (v15).
+//   produção   → salas, maquinas (listas do formulário) e solicitacoes
+//   diretoria  → + ordens, planejadas, configuracoes (Dashboard e O.S. Executadas)
+//   manutenção → + usuarios (seletor de manutentor)
+//   administração → tudo
+// configuracoes só é usada pelo Dashboard; usuarios, só pelos seletores de
+// manutentor e pela tela de Administração. Contadores osC/plC/solC do cliente
+// vêm de ordens/planejadas/solicitacoes: cada perfil lê a aba em que cria registro.
 var ACL_LEITURA = {
-  salas: P_TODOS, maquinas: P_TODOS, usuarios: P_TODOS, ordens: P_TODOS,
-  planejadas: P_TODOS, solicitacoes: P_TODOS, configuracoes: P_TODOS,
+  salas: P_TODOS, maquinas: P_TODOS, solicitacoes: P_TODOS,
+  ordens: P_GEST, planejadas: P_GEST, configuracoes: P_GEST,
+  usuarios: P_OPER,
   inspecoes: P_OPER, racs: [P_ADM], historico: P_GEST, compras: P_GEST,
   preventiva: [P_ADM], manuaisSenhas: P_OPER
 };
@@ -559,7 +578,7 @@ function doGet(e) {
     var nega = null;
     switch (p.action) {
       case 'readAll':
-        return respRaw_('{"ok":true,"data":' + readAllJson_() + '}', sess);
+        return respRaw_('{"ok":true,"data":' + readAllJson_(sess) + '}', sess);
       case 'read':
         nega = checarLeitura_(sess, p.sheet);
         return resp_(nega || { ok: true, data: readSheet(p.sheet) }, sess);
@@ -710,10 +729,12 @@ function readSheet(key) {
   return arr;
 }
 
-function readAll() {
+// sess === null (modo compatível) lê tudo; com sessão, só as abas de ACL_LEITURA
+// do perfil (negada = [] e a aba nem é aberta). Aba fora de ACL_LEITURA = negada.
+function readAll(sess) {
   var r = {};
   Object.keys(SHEET_NAMES).forEach(function(k) {
-    if (SKIP_READ_ALL.indexOf(k) >= 0) {
+    if (SKIP_READ_ALL.indexOf(k) >= 0 || !own_(ACL_LEITURA, k) || !pode_(sess, ACL_LEITURA[k])) {
       r[k] = [];
       return;
     }
