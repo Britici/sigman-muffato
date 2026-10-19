@@ -145,23 +145,26 @@ const INSP_TMPL = [
 // ══════════════════════════════════════════════════════════════════════
 // BANCO DE DADOS LOCAL (cache em memória + localStorage)
 // ══════════════════════════════════════════════════════════════════════
-let db = {
-  salas: [],
-  maquinas: [],
-  ordens: [],
-  planejadas: [],
-  solicitacoes: [],
-  inspecoes: [],
-  usuarios: [],
-  configuracoes: {
-    horas_turno_1: 7.1, horas_turno_2: 7.1, horas_turno_3: 0,
-    meta_disponibilidade: 91, meta_performance: 90, meta_qualidade: 99
-  },
-  osC:1, plC:1, solC:1, inspC:1,
-  historico: [],
-  racs: [],
-  manuaisSenhas: []
-};
+function dbPadrao() {
+  return {
+    salas: [],
+    maquinas: [],
+    ordens: [],
+    planejadas: [],
+    solicitacoes: [],
+    inspecoes: [],
+    usuarios: [],
+    configuracoes: {
+      horas_turno_1: 7.1, horas_turno_2: 7.1, horas_turno_3: 0,
+      meta_disponibilidade: 91, meta_performance: 90, meta_qualidade: 99
+    },
+    osC:1, plC:1, solC:1, inspC:1,
+    historico: [],
+    racs: [],
+    manuaisSenhas: []
+  };
+}
+let db = dbPadrao();
 
 // ══════════════════════════════════════════════════════════════════════
 // CONTROLE DE ACESSO (menus por nível)
@@ -577,6 +580,14 @@ function apiLoadAll(silent = false, force = false, juntar = false) {
     const anterior = _cargaEmCurso;
     p = anterior.catch(() => {}).then(() => _apiLoadAllImpl(silent, true)).finally(fim);
   } else {
+    // Cache local ainda válido e carga não forçada: não há o que buscar. Isto NÃO pode virar
+    // "carga em curso": um pedido que não fez nada, registrado como carga, era aproveitado
+    // (juntar) por quem pediu carga FORÇADA. No F5 (showPage chama apiLoadAll(true) antes do
+    // init pedir a forçada) o readAll nunca saía, db.usuarios ficava vazio e o app deslogava.
+    if (!force && (Date.now() - Number(localStorage.getItem('sigman_last_load') || 0)) < CACHE_TTL_MS) {
+      if (!silent) console.log('[SIGMAN] Cache válido — readAll ignorado');
+      return Promise.resolve();
+    }
     p = _apiLoadAllImpl(silent, force).finally(fim);
   }
   _cargaEmCurso = p;
@@ -898,4 +909,35 @@ function loadDB() {
     const r = localStorage.getItem('sigman_v4');
     if (r) Object.assign(db, JSON.parse(r));
   } catch(e) {}
+}
+
+// ── Dono do cache local (v15) ──────────────────────────────────────────
+// O cache 'sigman_v4' guarda os dados do último login deste navegador. Como o
+// servidor agora entrega a cada perfil só o que ele pode ver, um login de
+// perfil menor NÃO pode herdar o cache de um perfil maior (o cliente ignora
+// listas vazias e manteria os dados antigos). Quando o dono (login|perfil)
+// muda, o cache local e a memória são zerados antes de qualquer tela abrir.
+// Rascunhos de RACR ainda não enviados são preservados (não são recuperáveis).
+// A fila offline (sigman_fila) NÃO é tocada: ela já se protege por usuário.
+const DONO_CACHE_KEY = 'sigman_dono';
+
+function garantirDonoDoCache(user) {
+  if (!user || !user.login) return;
+  const dono = String(user.login).toLowerCase() + '|' + String(user.tipo || '');
+  let atual = null;
+  try { atual = localStorage.getItem(DONO_CACHE_KEY); } catch(e) {}
+  if (atual === dono) return;
+
+  let rascunhos = [];
+  try {
+    const r = JSON.parse(localStorage.getItem('sigman_v4') || '{}');
+    rascunhos = (r.racs || []).filter(x => x && x.status === 'Rascunho');
+  } catch(e) {}
+
+  Object.keys(db).forEach(k => delete db[k]);
+  Object.assign(db, dbPadrao());
+  try { localStorage.removeItem('sigman_v4'); } catch(e) {}
+  try { localStorage.removeItem('sigman_last_load'); } catch(e) {} // força carga completa em seguida
+  if (rascunhos.length) { db.racs = rascunhos; saveDB(); }
+  try { localStorage.setItem(DONO_CACHE_KEY, dono); } catch(e) {}
 }

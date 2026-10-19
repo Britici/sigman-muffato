@@ -39,6 +39,7 @@ async function init() {
       }
 
       if (u) {
+        garantirDonoDoCache(u); // cache local de outro login/perfil é descartado antes de abrir qualquer tela
         CU = u;
         enterApp();
         document.getElementById('loading-screen').style.display = 'none';
