@@ -188,52 +188,17 @@ function clearSol() {
 }
 
 function renderSol() {
-  const sortVal = (document.getElementById('sol-sort') || {}).value || 'numero-desc';
-  const [col, dir] = sortVal.split('-');
-  const prioMap = { '1':1, 'Alta':2, '2':2, 'Média':3, '3':3, 'Baixa':4, '4':4 };
-  const stMap   = { 'Não Executada':1, 'Concluída':2, 'Executada':3 };
-  let list = [...db.solicitacoes];
-  // v14: produção vê TODAS as solicitações (sem filtro por solicitante)
-  list.sort((a, b) => {
-    let va = a[col] || '', vb = b[col] || '';
-    if (col === 'prioridade') { va = prioMap[va] || 9; vb = prioMap[vb] || 9; return dir === 'asc' ? va - vb : vb - va; }
-    if (col === 'status')     { va = stMap[va]   || 9; vb = stMap[vb]   || 9; return dir === 'asc' ? va - vb : vb - va; }
-    const cmp = va.localeCompare(vb, 'pt-BR', { numeric: true });
-    return dir === 'asc' ? cmp : -cmp;
-  });
   const c = document.getElementById('sol-lista');
   if (!c) return; // tela de Solicitação não está aberta nesta página (ex.: chamado via aba de Planejadas)
   const cC = document.getElementById('sol-lista-concluidas');
-  const rowHtml = s => {
-    const osGerada = (db.ordens.find(o => o.origem==='sol' && o.origemNum===s.numero)||{}).numero;
-    return `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bord);gap:10px">
-      <div>
-        <span class="osn">${s.numero}</span>${osGerada?` <span style="font-size:11px;color:var(--txt2)">(${osGerada})</span>`:''}
-        <div style="font-size:15px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
-        <div style="font-size:13px;color:var(--txt3)">${fd((s.criadoEm||'').slice(0,10))} · ${s.solicitante}</div>
-        <div style="font-size:14px;color:var(--txt2);margin-top:3px">${s.desc}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        ${prio(s.prioridade)}${stBadge(s.status)}
-        ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))&&s.status==='Não Executada'
-          ?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`:''}
-        ${osGerada
-          ?`<button class="btn btn-sm btn-gh" onclick="verDet('${osGerada}','os')">Ver</button>`
-          :`<button class="btn btn-sm btn-gh" onclick="verDet('${s.numero}','sol')">Ver</button>`}
-      </div>
-    </div>`;
-  };
-
+  // v14: produção vê TODAS as solicitações (sem filtro por solicitante)
+  // Mesmo visual da aba Solicitações de Planejadas (tabela de os-planejadas.js).
+  const list = [...db.solicitacoes];
+  ordenarSol_(list, solPgSort);
   const naoConcl = list.filter(s => s.status !== 'Concluída');
   const concl    = list.filter(s => s.status === 'Concluída');
-
-  c.innerHTML = naoConcl.length ? naoConcl.map(rowHtml).join('')
-    : '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação não concluída.</p></div>';
-  if (cC) {
-    cC.innerHTML = concl.length ? concl.map(rowHtml).join('')
-      : '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação concluída.</p></div>';
-  }
+  c.innerHTML = solTabelaHtml_(naoConcl, true, 'Nenhuma solicitação não concluída.', solPgSort, 'sortSolPg');
+  if (cC) cC.innerHTML = solTabelaHtml_(concl, false, 'Nenhuma solicitação concluída.', solPgSort, 'sortSolPg');
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -260,6 +225,7 @@ function abrirConcluir(id, tipo) {
     </div>`;
   sv('mc-dt',today()); sv('mc-mn',CU?CU.nome:'');
   ['mc-in','mc-fm','mc-ds','mc-parada'].forEach(fid=>sv(fid,''));
+  clearPhotos('mc'); // fotos da conclusão (opcional)
   openM('m-con');
 }
 
@@ -277,13 +243,16 @@ async function concluir() {
     : db.solicitacoes.find(x=>x.numero===_cid);
   if (!item) { showToast('Item não encontrado. Recarregue a página e tente novamente.','er'); return; }
   const agora=new Date().toISOString();
+  // Número da OS e fotos da conclusão: sobe antes de gravar, com o modal ainda aberto
+  // (botão em "ocupado"), no mesmo padrão da Abertura de O.S.
+  const numero=genOS();
+  const fotosConc=await uploadFotos(numero,_mcPhotos);
   let durMin=0,paradaMin=parada;
     if(ini&&fim){const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);durMin=(h2*60+m2)-(h1*60+m1);if(durMin<0)durMin+=1440;durMin=Math.max(0,durMin);if(!paradaMin)paradaMin=durMin;}
   Object.assign(item,{status:'Concluída',concluidoEm:agora,manut,ini,fim,dtExec:data,desc2:desc,durMin});
-  const numero=genOS();
   const os={id:crypto.randomUUID(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
     manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,
-    fotoUrl:item.fotoUrl||'',criadoEm:agora,origem:_ctp,origemNum:item.numero};
+    fotoUrl:fotosConc[0]||item.fotoUrl||'',fotos:fotosConc,criadoEm:agora,origem:_ctp,origemNum:item.numero};
   db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
   logEdit('Concluiu', item.numero, item.sala + ' · ' + item.maq);
   // Atualiza qualquer tela aberta: a mesma conclusão pode ter sido disparada
@@ -296,6 +265,7 @@ async function concluir() {
   const row = {OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
     Prioridade:item.prioridade,Manutentor:manut,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,
     Tempo_Parada_Min:paradaMin,Problema:item.desc||'',Acao_Executada:desc,Origem:_ctp,
+    Foto_URL:fotosConc[0]||'',Fotos:JSON.stringify(fotosConc),
     OS_Origem_Ref:item.numero,Criado_Em:agora};
   const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
   if (rAp.numero !== numero) { os.numero = rAp.numero; saveDB(); }

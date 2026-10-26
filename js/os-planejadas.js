@@ -4,6 +4,8 @@
    ══════════════════════════════════════════════════════════════════ */
 
 var planSort = { col: 'numero', dir: 'desc' };
+var solSort  = { col: 'crit', dir: 'asc' }; // aba Solicitações (Planejadas): padrão = mais crítico primeiro
+var solPgSort = { col: 'numero', dir: 'desc' }; // tela Solicitação de O.S.: padrão = mais recente primeiro
 
 // ── Abas Preventivas / Outras + geração manual ───────────────────────
 // Preventivas = Tipo 'Preventiva' (criadas pelo backend). A geração diária
@@ -45,18 +47,78 @@ function filtrarPlan_() {
   return data;
 }
 
-// Solicitações da Produção — só consulta/execução aqui; a criação e a lista de
-// concluídas continuam na tela de Solicitação. Sem prazo: ordenado por criticidade.
-function filtrarSol_() {
-  const tx = (v('fp-tx') || '').toLowerCase();
-  const tp = v('fp-tp');
-  const sl = v('fp-sl');
-  let data = (db.solicitacoes || []).filter(s => s.status !== 'Concluída');
-  if (tx) data = data.filter(s => [s.numero, s.sala, s.maq, s.tipo].some(x => x && x.toLowerCase().includes(tx)));
-  if (tp) data = data.filter(s => s.tipo === tp);
-  if (sl) data = data.filter(s => s.sala === sl);
-  data.sort((a, b) => getCriticidadeMaq(a.maq) - getCriticidadeMaq(b.maq)); // mais crítico primeiro
+// Data local (BRT) a partir do ISO de criadoEm. Evita o erro de fuso de usar
+// slice(0,10) direto no UTC (solicitação aberta à noite caía no dia seguinte).
+function dtLocalSol_(iso) {
+  if (!iso) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return String(iso);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Solicitações da Produção — aba "Solicitações" de Planejadas.
+// concl=false: não concluídas (cartão de cima). concl=true: concluídas (cartão de baixo).
+// Mesmos filtros do topo; as datas filtram pela data de abertura.
+function filtrarSol_(concl) {
+  const tx  = (v('fp-tx') || '').toLowerCase();
+  const tp  = v('fp-tp');
+  const sl  = v('fp-sl');
+  const st  = v('fp-st');
+  const dtI = v('fp-dt-ini');
+  const dtF = v('fp-dt-fim');
+  let data = (db.solicitacoes || []).filter(s => concl ? s.status === 'Concluída' : s.status !== 'Concluída');
+  if (tx)  data = data.filter(s => [s.numero, s.sala, s.maq, s.tipo, s.solicitante, s.desc].some(x => x && String(x).toLowerCase().includes(tx)));
+  if (tp)  data = data.filter(s => s.tipo === tp);
+  if (sl)  data = data.filter(s => s.sala === sl);
+  if (st)  data = data.filter(s => s.status === st);
+  if (dtI) data = data.filter(s => dtLocalSol_(s.criadoEm) >= dtI);
+  if (dtF) data = data.filter(s => dtLocalSol_(s.criadoEm) <= dtF);
+  ordenarSol_(data);
   return data;
+}
+
+function ordenarSol_(data, st) {
+  st = st || solSort;
+  const col = st.col, m = st.dir === 'asc' ? 1 : -1;
+  const prioMap = { '1':1, '2':2, '3':3, '4':4, 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
+  const porNumero = (a, b) => String(b.numero || '').localeCompare(String(a.numero || ''), 'pt-BR', { numeric: true });
+  data.sort((a, b) => {
+    if (col === 'crit') {
+      const d = getCriticidadeMaq(a.maq) - getCriticidadeMaq(b.maq);
+      return d !== 0 ? d * m : porNumero(a, b);
+    }
+    if (col === 'prioridade') {
+      const d = (prioMap[a.prioridade] || 9) - (prioMap[b.prioridade] || 9);
+      return d !== 0 ? d * m : porNumero(a, b);
+    }
+    if (col === 'criado') {
+      const d = String(a.criadoEm || '').localeCompare(String(b.criadoEm || ''));
+      return d !== 0 ? d * m : porNumero(a, b);
+    }
+    const va = String(a[col] || ''), vb = String(b[col] || '');
+    const d = va.localeCompare(vb, 'pt-BR', { numeric: true });
+    return d !== 0 ? d * m : porNumero(a, b);
+  });
+}
+
+function _alternaSort_(st, col) {
+  if (st.col === col) {
+    st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    st.col = col;
+    st.dir = (col === 'numero' || col === 'criado') ? 'desc' : 'asc';
+  }
+}
+
+function sortSol(col) {   // aba Solicitações de Planejadas
+  _alternaSort_(solSort, col);
+  renderSolPanel_();
+}
+
+function sortSolPg(col) { // tela Solicitação de O.S.
+  _alternaSort_(solPgSort, col);
+  if (typeof renderSol === 'function') renderSol();
 }
 
 function setPlanAba(aba) {
@@ -64,6 +126,8 @@ function setPlanAba(aba) {
   planAba = aba;
   const tp = document.getElementById('fp-tp');
   if (tp) tp.value = ''; // o filtro de tipo conflita com a aba
+  const st = document.getElementById('fp-st');
+  if (st) st.value = ''; // status de Planejadas e de Solicitações são diferentes
   renderPlan();
 }
 
@@ -88,13 +152,22 @@ function ensurePlanAbasUI_() {
   panel.id = 'plan-prev-panel';
   panel.className = 'card'; // mesmo padding/borda dos outros cards da tela (antes era CSS avulso)
   panel.style.cssText = 'display:none;margin:0 0 14px';
+  // Aba Solicitações: mesma estrutura das outras (tabela dentro de .tw), sem card aninhado.
   const solPanel = document.createElement('div');
   solPanel.id = 'plan-sol-panel';
-  solPanel.className = 'card'; // igual ao card de "Solicitações Concluídas" da tela de Solicitação
-  solPanel.style.cssText = 'display:none;margin:0 0 14px';
+  solPanel.style.cssText = 'display:none';
   card.insertBefore(panel, tw);
   card.insertBefore(bar, panel);
   card.insertBefore(solPanel, tw); // fica logo antes da tabela, que é escondida nesta aba
+  // Cartão "Concluídas" (embaixo): na aba Solicitações mostra as solicitações concluídas.
+  const tbC0  = document.getElementById('tb-plan-concluidas');
+  const twC0  = tbC0 && tbC0.closest('.tw');
+  if (twC0 && twC0.parentNode) {
+    const solConcl = document.createElement('div');
+    solConcl.id = 'plan-sol-concl-panel';
+    solConcl.style.cssText = 'display:none';
+    twC0.parentNode.insertBefore(solConcl, twC0);
+  }
 }
 
 function atualizarAbasPlan_() {
@@ -110,55 +183,84 @@ function atualizarAbasPlan_() {
   if (bO) { bO.textContent = 'Outras (' + nO + ')';          bO.className = 'btn btn-sm ' + (planAba === 'outras'       ? 'btn-g' : 'btn-gh'); }
   if (bS) { bS.textContent = 'Solicitações (' + nS + ')';    bS.className = 'btn btn-sm ' + (planAba === 'solicitacoes' ? 'btn-g' : 'btn-gh'); }
 
+  const sol = planAba === 'solicitacoes';
   const tb  = document.getElementById('tb-plan');
   const tbl = tb && tb.closest('table');
-  if (tbl) tbl.style.display = planAba === 'solicitacoes' ? 'none' : '';
+  if (tbl) tbl.style.display = sol ? 'none' : '';
+  const tbC  = document.getElementById('tb-plan-concluidas');
+  const twC  = tbC && tbC.closest('.tw');
+  if (twC) twC.style.display = sol ? 'none' : '';
+
+  // Filtros do topo mudam de significado na aba Solicitações.
+  const stSel = document.getElementById('fp-st');
+  const modo  = sol ? 'sol' : 'plan';
+  if (stSel && stSel.dataset.modo !== modo) {
+    stSel.innerHTML = sol
+      ? '<option value="">Todos os Status</option><option>Não Executada</option><option>Concluída</option>'
+      : '<option value="">Todos os Status</option><option>Pendente</option><option>Concluída</option><option>Atrasada</option>';
+    stSel.value = '';
+    stSel.dataset.modo = modo;
+  }
+  const dI = document.getElementById('fp-dt-ini_disp'), dF = document.getElementById('fp-dt-fim_disp');
+  if (dI) dI.title = sol ? 'Abertura inicial' : 'Prazo inicial';
+  if (dF) dF.title = sol ? 'Abertura final'   : 'Prazo final';
 
   renderPrevPanel_();
   renderSolPanel_();
 }
 
-function tipoCorrecaoMelhoriaBadge_(tipo) {
-  const cor = tipo === 'Melhoria' ? 'var(--org,#d97706)' : 'var(--red)';
-  return '<span style="font-size:11px;font-weight:600;color:' + cor + '">' + _escPl(tipo || '—') + '</span>';
+// Linha da tabela de Solicitações (mesmo padrão visual das outras abas).
+function solRowHtml_(s) {
+  // Mesma regra de quem abre O.S. (ROLES.administracao/.manutencao têm 'abertura'
+  // em core.js; produção e diretoria não têm).
+  const podeExecutar = typeof CU !== 'undefined' && CU &&
+    (CU.tipo === 'administracao' || CU.tipo === 'manutencao');
+  const osGerada = (db.ordens.find(o => o.origem === 'sol' && o.origemNum === s.numero) || {}).numero;
+  const num = String(s.numero).replace(/'/g, "\\'");
+  const abertura = dtLocalSol_(s.criadoEm);
+  return '<tr>' +
+    '<td><span class="osn">' + _escPl(s.numero) + '</span>' +
+      (osGerada ? '<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(' + _escPl(osGerada) + ')</div>' : '') + '</td>' +
+    '<td>' + _escPl(s.sala) + '</td>' +
+    '<td>' + _escPl(s.maq) + '<div style="margin-top:2px">' + getCriticidadeBadge(s.maq) + '</div></td>' +
+    '<td>' + tipoBadge(s.tipo) + '</td>' +
+    '<td>' + prio(s.prioridade) + '</td>' +
+    '<td style="font-family:var(--fm);font-size:13px">' + _escPl(abertura ? fd(abertura) : '—') + '</td>' +
+    '<td>' + _escPl(s.solicitante || '—') + '</td>' +
+    '<td style="min-width:180px;max-width:260px;white-space:normal;font-size:13px;color:var(--txt2)">' + _escPl(s.desc || '—') + '</td>' +
+    '<td>' + stBadge(s.status) + '</td>' +
+    '<td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">' +
+      (s.status !== 'Concluída' && podeExecutar ? '<button class="btn btn-sm btn-g" onclick="abrirConcluir(\'' + num + '\',\'sol\')">Concluir</button>' : '') +
+      (osGerada
+        ? '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + String(osGerada).replace(/'/g, "\\'") + '\',\'os\')">Ver</button>'
+        : '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + num + '\',\'sol\')">Ver</button>') +
+    '</div></td></tr>';
+}
+
+function solTabelaHtml_(lista, ordenavel, vazio, st, handler) {
+  st = st || solSort; handler = handler || 'sortSol';
+  const th = (col, rotulo, estilo) => ordenavel
+    ? '<th class="sortable' + (st.col === col ? ' ' + st.dir : '') + '" onclick="' + handler + '(\'' + col + '\')"' + (estilo ? ' style="' + estilo + '"' : '') + '>' + rotulo + '</th>'
+    : '<th' + (estilo ? ' style="' + estilo + '"' : '') + '>' + rotulo + '</th>';
+  return '<div class="tw"><table><thead><tr>' +
+    th('numero', 'SOL #', 'width:100px;min-width:100px') + th('sala', 'Sala') + th('maq', 'Máquina') +
+    th('tipo', 'Tipo') + th('prioridade', 'Prioridade') + th('criado', 'Aberta em') +
+    th('solicitante', 'Solicitante') + th('desc', 'Descrição') + th('status', 'Status') +
+    '<th>Ações</th></tr></thead><tbody>' +
+    (lista.length ? lista.map(solRowHtml_).join('')
+      : '<tr><td colspan="10" class="empty"><div class="ei">✅</div><p>' + vazio + '</p></td></tr>') +
+    '</tbody></table></div>';
 }
 
 function renderSolPanel_() {
-  const el = document.getElementById('plan-sol-panel');
-  if (!el) return;
-  el.style.display = planAba === 'solicitacoes' ? 'block' : 'none';
-  if (planAba !== 'solicitacoes') return;
-
-  const lista = filtrarSol_();
-  if (!lista.length) {
-    el.innerHTML = '<div class="empty"><div class="ei">✅</div><p>Nenhuma solicitação pendente.</p></div>';
-    return;
-  }
-  el.innerHTML = lista.map(s => {
-    // Mesma regra de quem abre O.S. (ROLES.administracao/.manutencao têm 'abertura'
-    // em core.js; produção e diretoria não têm).
-    const podeExecutar = typeof CU !== 'undefined' && CU &&
-      (CU.tipo === 'administracao' || CU.tipo === 'manutencao');
-    // Normalmente esta aba só lista não concluídas (filtrarSol_), então
-    // osGerada tende a não existir aqui — mas mantemos a mesma regra de
-    // "Ver" da tela de Solicitação por consistência, caso isso mude.
-    const osGerada = (db.ordens.find(o => o.origem==='sol' && o.origemNum===s.numero)||{}).numero;
-    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
-      'padding:10px 0;border-bottom:1px solid var(--bord,#2a3140);gap:10px">' +
-      '<div>' +
-        '<span class="osn">' + _escPl(s.numero) + '</span>' +
-        '<div style="font-size:15px;font-weight:500;margin-top:2px">' + _escPl(s.sala) + ' · ' + _escPl(s.maq) + '</div>' +
-        '<div style="font-size:13px;color:var(--txt3)">' + _escPl(fd((s.criadoEm || '').slice(0, 10))) + ' · ' + _escPl(s.solicitante) + '</div>' +
-        (s.desc ? '<div style="font-size:14px;color:var(--txt2);margin-top:3px">' + _escPl(s.desc) + '</div>' : '') +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">' +
-        tipoCorrecaoMelhoriaBadge_(s.tipo) + getCriticidadeBadge(s.maq) +
-        (podeExecutar ? '<button class="btn btn-sm btn-g" onclick="abrirConcluir(\'' + s.numero.replace(/'/g, "\\'") + '\',\'sol\')">✓ Executar</button>' : '') +
-        (osGerada
-          ? '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + osGerada.replace(/'/g, "\\'") + '\',\'os\')">Ver</button>'
-          : '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + s.numero.replace(/'/g, "\\'") + '\',\'sol\')">Ver</button>') +
-      '</div></div>';
-  }).join('');
+  const el  = document.getElementById('plan-sol-panel');
+  const elC = document.getElementById('plan-sol-concl-panel');
+  const ativo = planAba === 'solicitacoes';
+  if (el)  el.style.display  = ativo ? 'block' : 'none';
+  if (elC) elC.style.display = ativo ? 'block' : 'none';
+  if (!ativo) return;
+  if (el)  el.innerHTML  = solTabelaHtml_(filtrarSol_(false), true,  'Nenhuma solicitação não concluída.');
+  if (elC) elC.innerHTML = solTabelaHtml_(filtrarSol_(true),  false, 'Nenhuma solicitação concluída.');
 }
 
 function renderPrevPanel_() {
@@ -333,7 +435,24 @@ function renderPlanDebounced() {
   _planSearchTimer = setTimeout(renderPlan, 280);
 }
 
+function exportSolCSV_() {
+  const data = filtrarSol_(false).concat(filtrarSol_(true));
+  if (!data.length) { showToast('Sem dados para exportar com os filtros selecionados.', 'war'); return; }
+  const cel = x => '"' + String(x === null || x === undefined ? '' : x).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+  const h = ['SOL_Numero','Sala','Maquina','Tipo','Prioridade','Aberta_Em','Solicitante','Descricao','Status','Manutentor_Exec','Data_Execucao','Servico_Executado'];
+  const rows = data.map(s => [
+    s.numero, s.sala, s.maq, s.tipo, s.prioridade || '', dtLocalSol_(s.criadoEm), s.solicitante || '',
+    s.desc || '', s.status || '', s.manut || '', s.dtExec || '', s.desc2 || ''
+  ].map(cel).join(','));
+  const csv = [h.map(cel).join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `SIGMAN_Solicitacoes_${today()}${v('fp-sl')?'_'+v('fp-sl'):''}${v('fp-st')?'_'+v('fp-st'):''}.csv`;
+  a.click();
+}
+
 function exportPlanCSV() {
+  if (planAba === 'solicitacoes') { exportSolCSV_(); return; }
   let data = filtrarPlan_();
   if (!data.length) { showToast('Sem dados para exportar com os filtros selecionados.', 'war'); return; }
   const h = ['PL_Numero','Sala','Maquina','Tipo','Prioridade','Prazo','Horas_Turno','Status','Descricao'];

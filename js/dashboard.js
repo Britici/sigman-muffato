@@ -323,7 +323,7 @@ function renderDash() {
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(s.prioridade)}
           ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))
-            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">✓ Executar</button>`            : stBadge(s.status)}
+            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">Concluir</button>`            : stBadge(s.status)}
         </div>
       </div>`).join('');
 
