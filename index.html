@@ -314,13 +314,6 @@
       <div class="card">
       <div class="card-t">
         Solicitações Não Concluídas
-        <select id="sol-sort" onchange="renderSol()" style="font-family:var(--fw);font-size:13px;font-weight:700;background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt2);padding:3px 8px;cursor:pointer;margin-left:auto">
-          <option value="numero-desc">OS # ↓ (mais recente)</option>
-          <option value="numero-asc">OS # ↑ (mais antiga)</option>
-          <option value="prioridade-asc">Prioridade (crítica primeiro)</option>
-          <option value="status-asc">Status</option>
-          <option value="sala-asc">Sala A→Z</option>
-        </select>
       </div>
       <div id="sol-lista"></div>
     </div>
@@ -620,6 +613,10 @@
   <div class="fg"><label>Hora Fim</label><input type="time" id="mc-fm"></div>
   <div class="fg"><label>Tempo de Parada (min)</label><input type="number" id="mc-parada" placeholder="0" min="0"></div>
   <div class="fg fg-full"><label>Serviço Executado</label><textarea id="mc-ds" placeholder="Descreva o que foi feito..."></textarea></div>
+  <div class="fg fg-full"><label>Fotos do Serviço (opcional)</label>
+   <input type="file" id="mc-photo-input" accept="image/*" multiple style="display:none" onchange="addPhotos(this,'mc')">
+   <div id="mc-photo-grid" class="photo-multi-grid"></div>
+  </div>
  </div>
  <div class="fa">
   <button class="btn btn-gh" onclick="closeM('m-con')">Cancelar</button>
@@ -814,10 +811,10 @@
   <script src="js/helpers.js?v=202610151700"></script>
   <script src="js/modais-helpers.js?v=202608261950"></script>
   <script src="js/utils-offline.js?v=202610171700"></script>
-  <script src="js/dashboard.js?v=202610151700"></script>
-  <script src="js/os-planejadas.js?v=202608261950"></script>
+  <script src="js/dashboard.js?v=202610231800"></script>
+  <script src="js/os-planejadas.js?v=202610231800"></script>
   <script src="js/os-executadas.js?v=202608261950"></script>
-  <script src="js/abertura-os.js?v=202610151700"></script>
+  <script src="js/abertura-os.js?v=202610231800"></script>
   <script src="js/inspecao.js?v=202608261950"></script>
   <script src="js/ativos.js?v=202608261950"></script>
   <script src="js/usuarios.js?v=202608261950"></script>
@@ -1237,11 +1234,13 @@ function toggleDashRefresh() {
 const _abPhotos  = [];  // OS abertura
 const _solPhotos = [];  // Solicitação manutenção
 const _eoePhotos = [];  // Edição OS executada
+const _mcPhotos  = [];  // Conclusão de OS (modal Concluir)
 
 function _getPhotoArr(prefix) {
   if (prefix === 'ab')  return _abPhotos;
   if (prefix === 'sol') return _solPhotos;
   if (prefix === 'eoe') return _eoePhotos;
+  if (prefix === 'mc')  return _mcPhotos;
   return [];
 }
 
