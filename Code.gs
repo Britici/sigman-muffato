@@ -4,6 +4,25 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v17 — ModelosItens ganha a coluna Freq (Q/M/T/S/A): cada item do checklist diz a partir de qual
+//   frequência entra (a OS anual inclui os itens das frequências menores).
+//   • SCHEMAS.ModelosItens: Freq no fim. Freq é obrigatória e validada no servidor (Q/M/T/S/A exato).
+//   • pmCriarAbas() agora CONFERE o cabeçalho das 3 abas PM e acrescenta no fim a coluna que faltar
+//     (migra a aba já criada sem tocar nos dados). Rode pmCriarAbas() UMA vez após colar esta versão.
+//   • Gravar em ModelosItens antes da migração é recusado (evita perder Freq em silêncio).
+// v16 — PLANO DE MANUTENÇÃO (PM) · Etapa 2 · SEM geração automática de OS
+//   • Abas novas: PlanosPM (plano por máquina e frequência), ModelosItens (itens do
+//     checklist por modelo) e ExecucaoItens (resposta de cada item: OK/CORRIGI/CORRETIVA/PARAR).
+//     Rode pmCriarAbas() UMA vez no editor (cria cabeçalhos, formato texto nas datas e listas).
+//   • Motor de vencimentos (seção PM-MOTOR no fim do arquivo): grade fixa por plano, ciclos
+//     ENCAIXADOS Q14/M28/T84/S168/A336, cascata (mesma máquina + mesma data = 1 OS, maior
+//     frequência), tolerância, "absorvida". Máquina é identificada por ID_Maquina, nunca por Tag.
+//   • GET pmPrevisao (admin/manutenção): SÓ LÊ. Mostra o que o motor geraria hoje + avisos
+//     (plano sem máquina, inválido, duplicado, tag repetida, início em fim de semana). Não grava OS.
+//   • Gravação em PlanosPM validada no servidor (frequência, data real, ciclo múltiplo de 7,
+//     tolerância, máquina existente). O gerador antigo (Ultima_Preventiva_Gerada, 91/182/364 dias)
+//     continua intacto e independente até a virada.
+//
 // v15 — readAll FILTRADO POR PERFIL (AUTH_ENFORCE = true)
 //   • readAll só devolve as abas que o perfil pode ler (ACL_LEITURA); as demais
 //     voltam como [] (o cliente não quebra) e nem são lidas da planilha.
@@ -91,13 +110,16 @@ var SHEET_NAMES = {
   historico:     'Historico',
   racs:          'RAC',
   compras:       'OrdensCompra',
-  manuaisSenhas: 'ManuaisSenhas'
+  manuaisSenhas: 'ManuaisSenhas',
+  planosPM:      'PlanosPM',
+  modelosItens:  'ModelosItens',
+  execItens:     'ExecucaoItens'
 };
 
 // ── Sheets excluídas do readAll (muito grandes / lidas sob demanda). Inclui
 // manuaisSenhas de propósito: credenciais de equipamento só saem pela action
 // explícita 'readManuaisSenhas', nunca no carregamento em massa.
-var SKIP_READ_ALL = ['historico', 'compras', 'inspecoes', 'racs', 'manuaisSenhas'];
+var SKIP_READ_ALL = ['historico', 'compras', 'inspecoes', 'racs', 'manuaisSenhas', 'planosPM', 'modelosItens', 'execItens'];
 
 // ── Planilha aberta UMA vez por execução ────────────────────────────────────
 // Variável global vive só durante a execução atual (cada request do Web App
@@ -256,6 +278,18 @@ var SCHEMAS = {
   'ManuaisSenhas': [
     'ID','Sala','Equipamento','Manual_URL','Credenciais','Atualizado_Por','Atualizado_Em'
   ],
+  'PlanosPM': [
+    'ID_Plano','ID_Maquina','Sala','Maquina','Tag','Freq','Modelo','Primeira',
+    'Ciclo_Dias','Tol_Dias','Duracao_Min','Parada','Ativo','Criado_Em','Atualizado_Em','Idempotency_Key'
+  ],
+  'ModelosItens': [
+    'ID_Item','Modelo','Disciplina','Ordem','Descricao','Ativo','Freq'
+  ],
+  'ExecucaoItens': [
+    'ID_Exec','OS_Numero','Chave','ID_Maquina','Venc','Tol_Ate','Feita_Em','Manutentor',
+    'Modelo','Disciplina','Ordem','Item','Resultado','Observacao','Foto_URL','OS_Corretiva',
+    'Criado_Em','Idempotency_Key'
+  ],
   'LogFila': [
     'Data_Hora','Usuario','Acao','Sheet','ID_Ref','Status','Detalhe'
   ]
@@ -269,7 +303,10 @@ var REQUIRED_FIELDS = {
   salas:        ['Nome'],
   racs:         ['ID','OS_Numero'],
   compras:      ['ID','Sala','Descricao'],
-  manuaisSenhas:['ID','Sala','Equipamento']
+  manuaisSenhas:['ID','Sala','Equipamento'],
+  planosPM:     ['ID_Plano','ID_Maquina','Freq','Primeira'],
+  modelosItens: ['ID_Item','Modelo','Disciplina','Descricao','Freq'],
+  execItens:    ['ID_Exec','Chave','ID_Maquina','Item','Resultado']
 };
 
 function validarObrigatorios(key, rowObj, isUpdate) {
@@ -288,6 +325,8 @@ function validarObrigatorios(key, rowObj, isUpdate) {
       }
     }
   }
+  if (key === 'planosPM') return pmValidarPlanoRow_(rowObj, isUpdate);
+  if (key === 'modelosItens') return pmValidarItemRow_(rowObj, isUpdate);
   return null;
 }
 
@@ -364,7 +403,8 @@ var ACL_LEITURA = {
   ordens: P_GEST, planejadas: P_GEST, configuracoes: P_GEST,
   usuarios: P_OPER,
   inspecoes: P_OPER, racs: [P_ADM], historico: P_GEST, compras: P_GEST,
-  preventiva: [P_ADM], manuaisSenhas: P_OPER
+  preventiva: [P_ADM], manuaisSenhas: P_OPER,
+  planosPM: [P_ADM], modelosItens: P_OPER, execItens: P_GEST
 };
 
 // Escrita por aba e operação. Aba/operação ausente = negado.
@@ -381,7 +421,10 @@ var ACL_ESCRITA = {
   maquinas:      { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
   usuarios:      { append: [P_ADM], update: [P_ADM] },
   configuracoes: { append: [P_ADM], update: [P_ADM] },
-  compras:       { update: [P_ADM] }
+  compras:       { update: [P_ADM] },
+  planosPM:      { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
+  modelosItens:  { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
+  execItens:     { append: P_OPER, update: [P_ADM] }
 };
 
 function own_(obj, k) { return Object.prototype.hasOwnProperty.call(obj, k); }
@@ -600,6 +643,9 @@ function doGet(e) {
       case 'previewPreventivas': // consulta aberta a quem tem a tela Planejadas; GERAR continua só admin
         if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
         return resp_(gerarPreventivasAutomaticas(true), sess);
+      case 'pmPrevisao': // SÓ LEITURA: o que o motor de PM geraria hoje. Não grava nada.
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(pmPrevisao_(p.antecedencia, p.desde), sess);
       case 'planos_list':
         if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
         return resp_(listarPlanosPreventiva(), sess);
@@ -770,7 +816,9 @@ function idRefDe(rowObj) {
 var NUMERO_COLS = {
   ordens:       'OS_Numero',
   planejadas:   'PL_Numero',
-  solicitacoes: 'SOL_Numero'
+  solicitacoes: 'SOL_Numero',
+  planosPM:     'ID_Plano',
+  modelosItens: 'ID_Item'
 };
 
 // Verifica se já existe uma linha recente (últimos `minutos`) com a mesma
@@ -1855,4 +1903,345 @@ function jsonOut(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLANO DE MANUTENÇÃO (PM) — v16
+// Tudo daqui para baixo é novo e independente do gerador antigo de preventivas.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══ PM-MOTOR:INICIO ═══ (cópia exata de pm-motor.js — não edite aqui; edite lá, rode node test.js e recopie)
+/* SIGMAN PM - motor de vencimentos v3 (puro, sem I/O). Datas 'YYYY-MM-DD'. Sem fuso: aritmética em dias UTC.
+   Este bloco é copiado TAL QUAL para o Code.gs (seção PM-MOTOR). Edite aqui, rode node test.js e recopie.
+   plano.maquina deve ser o ID ÚNICO da máquina (ID_Maquina), nunca a Tag: tags repetem e fundiriam máquinas na cascata.
+   v3: ciclos ENCAIXADOS (Q14 | M28 | T84 | S168 | A336, todos múltiplos de 28): toda data de frequência maior cai numa
+       data das menores, então a cascata sempre junta inspeção e preventiva numa OS só (mesma primeira data-base).
+       validar(plano) = regra única de cadastro (usada também na gravação da aba). pendentes(..., desde) ignora antes de 'desde'. */
+var PMMotor = (function () {
+  var CICLO = { Q: 14, M: 28, T: 84, S: 168, A: 336 };
+  var TOL = { Q: 2, M: 5, T: 7, S: 14, A: 14 };
+  var ORDEM = ['Q', 'M', 'T', 'S', 'A'];
+  function ds(s) { var p = s.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5; }
+  function sd(n) { return new Date(n * 864e5).toISOString().slice(0, 10); }
+  function dataValida(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && sd(ds(s)) === s; }
+  function vazio(v) { return v === null || v === undefined || v === ''; }
+  function maior(a, b) { return ORDEM.indexOf(a) >= ORDEM.indexOf(b) ? a : b; }
+
+  /* Números do plano (ciclo e tolerância) já normalizados, ou null se inválidos. */
+  function numeros(plano) {
+    if (!plano || !CICLO[plano.freq]) return null;
+    var c = vazio(plano.ciclo) ? CICLO[plano.freq] : Number(plano.ciclo);
+    var t = vazio(plano.tol) ? TOL[plano.freq] : Number(plano.tol);
+    if (!isFinite(c) || c < 1 || Math.floor(c) !== c) return null; /* ciclo 0 ou inválido travaria o laço */
+    if (!isFinite(t) || t < 0 || Math.floor(t) !== t) return null;
+    return { c: c, t: t };
+  }
+
+  /* Regra única de cadastro. Devolve '' se o plano é válido, senão a mensagem de erro.
+     Mais rígida que 'ocorrencias': ciclo próprio tem de ser múltiplo de 7 (mesmo dia da semana) e tolerância até 60. */
+  function validar(plano) {
+    if (!plano || !CICLO[plano.freq]) return 'Frequência inválida (use Q, M, T, S ou A).';
+    if (!dataValida(plano.primeira)) return 'Primeira data inválida (use AAAA-MM-DD, data real).';
+    var n = numeros(plano);
+    if (!n) return 'Ciclo ou tolerância inválidos (números inteiros, ciclo ≥ 1, tolerância ≥ 0).';
+    if (n.c % 7 !== 0) return 'Ciclo precisa ser múltiplo de 7 dias (mesmo dia da semana em todo ciclo).';
+    if (n.t > 60) return 'Tolerância acima de 60 dias.';
+    return '';
+  }
+
+  /* Ocorrências de UM plano até 'ate' (inclusive), a partir de plano.primeira, em grade fixa (primeira + n*ciclo). */
+  function ocorrencias(plano, ate) {
+    if (!plano.ativo || !dataValida(plano.primeira) || !dataValida(ate)) return [];
+    var n = numeros(plano);
+    if (!n) return [];
+    var out = [], d = ds(plano.primeira), fim = ds(ate);
+    for (; d <= fim; d += n.c) out.push({ plano: plano.id, maquina: plano.maquina, freq: plano.freq, venc: sd(d), tolAte: sd(d + n.t) });
+    return out;
+  }
+
+  /* Junta ocorrências da mesma máquina na mesma data: 1 OS, frequência mais alta (cascata). Chave idempotente máquina|data. */
+  function gerar(planos, ate) {
+    var mapa = {};
+    planos.forEach(function (p) {
+      ocorrencias(p, ate).forEach(function (o) {
+        var k = o.maquina + '|' + o.venc, x = mapa[k];
+        if (!x) mapa[k] = { chave: k, maquina: o.maquina, venc: o.venc, tolAte: o.tolAte, freq: o.freq, planos: [o.plano] };
+        else {
+          x.freq = maior(x.freq, o.freq); x.planos.push(o.plano);
+          if (o.tolAte > x.tolAte) x.tolAte = o.tolAte; /* tolerância do maior serviço */
+        }
+      });
+    });
+    return Object.keys(mapa).sort().map(function (k) { return mapa[k]; });
+  }
+
+  /* Situação de uma OS frente a 'hoje' e às chaves já executadas. */
+  function situacao(os, hoje, feitas) {
+    if (feitas && feitas[os.chave]) return 'feita';
+    if (os.venc > hoje) return 'a_vencer';
+    return hoje <= os.tolAte ? 'vencida' : 'atrasada';
+  }
+
+  /* Pendentes: ocorrências de 'desde' (opcional) até hoje+antecedência e não feitas. Atrasadas antigas NÃO se acumulam:
+     se há ocorrência posterior da mesma máquina, já vencida, de frequência igual ou maior (pendente OU já feita),
+     a anterior atrasada é marcada 'absorvida' (a mais alta cobre). */
+  function pendentes(planos, hoje, feitas, antecedencia, desde) {
+    var ate = sd(ds(hoje) + (antecedencia || 0));
+    var todas = gerar(planos, ate).filter(function (o) { return !dataValida(desde) || o.venc >= desde; });
+    var porMaq = {};
+    todas.forEach(function (o) { (porMaq[o.maquina] = porMaq[o.maquina] || []).push(o); });
+    return todas.filter(function (o) { return !(feitas && feitas[o.chave]); }).map(function (o) {
+      var s = situacao(o, hoje, feitas);
+      var absorvida = s === 'atrasada' && porMaq[o.maquina].some(function (p) {
+        return p.venc > o.venc && p.venc <= hoje && ORDEM.indexOf(p.freq) >= ORDEM.indexOf(o.freq);
+      });
+      return Object.assign({}, o, { situacao: absorvida ? 'absorvida' : s });
+    });
+  }
+
+  /* Indicador: % no prazo = feitas até tolAte / execuções cujo prazo já fechou.
+     execs: [{tolAte, feitaEm}]. Com 'hoje', o que não foi feito e ainda está dentro da tolerância não entra na conta.
+     Sem 'hoje', todas as execuções contam. */
+  function noPrazo(execs, hoje) {
+    var base = hoje ? execs.filter(function (e) { return e.feitaEm || e.tolAte < hoje; }) : execs;
+    if (!base.length) return null;
+    var ok = base.filter(function (e) { return e.feitaEm && e.feitaEm <= e.tolAte; }).length;
+    return Math.round(100 * ok / base.length);
+  }
+
+  /* Dia da semana de uma data 'YYYY-MM-DD' (0 = domingo). */
+  function diaSemana(s) { return new Date(ds(s) * 864e5).getUTCDay(); }
+
+  return { CICLO: CICLO, TOL: TOL, dataValida: dataValida, validar: validar, diaSemana: diaSemana, ocorrencias: ocorrencias, gerar: gerar, situacao: situacao, pendentes: pendentes, noPrazo: noPrazo };
+})();
+// ═══ PM-MOTOR:FIM ═══
+
+var PM_TZ = 'America/Sao_Paulo';
+var PM_MAX_ITENS = 1000;
+
+// ═══ PM-CALC:INICIO ═══ (puro: recebe linhas já lidas e devolve o resultado; testável fora do Apps Script)
+function pmPrevisaoCalc_(planosRows, maquinasRows, execRows, hoje, antecedencia, desde) {
+  var avisos = [], maq = {}, planos = [], vistos = {};
+  maquinasRows.forEach(function(m) { maq[String(m.ID_Maquina).trim()] = m; });
+
+  planosRows.forEach(function(r) {
+    var p = {
+      id: String(r.ID_Plano === undefined ? '' : r.ID_Plano).trim(),
+      maquina: String(r.ID_Maquina === undefined ? '' : r.ID_Maquina).trim(),
+      freq: String(r.Freq === undefined ? '' : r.Freq).trim().toUpperCase(),
+      primeira: String(r.Primeira === undefined ? '' : r.Primeira).trim(),
+      ciclo: r.Ciclo_Dias, tol: r.Tol_Dias, ativo: ativoSim_(r.Ativo)
+    };
+    if (!p.id && !p.maquina) return; // linha em branco
+    if (!p.ativo) return;
+    var m = maq[p.maquina];
+    if (!m) { avisos.push({ tipo: 'plano_sem_maquina', plano: p.id, detalhe: 'ID_Maquina "' + p.maquina + '" não existe em Maquinas.' }); return; }
+    if (!ativoSim_(m.Ativo)) { avisos.push({ tipo: 'maquina_inativa', plano: p.id, detalhe: 'Máquina inativa: plano ignorado.' }); return; }
+    var erro = PMMotor.validar(p);
+    if (erro) { avisos.push({ tipo: 'plano_invalido', plano: p.id, detalhe: erro }); return; }
+    var dk = p.maquina + '|' + p.freq;
+    if (vistos[dk]) { avisos.push({ tipo: 'plano_duplicado', plano: p.id, detalhe: 'Mesma máquina e frequência do plano ' + vistos[dk] + ': este foi ignorado.' }); return; }
+    vistos[dk] = p.id;
+    var dow = PMMotor.diaSemana(p.primeira);
+    if (dow === 0 || dow === 6) avisos.push({ tipo: 'primeira_fim_de_semana', plano: p.id, detalhe: 'Primeira data cai em fim de semana: todas as OS desta grade cairão nele.' });
+    planos.push(p);
+  });
+
+  // Tag repetida entre máquinas diferentes que têm plano (a chave usa ID_Maquina, então não funde; só avisa).
+  var tags = {};
+  Object.keys(vistos).forEach(function(dk) {
+    var id = dk.split('|')[0], m = maq[id], tg = m ? String(m.Tag || '').trim() : '';
+    if (!tg) return;
+    (tags[tg] = tags[tg] || {})[id] = 1;
+  });
+  Object.keys(tags).forEach(function(tg) {
+    var ids = Object.keys(tags[tg]);
+    if (ids.length > 1) avisos.push({ tipo: 'tag_duplicada', plano: '', detalhe: 'Tag "' + tg + '" em ' + ids.length + ' máquinas (' + ids.join(', ') + '). O sistema usa ID_Maquina, mas corrija a Tag.' });
+  });
+
+  var feitas = {};
+  execRows.forEach(function(e) {
+    var k = String(e.Chave === undefined ? '' : e.Chave).trim();
+    var f = String(e.Feita_Em === undefined ? '' : e.Feita_Em).trim();
+    if (k && f) feitas[k] = f;
+  });
+
+  var lista = PMMotor.pendentes(planos, hoje, feitas, antecedencia, desde);
+  var ordemSit = { atrasada: 0, vencida: 1, a_vencer: 2, absorvida: 3 };
+  lista.sort(function(a, b) {
+    return (ordemSit[a.situacao] - ordemSit[b.situacao]) || (a.venc < b.venc ? -1 : a.venc > b.venc ? 1 : 0) || (a.maquina < b.maquina ? -1 : 1);
+  });
+  var resumo = { atrasada: 0, vencida: 0, a_vencer: 0, absorvida: 0 };
+  lista.forEach(function(o) { resumo[o.situacao]++; });
+  var itens = lista.slice(0, PM_MAX_ITENS).map(function(o) {
+    var m = maq[o.maquina] || {};
+    return { chave: o.chave, maquina_id: o.maquina, maquina: m.Nome || '', tag: m.Tag || '', sala: m.Sala || '',
+             freq: o.freq, venc: o.venc, tolAte: o.tolAte, planos: o.planos, situacao: o.situacao };
+  });
+  return { ok: true, hoje: hoje, antecedencia: antecedencia, desde: desde || '', planosAtivos: planos.length,
+           total: lista.length, truncado: lista.length > PM_MAX_ITENS, resumo: resumo, itens: itens, avisos: avisos };
+}
+// ═══ PM-CALC:FIM ═══
+
+function pmHoje_() { return Utilities.formatDate(new Date(), PM_TZ, 'yyyy-MM-dd'); }
+
+// GET pmPrevisao. Só lê (3 abas). antecedencia: dias à frente (0 a 60, padrão 7). desde: AAAA-MM-DD opcional.
+function pmPrevisao_(antecedencia, desde) {
+  var a = parseInt(antecedencia, 10);
+  if (isNaN(a) || a < 0) a = 7;
+  if (a > 60) a = 60;
+  var d = PMMotor.dataValida(String(desde || '')) ? String(desde) : '';
+  return pmPrevisaoCalc_(
+    sheetToObjects(getSheet('planosPM')),
+    sheetToObjects(getSheet('maquinas')),
+    sheetToObjects(getSheet('execItens')),
+    pmHoje_(), a, d
+  );
+}
+
+// Validação de gravação em PlanosPM (chamada por validarObrigatorios). Frequência exata (Q/M/T/S/A, maiúscula).
+// Em update só vale o que veio no objeto; campo ausente não é revalidado.
+function pmValidarPlanoRow_(r, isUpdate) {
+  var p = {
+    freq: r.Freq !== undefined ? String(r.Freq).trim() : 'Q',
+    primeira: r.Primeira !== undefined ? String(r.Primeira).trim() : '2000-01-03',
+    ciclo: r.Ciclo_Dias, tol: r.Tol_Dias
+  };
+  var erro = PMMotor.validar(p);
+  if (erro) return erro;
+  if (r.ID_Maquina !== undefined && !pmMaquinaExiste_(r.ID_Maquina)) {
+    return 'ID_Maquina não existe em Maquinas: ' + r.ID_Maquina;
+  }
+  return null;
+}
+
+// Validação de gravação em ModelosItens. Freq exata (Q/M/T/S/A, maiúscula; regex, não lookup em objeto).
+// Recusa gravar se a aba ainda não tem a coluna Freq (senão appendRow descartaria Freq sem avisar).
+function pmValidarItemRow_(r, isUpdate) {
+  if (r.Freq !== undefined || !isUpdate) {
+    if (!/^[QMTSA]$/.test(String(r.Freq === undefined ? '' : r.Freq))) return 'Frequência inválida (use Q, M, T, S ou A).';
+    var sh = getSheet('modelosItens');
+    var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    if (h.indexOf('Freq') < 0) return 'A aba ModelosItens ainda não tem a coluna Freq. Rode pmCriarAbas() no editor.';
+  }
+  return null;
+}
+
+// Garante que as colunas do SCHEMAS existam no cabeçalho. Só ACRESCENTA no fim o que faltar;
+// nunca remove nem reordena (dados já gravados ficam onde estão).
+function pmGarantirColunas_(key) {
+  var sh = getSheet(key), nome = SHEET_NAMES[key], cols = SCHEMAS[nome];
+  var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var falta = cols.filter(function(c) { return h.indexOf(c) < 0; });
+  if (!falta.length) return 0;
+  sh.getRange(1, h.length + 1, 1, falta.length).setValues([falta]);
+  formatHeader(sh, h.length + falta.length);
+  Logger.log('➕ ' + nome + ': coluna(s) acrescentada(s): ' + falta.join(', '));
+  return falta.length;
+}
+
+function pmMaquinaExiste_(id) {
+  var dados = getSheet('maquinas').getDataRange().getValues();
+  var idx = dados[0].indexOf('ID_Maquina');
+  if (idx < 0) return false;
+  var alvo = String(id).trim();
+  for (var i = 1; i < dados.length; i++) {
+    if (String(dados[i][idx]).trim() === alvo) return true;
+  }
+  return false;
+}
+
+// Rodar UMA vez no editor (pode repetir sem problema): cria as 3 abas com cabeçalho, deixa as colunas de
+// data como TEXTO (evita a planilha converter 2026-10-26 em data e deslocar 1 dia por fuso) e põe listas
+// suspensas em Freq, Ativo e Resultado.
+function pmCriarAbas() {
+  var txt = { planosPM: ['Primeira'], execItens: ['Venc', 'Tol_Ate', 'Feita_Em'] };
+  Object.keys(txt).forEach(function(k) {
+    var sh = getSheet(k), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    txt[k].forEach(function(c) {
+      var i = h.indexOf(c);
+      if (i >= 0) sh.getRange(2, i + 1, 2000, 1).setNumberFormat('@');
+    });
+  });
+  ['planosPM', 'modelosItens', 'execItens'].forEach(pmGarantirColunas_);
+  var listas = [
+    ['planosPM', 'Freq', ['Q', 'M', 'T', 'S', 'A']],
+    ['planosPM', 'Ativo', ['Sim', 'Nao']],
+    ['modelosItens', 'Ativo', ['Sim', 'Nao']],
+    ['modelosItens', 'Disciplina', ['Mecanico', 'Eletrico']],
+    ['modelosItens', 'Freq', ['Q', 'M', 'T', 'S', 'A']],
+    ['execItens', 'Resultado', ['OK', 'CORRIGI', 'CORRETIVA', 'PARAR']]
+  ];
+  listas.forEach(function(l) {
+    var sh = getSheet(l[0]), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0], i = h.indexOf(l[1]);
+    if (i < 0) return;
+    var regra = SpreadsheetApp.newDataValidation().requireValueInList(l[2], true).setAllowInvalid(false).build();
+    sh.getRange(2, i + 1, 2000, 1).setDataValidation(regra);
+  });
+  Logger.log('✅ PlanosPM, ModelosItens e ExecucaoItens prontas.');
+}
+
+// ── TESTE NO EDITOR (não precisa implantar nada) ─────────────────────────────────────────────────────────
+// Ordem: pmCriarAbas → pmSemearTeste → pmPrevisaoTeste (ver o Registro de execução) → pmLimparTeste.
+// Só mexe em linhas de PlanosPM com ID_Plano começando por TESTE-PM-. Não gera OS e não toca em nenhuma outra aba.
+var PM_PREFIXO_TESTE = 'TESTE-PM-';
+
+function pmSomaDias_(s, n) {
+  var p = s.split('-');
+  return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]) + n * 864e5).toISOString().slice(0, 10);
+}
+
+// Cria planos de teste nas 3 primeiras máquinas ativas:
+//   máquina 1: as 5 frequências na segunda-feira desta semana (mostra a cascata: tudo numa OS só);
+//   máquina 2: quinzenal começando na segunda da semana passada (mostra atrasada e a vencer);
+//   máquina 3: trimestral começando na segunda da semana que vem (mostra a vencer).
+function pmSemearTeste() {
+  pmCriarAbas();
+  var maqs = sheetToObjects(getSheet('maquinas')).filter(function(m) {
+    return String(m.ID_Maquina || '').trim() && ativoSim_(m.Ativo);
+  }).slice(0, 3);
+  if (maqs.length < 3) { Logger.log('❌ Precisa de pelo menos 3 máquinas ativas em Maquinas.'); return; }
+  var hoje = pmHoje_();
+  var segunda = pmSomaDias_(hoje, -((PMMotor.diaSemana(hoje) + 6) % 7));
+  var lista = [];
+  ['Q', 'M', 'T', 'S', 'A'].forEach(function(f) { lista.push([maqs[0], f, segunda]); });
+  lista.push([maqs[1], 'Q', pmSomaDias_(segunda, -7)]);
+  lista.push([maqs[2], 'T', pmSomaDias_(segunda, 7)]);
+  var ok = 0;
+  lista.forEach(function(x) {
+    var m = x[0], id = PM_PREFIXO_TESTE + m.ID_Maquina + '-' + x[1];
+    var r = appendRow('planosPM', {
+      ID_Plano: id, ID_Maquina: String(m.ID_Maquina).trim(), Sala: m.Sala, Maquina: m.Nome, Tag: m.Tag,
+      Freq: x[1], Primeira: x[2], Ativo: 'Sim', Criado_Em: hoje
+    }, 'teste-editor', '');
+    if (r.ok) ok++; else Logger.log('⚠ ' + id + ': ' + (r.error || r.code));
+  });
+  Logger.log('✅ ' + ok + ' de ' + lista.length + ' planos de teste gravados (hoje ' + hoje + ', segunda ' + segunda + ').');
+  Logger.log('Próximo: rode pmPrevisaoTeste.');
+}
+
+// Mostra no Registro de execução o que o motor geraria hoje (7 dias à frente). Só lê.
+function pmPrevisaoTeste() {
+  var r = pmPrevisao_(7, '');
+  Logger.log('Hoje ' + r.hoje + ' | planos ativos ' + r.planosAtivos + ' | OS previstas ' + r.total +
+             ' | atrasada ' + r.resumo.atrasada + ', vencida ' + r.resumo.vencida +
+             ', a vencer ' + r.resumo.a_vencer + ', absorvida ' + r.resumo.absorvida);
+  r.itens.forEach(function(o) {
+    Logger.log(o.situacao.toUpperCase() + ' | ' + o.venc + ' (tol. até ' + o.tolAte + ') | ' + o.freq +
+               ' | ' + o.maquina + ' [' + o.maquina_id + '] ' + o.sala + ' | planos: ' + o.planos.join(', '));
+  });
+  r.avisos.forEach(function(a) { Logger.log('AVISO ' + a.tipo + ' ' + a.plano + ': ' + a.detalhe); });
+  if (!r.itens.length && !r.avisos.length) Logger.log('Nada previsto. Rode pmSemearTeste primeiro ou cadastre planos em PlanosPM.');
+}
+
+// Apaga só as linhas de teste (ID_Plano começando por TESTE-PM-).
+function pmLimparTeste() {
+  var sh = getSheet('planosPM'), dados = sh.getDataRange().getValues();
+  var idx = dados[0].indexOf('ID_Plano'), n = 0;
+  for (var i = dados.length - 1; i >= 1; i--) {
+    if (String(dados[i][idx]).indexOf(PM_PREFIXO_TESTE) === 0) { sh.deleteRow(i + 1); n++; }
+  }
+  invalidarCacheReadAll_();
+  Logger.log('✅ ' + n + ' linha(s) de teste removida(s) de PlanosPM.');
 }
