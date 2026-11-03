@@ -242,13 +242,27 @@ async function concluir() {
     ? db.planejadas.find(x=>x.numero===_cid)
     : db.solicitacoes.find(x=>x.numero===_cid);
   if (!item) { showToast('Item não encontrado. Recarregue a página e tente novamente.','er'); return; }
+  // Baixa duplicada: a O.S. já foi concluída (outra aba, outro aparelho ou duplo clique).
+  if (item.status==='Concluída') { showToast('Esta O.S. já está concluída. Atualize a tela.','er',6000); return; }
+  // Validações ANTES de gerar número e subir fotos (nada é consumido se recusar).
+  if (data && data>today()) { showToast('A data de execução não pode ser futura.','er',6000); return; }
+  let durMin=0,paradaMin=parada;
+  if(ini&&fim){
+    const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);
+    durMin=(h2*60+m2)-(h1*60+m1);
+    if(durMin<0){
+      // Hora fim menor que início: só aceita se o serviço realmente virou a meia-noite.
+      if(!confirm('Hora fim ('+fim+') é menor que o início ('+ini+').\nO serviço virou a meia-noite?\n\nOK = sim, virou. Cancelar = vou corrigir os horários.')) return;
+      durMin+=1440;
+    }
+    if(!paradaMin)paradaMin=durMin;
+    if(paradaMin>durMin){ showToast('Tempo de parada ('+paradaMin+' min) maior que a duração ('+durMin+' min).','er',6000); return; }
+  }
   const agora=new Date().toISOString();
   // Número da OS e fotos da conclusão: sobe antes de gravar, com o modal ainda aberto
   // (botão em "ocupado"), no mesmo padrão da Abertura de O.S.
   const numero=genOS();
   const fotosConc=await uploadFotos(numero,_mcPhotos);
-  let durMin=0,paradaMin=parada;
-    if(ini&&fim){const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);durMin=(h2*60+m2)-(h1*60+m1);if(durMin<0)durMin+=1440;durMin=Math.max(0,durMin);if(!paradaMin)paradaMin=durMin;}
   Object.assign(item,{status:'Concluída',concluidoEm:agora,manut,ini,fim,dtExec:data,desc2:desc,durMin});
   const os={id:crypto.randomUUID(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
     manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,

@@ -62,7 +62,10 @@ function verDet(id,tipo) {
   }
   document.getElementById('md-b').innerHTML=rows;
   _curDet={item,tipo};
-  document.getElementById('md-print-btn').style.display='inline-block';
+  const pBtn=document.getElementById('md-print-btn');
+  pBtn.style.display='inline-block';
+  // O.S. planejada / solicitação ainda aberta: imprime folha em branco para preencher à mão.
+  pBtn.textContent = (tipo!=='os' && item.status!=='Concluída') ? '🖨️ Imprimir O.S. para preencher' : '🖨️ Imprimir O.S.';
   // Mostrar botão GERAR RCA apenas se precisaRAC()
   const racBtn = document.getElementById('md-rac-btn');
   if (tipo === 'os' && precisaRAC(item)) {
@@ -75,10 +78,76 @@ function verDet(id,tipo) {
 
 function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>showToast('Copiado!'));}
 
+function _escP(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// Folha em branco: O.S. planejada (preventiva/outras) ou solicitação ainda aberta.
+// Preenchido: OS, sala, máquina, tipo, prioridade, prazo/data e o serviço.
+// Em branco: manutentor, data, horas, duração, parada, ação executada, assinaturas.
+// Não conclui nada. A baixa é feita depois, no botão Concluir.
+function imprimirFolhaBranco_(item, tipo) {
+  const ehSol = tipo === 'sol';
+  const box = (label, val) =>
+    `<div class="info-box"><div class="info-label">${label}</div><div class="info-val">${val===''?'&nbsp;':_escP(val)}</div></div>`;
+  const win = window.open('','_blank');
+  if (!win) { showToast('Libere os pop-ups do navegador para imprimir.','er',6000); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>ORDEM DE SERVIÇO ${_escP(item.numero)}</title>
+<style>
+@page{size:A4 portrait;margin:12mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:6mm}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C41230;padding-bottom:8px;margin-bottom:12px}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-left img{height:48px;object-fit:contain}
+h1{font-size:17px;color:#C41230;margin-bottom:2px}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.info-box{border:1px solid #888;border-radius:3px;padding:6px 10px;min-height:48px}
+.info-label{font-size:10px;color:#444;text-transform:uppercase}
+.info-val{font-size:14px;font-weight:bold}
+.section{margin-bottom:10px}
+.section-title{font-size:13px;font-weight:bold;background:#f0f0f0;padding:5px 8px;border-left:3px solid #C41230;margin-bottom:6px}
+.section-content{border:1px solid #888;border-radius:3px;padding:8px 10px;font-size:14px;min-height:40px;line-height:1.6}
+.escrever{min-height:190px;background-image:repeating-linear-gradient(transparent,transparent 31px,#bbb 31px,#bbb 32px)}
+.assinatura{border-top:1px solid #000;width:200px;margin-top:40px;padding-top:4px;font-size:10px}
+.nota{margin-top:18px;font-size:10px;color:#444}
+</style></head><body>
+<div class="header">
+  <div class="header-left">
+    <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" alt="" onerror="this.style.display='none'">
+    <div><div style="font-weight:bold;font-size:15px">MUFFATO FOODS</div><div style="font-size:11px;color:#444">Gestão de Manutenção — SIGMAN</div></div>
+  </div>
+  <div style="text-align:center"><h1>ORDEM DE SERVIÇO</h1><div style="font-size:13px;font-weight:bold;color:#C41230">${_escP(item.numero)}</div></div>
+  <div style="text-align:right;font-size:10px;color:#444">Doc: SIGMAN<br>Rev: 01</div>
+</div>
+<div class="info-grid">
+  ${box('Sala / Local', item.sala||'')}
+  ${box('Máquina / Ativo', item.maq||'')}
+  ${box('Tipo', item.tipo||'')}
+  ${box('Prioridade', item.prioridade||'')}
+  ${ehSol ? box('Data da Solicitação', fd((item.criadoEm||'').slice(0,10))) : box('Prazo Limite', fd(item.prazo))}
+  ${box('Manutentor','')}
+  ${box('Data','')}
+  ${box('Hora Início','')}
+  ${box('Hora Fim','')}
+  ${box('Duração (min)','')}
+  ${box('Parada (min)','')}
+</div>
+<div class="section"><div class="section-title">${ehSol ? 'Problema / Ocorrência' : 'Serviço Planejado'}</div><div class="section-content">${_escP(item.desc||'—')}</div></div>
+<div class="section"><div class="section-title">Ação / Serviço Executado</div><div class="section-content escrever"></div></div>
+<div style="display:flex;justify-content:space-between;margin-top:20px">
+  <div><div class="assinatura">Assinatura do Manutentor</div></div>
+  <div><div class="assinatura">Visto do Supervisor</div></div>
+</div>
+<div class="nota">Após a execução, dar baixa no SIGMAN (botão Concluir) com os dados preenchidos nesta folha.</div>
+<script>window.onload=function(){window.print();};<\/script></body></html>`);
+  win.document.close();
+}
+
 function imprimirDetOS() {
   if (!_curDet) return;
   const {item, tipo} = _curDet;
-  const titulo = tipo==='os' ? 'ORDEM DE SERVIÇO EXECUTADA' : tipo==='sol' ? 'SOLICITAÇÃO DE MANUTENÇÃO' : 'ORDEM DE SERVIÇO PLANEJADA';
+  if (tipo !== 'os' && item.status !== 'Concluída') { imprimirFolhaBranco_(item, tipo); return; }
+  const titulo =tipo==='os' ? 'ORDEM DE SERVIÇO EXECUTADA' : tipo==='sol' ? 'SOLICITAÇÃO DE MANUTENÇÃO' : 'ORDEM DE SERVIÇO PLANEJADA';
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>${titulo}</title>
