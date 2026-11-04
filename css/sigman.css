@@ -405,3 +405,39 @@ label,
 /* ── Multi-foto (OS abertura, Solicitação, edição OS) ── */
 .photo-multi-grid{min-height:82px;padding:8px;border:2px dashed var(--bord);border-radius:var(--rs);background:var(--surf2);transition:.15s}
 .photo-multi-grid:hover{border-color:var(--red)}
+
+/* ── Dashboard: cabeçalho alinhado (desktop em 1 linha, celular em 3) ── */
+.dash-hd{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.dash-hd .pt{flex:1 1 auto;min-width:0}
+.dash-act{display:flex;align-items:center;gap:8px;order:2}
+.dash-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:1 1 100%;order:3}
+.dash-hd select,.dash-hd .btn,.dash-hd #dash-alert-ico{height:36px;box-sizing:border-box}
+.dash-hd select{background:var(--surf2);border:1px solid var(--bord);border-radius:var(--rs);color:var(--txt);padding:0 10px;font-size:14px;font-family:var(--fw);font-weight:600;cursor:pointer}
+.dash-hd .btn{padding:0 12px;font-size:14px}
+.dash-hd .ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.dash-hd .ic-warn{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#dash-alert-ico{color:#f5a623;width:36px;padding:0;justify-content:center;align-items:center;cursor:pointer}
+.dash-rf-st{display:flex;align-items:center;gap:6px;min-width:0}
+#rf-lbl{font-size:13px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+#dash-custom-dates{height:36px!important}
+@media(min-width:1200px){
+ .dash-hd{flex-wrap:nowrap;align-items:flex-start}
+ .dash-hd .pt{flex:0 0 auto}
+ .dash-tools{flex:1 1 0;min-width:0;order:2;justify-content:flex-start;padding-left:8px;margin-top:2px}
+ .dash-act{order:3;margin-left:auto;margin-top:2px}
+}
+@media(max-width:600px){
+ .dash-hd .pt{flex:1 1 0}
+ .dash-act{flex:0 0 auto}
+ .dash-tools{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}
+ .dash-tools select{min-width:0;width:100%}
+ .dash-tools .btn-atu span{display:none}
+ .dash-tools .dash-rf-st{grid-column:1 / -1;order:5}
+ #dash-custom-dates{grid-column:1 / -1;display:none;grid-template-columns:auto minmax(0,1fr);gap:8px;height:auto!important}
+ #dash-custom-dates[style*="display: flex"],#dash-custom-dates[style*="display:flex"]{display:grid!important}
+ #dash-custom-dates input[type=text]{width:100%!important;min-width:0}
+}
+@media(max-width:380px){
+ .dash-act .btn span{display:none}
+ .dash-hd .pt{font-size:24px}
+}
