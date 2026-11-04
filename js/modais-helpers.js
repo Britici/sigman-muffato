@@ -65,7 +65,7 @@ function verDet(id,tipo) {
   const pBtn=document.getElementById('md-print-btn');
   pBtn.style.display='inline-block';
   // O.S. planejada / solicitação ainda aberta: imprime folha em branco para preencher à mão.
-  pBtn.textContent = (tipo!=='os' && item.status!=='Concluída') ? '🖨️ Imprimir O.S. para preencher' : '🖨️ Imprimir O.S.';
+  pBtn.textContent = (tipo!=='os' && item.status!=='Concluída') ? '🖨️ Imprimir O.S.' : '🖨️ Imprimir O.S.';
   // Mostrar botão GERAR RCA apenas se precisaRAC()
   const racBtn = document.getElementById('md-rac-btn');
   if (tipo === 'os' && precisaRAC(item)) {
