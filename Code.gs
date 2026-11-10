@@ -4,6 +4,23 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v18 — Baixa no servidor, folha impressa, checklist do PM e importador dos modelos.
+//   • concluirOS (POST): única porta para concluir planejada/solicitação. Sob lock: valida, gera o número da OS no
+//     servidor, grava Ordens_Executadas e fecha a origem. Recusa baixa duplicada (JA_CONCLUIDA), data futura,
+//     parada > duração, hora fim < início sem confirmação de meia-noite e manutentor fora do cadastro.
+//     Baixado_Por (sessão) fica separado de Manutentor (quem executou).
+//   • Reenvio da fila offline (offline:true) de uma O.S. que outra pessoa já concluiu NÃO é descartado:
+//     vira OS COMPLEMENTAR (número novo, mesma origem, texto "[Complementar à PL-0001 …]"); a origem não é alterada.
+//     Online (sem offline:true) a baixa duplicada continua recusada (JA_CONCLUIDA).
+//   • marcarImpressa (POST): grava Impressa_Em/Impressa_Por da folha em branco. Não conclui.
+//   • update genérico NÃO conclui mais planejada/solicitação nem toca em Baixado_Por/Impressa_*/Concluido_Em
+//     (BLOQUEAR_BAIXA_GENERICA). Em Ordens_Executadas, Baixado_Por é sempre o usuário da sessão.
+//   • ExecucaoItens perdeu o append genérico (risco nº 1 do v42): só entra por pmGravarChecklist (POST), que
+//     valida a ocorrência na grade de PM e os itens do modelo (cascata), abre corretiva em CORRETIVA/PARAR
+//     (PARAR = prioridade 1) e só marca Feita_Em ao finalizar com todos os itens.
+//   • Importador dos modelos: pmImportarModelosPreview / pmImportarModelosReal (planilha do PCM).
+//   • Rode migrarColunasV18() UMA vez no editor após colar esta versão (acrescenta colunas; não mexe nos dados).
+//
 // v17 — ModelosItens ganha a coluna Freq (Q/M/T/S/A): cada item do checklist diz a partir de qual
 //   frequência entra (a OS anual inclui os itens das frequências menores).
 //   • SCHEMAS.ModelosItens: Freq no fim. Freq é obrigatória e validada no servidor (Q/M/T/S/A exato).
@@ -218,18 +235,20 @@ var SCHEMAS = {
     'OS_Numero','Data','Sala','Maquina','Tag_Maquina','Tipo','Prioridade',
     'Manutentor','Hora_Inicio','Hora_Fim','Duracao_Min','Tempo_Parada_Min',
     'Problema','Acao_Executada','Acao_Preventiva','Foto_URL','Fotos','Pecas_Utilizadas',
-    'Origem','OS_Origem_Ref','Criado_Em'
+    'Origem','OS_Origem_Ref','Criado_Em','Baixado_Por'
   ],
   'OS_Planejadas': [
     'PL_Numero','Sala','Maquina','Tag_Maquina','Tipo','Prioridade',
     'Prazo_Limite','Horas_Turno','Descricao_Planejada','Status',
     'Manutentor_Exec','Data_Execucao','Hora_Inicio','Hora_Fim',
-    'Duracao_Min','Servico_Executado','Criado_Em','Concluido_Em','Fotos'
+    'Duracao_Min','Servico_Executado','Criado_Em','Concluido_Em','Fotos',
+    'Baixado_Por','Impressa_Em','Impressa_Por'
   ],
   'Solicitacoes': [
     'SOL_Numero','Sala','Maquina','Tipo','Prioridade','Descricao',
     'Status','Solicitante','Manutentor_Exec','Data_Execucao',
-    'Servico_Executado','Foto_URL','Fotos','Criado_Em','Concluido_Em'
+    'Servico_Executado','Foto_URL','Fotos','Criado_Em','Concluido_Em',
+    'Baixado_Por','Impressa_Em','Impressa_Por'
   ],
   'Inspecoes_Diarias': [
     'ID_Inspecao','Data','Turno','Horas_Turno','Manutentor',
@@ -424,7 +443,7 @@ var ACL_ESCRITA = {
   compras:       { update: [P_ADM] },
   planosPM:      { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
   modelosItens:  { append: [P_ADM], update: [P_ADM], delete: [P_ADM] },
-  execItens:     { append: P_OPER, update: [P_ADM] }
+  execItens:     { update: [P_ADM] } // v18: sem append genérico; a gravação do checklist é só por pmGravarChecklist
 };
 
 function own_(obj, k) { return Object.prototype.hasOwnProperty.call(obj, k); }
@@ -678,6 +697,7 @@ function doPost(e) {
     switch (d.action) {
       case 'append':
         nega = checarEscrita_(sess, 'append', d.sheet);
+        if (!nega && d.sheet === 'ordens' && d.row && typeof d.row === 'object') d.row.Baixado_Por = usuario; // auditoria: sempre a sessão
         return resp_(nega || appendRow(d.sheet, d.row, usuario, d.idempotencyKey), sess);
       case 'appendBatch':
         nega = checarEscrita_(sess, 'append', d.sheet);
@@ -685,6 +705,7 @@ function doPost(e) {
         return resp_(nega || appendBatch(d.sheet, d.rows, usuario), sess);
       case 'update':
         nega = checarEscrita_(sess, 'update', d.sheet);
+        if (!nega) nega = guardaUpdateGenerico_(d.sheet, d.id, d.idCol, d.row);
         return resp_(nega || updateRow(d.sheet, d.id, d.idCol, d.row, usuario), sess);
       case 'delete':
         nega = checarEscrita_(sess, 'delete', d.sheet);
@@ -711,6 +732,15 @@ function doPost(e) {
         return resp_(salvarManualSenha(d.dados, usuario), sess);
       case 'trocarSenha':
         return resp_(trocarSenha(sess, d.login, d.novaSenha), sess);
+      case 'concluirOS':
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(concluirOS(sess, d), sess);
+      case 'marcarImpressa':
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(marcarImpressa(sess, d), sess);
+      case 'pmGravarChecklist':
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(pmGravarChecklist(sess, d), sess);
       case 'gerarPreventivasManual':
         if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
         return resp_(gerarPreventivasAutomaticas(false), sess);
@@ -2244,4 +2274,499 @@ function pmLimparTeste() {
   }
   invalidarCacheReadAll_();
   Logger.log('✅ ' + n + ' linha(s) de teste removida(s) de PlanosPM.');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// v18 — BAIXA NO SERVIDOR, FOLHA IMPRESSA, CHECKLIST DO PM E IMPORTADOR
+// ═════════════════════════════════════════════════════════════════
+
+// true = a baixa (Status Concluída/Executada) só entra pela action concluirOS. O 'update' genérico
+// que tente concluir planejada/solicitação é recusado. Troque para false só em emergência.
+var BLOQUEAR_BAIXA_GENERICA = true;
+var PM_PRAZO_CORRETIVA_DIAS = 7;   // prazo da corretiva aberta por item CORRETIVA (PARAR vence hoje)
+var CAMPOS_BAIXA_PROTEGIDOS = ['Baixado_Por', 'Impressa_Em', 'Impressa_Por', 'Concluido_Em'];
+
+function vErro_(msg, code) { return { ok: false, code: code || 'VALIDATION', error: msg }; }
+function normLower_(v) { return semAcento_(v).toLowerCase(); }
+function ehConcluida_(st) { var s = normLower_(st); return s === 'concluida' || s === 'executada'; }
+function agoraTxt_() { return Utilities.formatDate(new Date(), PM_TZ, 'yyyy-MM-dd HH:mm'); }
+function minutosHora_(hhmm) { var p = String(hhmm).split(':'); return (+p[0]) * 60 + (+p[1]); }
+
+// Cabeçalho de uma aba + índice por nome. falta = colunas pedidas que a aba ainda não tem.
+function cabecalho_(sh, exigidas) {
+  var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var falta = (exigidas || []).filter(function(c) { return h.indexOf(c) < 0; });
+  return { h: h, falta: falta };
+}
+function erroMigracao_(falta, aba) {
+  return vErro_('A aba ' + aba + ' ainda não tem a(s) coluna(s) ' + falta.join(', ') + '. Rode migrarColunasV18() no editor do Apps Script.', 'MIGRACAO');
+}
+
+// Manutentor válido = usuário ATIVO de perfil administração ou manutenção. Devolve o Nome como está no cadastro.
+function manutentorCanonico_(nome) {
+  var alvo = normLower_(nome).replace(/\s+/g, ' ');
+  if (!alvo) return '';
+  var us = sheetToObjects(getSheet('usuarios'));
+  for (var i = 0; i < us.length; i++) {
+    var n = normLower_(us[i].Nome).replace(/\s+/g, ' ');
+    if (n === alvo && ativoSim_(us[i].Ativo) && (perfilNorm_(us[i].Tipo_Acesso) === P_ADM || perfilNorm_(us[i].Tipo_Acesso) === P_MAN)) {
+      return String(us[i].Nome).trim();
+    }
+  }
+  return '';
+}
+
+function origemBaixa_(tipo, numero) {
+  if (tipo === 'plan' && /^PL-\d{1,8}$/.test(numero)) return { key: 'planejadas', idCol: 'PL_Numero' };
+  if (tipo === 'sol' && /^SOL-\d{1,8}$/.test(numero)) return { key: 'solicitacoes', idCol: 'SOL_Numero' };
+  return null;
+}
+
+// Valida e normaliza os dados da baixa. Puro (sem planilha), testável. Devolve {erro} ou {v}.
+function baixaValidar_(d, hoje) {
+  var manut = String(d.manutentor === undefined ? '' : d.manutentor).trim();
+  var desc  = String(d.desc === undefined ? '' : d.desc).trim();
+  if (!manut || !desc) return { erro: vErro_('Preencha o manutentor e a descrição do serviço executado.') };
+  if (desc.length > 2000) return { erro: vErro_('Descrição do serviço longa demais (máx. 2000 caracteres).') };
+  var data = String(d.data === undefined || d.data === '' ? hoje : d.data).trim();
+  if (!PMMotor.dataValida(data)) return { erro: vErro_('Data de execução inválida.') };
+  if (data > hoje) return { erro: vErro_('A data de execução não pode ser futura.') };
+  var ini = String(d.ini || '').trim(), fim = String(d.fim || '').trim();
+  var reHora = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if ((ini && !reHora.test(ini)) || (fim && !reHora.test(fim))) return { erro: vErro_('Hora inválida (use HH:MM).') };
+  if (!!ini !== !!fim) return { erro: vErro_('Informe a hora de início e a de fim, ou nenhuma das duas.') };
+  var parada = (d.parada === undefined || d.parada === '' || d.parada === null) ? 0 : Number(d.parada);
+  if (!isFinite(parada) || parada < 0 || Math.floor(parada) !== parada) return { erro: vErro_('Tempo de parada inválido.') };
+  var dur = 0;
+  if (ini && fim) {
+    dur = minutosHora_(fim) - minutosHora_(ini);
+    if (dur < 0) {
+      if (d.viradaMeiaNoite !== true) return { erro: vErro_('Hora fim menor que o início: confirme que o serviço virou a meia-noite.', 'MEIA_NOITE') };
+      dur += 1440;
+    }
+    if (!parada) parada = dur;
+    if (parada > dur) return { erro: vErro_('Tempo de parada (' + parada + ' min) maior que a duração (' + dur + ' min).') };
+  } else if (parada > 1440) {
+    return { erro: vErro_('Tempo de parada acima de 24 h sem horários informados.') };
+  }
+  var fotos = [];
+  if (d.fotos !== undefined && d.fotos !== null) {
+    if (!Array.isArray(d.fotos) || d.fotos.length > 10) return { erro: vErro_('Lista de fotos inválida (máx. 10).') };
+    for (var i = 0; i < d.fotos.length; i++) {
+      var f = String(d.fotos[i] || '');
+      if (!/^https:\/\//.test(f) || f.length > 500) return { erro: vErro_('Endereço de foto inválido.') };
+      fotos.push(f);
+    }
+  }
+  return { v: { manut: manut, desc: desc, data: data, ini: ini, fim: fim, dur: dur, parada: parada, fotos: fotos } };
+}
+
+function linhaOS_(linha, v, tipo, numero, usuario, agora, acao) {
+  return {
+    Data: v.data, Sala: linha.Sala, Maquina: linha.Maquina, Tag_Maquina: linha.Tag_Maquina || '', Tipo: linha.Tipo,
+    Prioridade: linha.Prioridade, Manutentor: v.manut, Hora_Inicio: v.ini, Hora_Fim: v.fim, Duracao_Min: v.dur,
+    Tempo_Parada_Min: v.parada, Problema: linha.Descricao_Planejada || linha.Descricao || '', Acao_Executada: acao,
+    Foto_URL: v.fotos[0] || '', Fotos: JSON.stringify(v.fotos), Origem: tipo, OS_Origem_Ref: numero,
+    Criado_Em: agora, Baixado_Por: usuario
+  };
+}
+
+// POST concluirOS — a ÚNICA porta para concluir O.S. planejada ou solicitação.
+// Tudo sob um lock: confere a origem, gera o número da OS no servidor, grava a OS em Ordens_Executadas
+// e fecha a origem. Quem executou (Manutentor) fica separado de quem deu a baixa (Baixado_Por = sessão).
+function concluirOS(sess, d) {
+  var usuario = sess ? sess.nome : String(d.usuario || '');
+  var tipo = String(d.tipo || ''), numero = String(d.numero || '').trim();
+  var org = origemBaixa_(tipo, numero);
+  if (!org) return vErro_('Tipo ou número da O.S. inválido.');
+  var chk = baixaValidar_(d, pmHoje_());
+  if (chk.erro) return chk.erro;
+  var v = chk.v;
+  var canon = manutentorCanonico_(v.manut);
+  if (!canon) return vErro_('Manutentor inválido: escolha um usuário ativo de Manutenção ou Administração.');
+  v.manut = canon;
+
+  var res = comLock(function() {
+    var sh = getSheet(org.key), nomeAba = SHEET_NAMES[org.key];
+    var exigidas = ['Status', 'Manutentor_Exec', 'Data_Execucao', 'Servico_Executado', 'Concluido_Em', 'Baixado_Por'];
+    if (tipo === 'plan') exigidas = exigidas.concat(['Hora_Inicio', 'Hora_Fim', 'Duracao_Min']);
+    var c1 = cabecalho_(sh, exigidas.concat([org.idCol]));
+    if (c1.falta.length) return erroMigracao_(c1.falta, nomeAba);
+    var shO = getSheet('ordens');
+    var c2 = cabecalho_(shO, ['OS_Numero', 'OS_Origem_Ref', 'Baixado_Por', 'Criado_Em']);
+    if (c2.falta.length) return erroMigracao_(c2.falta, SHEET_NAMES.ordens);
+
+    var dados = sh.getDataRange().getValues(), h = dados[0], idx = h.indexOf(org.idCol), li = -1;
+    for (var i = 1; i < dados.length; i++) { if (String(dados[i][idx]).trim() === numero) { li = i; break; } }
+    if (li < 0) return vErro_('Não encontrada: ' + numero, 'NOTFOUND');
+    var linha = {}; h.forEach(function(c, j) { linha[c] = dados[li][j]; });
+
+    // OS já gravada para esta origem (conclusão anterior, ou sobra de uma gravação interrompida)
+    var oc = shO.getDataRange().getValues(), oh = oc[0], iRef = oh.indexOf('OS_Origem_Ref'), iNum = oh.indexOf('OS_Numero');
+    var iBx = oh.indexOf('Baixado_Por'), iCr = oh.indexOf('Criado_Em'), osExist = null;
+    for (var k = 1; k < oc.length; k++) {
+      if (String(oc[k][iRef]).trim() === numero) { osExist = { numero: String(oc[k][iNum]), por: String(oc[k][iBx]), criado: String(oc[k][iCr]) }; break; }
+    }
+    if (ehConcluida_(linha.Status)) {
+      // Reenvio da MESMA baixa (fila offline, resposta perdida), mesmo horas depois: mesmo usuário, manutentor e texto = sucesso.
+      var mesma = osExist && String(linha.Baixado_Por).trim() === usuario && String(linha.Manutentor_Exec).trim() === v.manut &&
+                  String(linha.Servico_Executado).trim() === v.desc;
+      if (mesma) return { ok: true, duplicataEvitada: true, numero: osExist.numero };
+      // Reenvio vindo da FILA OFFLINE de outra pessoa que também executou: o trabalho real não se perde.
+      // Vira uma OS COMPLEMENTAR (número novo, mesma origem). A origem fica como o primeiro a concluir deixou.
+      if (d.offline === true) {
+        var iAc = oh.indexOf('Acao_Executada'), iMn = oh.indexOf('Manutentor');
+        for (var q = 1; q < oc.length; q++) {
+          var ac = String(oc[q][iAc]);
+          if (String(oc[q][iRef]).trim() === numero && String(oc[q][iBx]).trim() === usuario && String(oc[q][iMn]).trim() === v.manut &&
+              ac.indexOf('[Complementar') === 0 && ac.slice(-v.desc.length) === v.desc) {
+            return { ok: true, duplicataEvitada: true, complementar: true, numero: String(oc[q][iNum]) }; // reenvio repetido
+          }
+        }
+        var quem = String(linha.Baixado_Por || linha.Manutentor_Exec || '').trim() || 'outra pessoa';
+        var agoraC = new Date().toISOString();
+        var rc = appendComNumero_('ordens', 'OS_Numero', 'OS-', linhaOS_(linha, v, tipo, numero, usuario, agoraC,
+                   '[Complementar à ' + numero + ', já concluída antes por ' + quem + '] ' + v.desc));
+        if (!rc.ok) return vErro_(rc.error || 'Falha ao gravar a O.S. complementar.');
+        return { ok: true, complementar: true, numero: rc.numero, origem: numero, concluidaPor: quem, concluidoEm: agoraC,
+                 baixadoPor: usuario, manutentor: v.manut, durMin: v.dur, paradaMin: v.parada, data: v.data };
+      }
+      return { ok: false, code: 'JA_CONCLUIDA', error: 'Esta O.S. já foi concluída' + (osExist ? ' (' + osExist.numero + (osExist.por ? ' por ' + osExist.por : '') + ')' : '') + '. Atualize a tela.', numero: osExist ? osExist.numero : '' };
+    }
+
+    var agora = new Date().toISOString(), osNum;
+    if (osExist) {
+      osNum = osExist.numero; // sobra de gravação interrompida: reaproveita, não duplica
+    } else {
+      var row = linhaOS_(linha, v, tipo, numero, usuario, agora, v.desc);
+      var r = appendComNumero_('ordens', 'OS_Numero', 'OS-', row);
+      if (!r.ok) return vErro_(r.error || 'Falha ao gravar a O.S.');
+      osNum = r.numero;
+    }
+    var novo = { Status: 'Concluída', Manutentor_Exec: v.manut, Data_Execucao: v.data, Servico_Executado: v.desc,
+                 Concluido_Em: agora, Baixado_Por: usuario };
+    if (tipo === 'plan') { novo.Hora_Inicio = v.ini; novo.Hora_Fim = v.fim; novo.Duracao_Min = v.dur; }
+    if (h.indexOf('Fotos') >= 0 && v.fotos.length) novo.Fotos = JSON.stringify(v.fotos);
+    var out = h.map(function(c, j) { return novo[c] !== undefined ? novo[c] : dados[li][j]; });
+    sh.getRange(li + 1, 1, 1, h.length).setValues([out]);
+    return { ok: true, numero: osNum, concluidoEm: agora, baixadoPor: usuario, manutentor: v.manut,
+             durMin: v.dur, paradaMin: v.parada, data: v.data };
+  });
+  logGravacao(usuario, 'concluirOS', org.key, numero, res.ok ? 'sucesso' : 'falha', res.error || res.numero || '');
+  return res;
+}
+
+// POST marcarImpressa — registra que a folha em branco da O.S. aberta foi impressa (quem e quando).
+// Não conclui nada. Recusa O.S. já concluída. Reimprimir atualiza a marca.
+function marcarImpressa(sess, d) {
+  var usuario = sess ? sess.nome : String(d.usuario || '');
+  var numero = String(d.numero || '').trim();
+  var org = origemBaixa_(String(d.tipo || ''), numero);
+  if (!org) return vErro_('Tipo ou número da O.S. inválido.');
+  var res = comLock(function() {
+    var sh = getSheet(org.key);
+    var c = cabecalho_(sh, [org.idCol, 'Status', 'Impressa_Em', 'Impressa_Por']);
+    if (c.falta.length) return erroMigracao_(c.falta, SHEET_NAMES[org.key]);
+    var dados = sh.getDataRange().getValues(), h = dados[0], idx = h.indexOf(org.idCol);
+    for (var i = 1; i < dados.length; i++) {
+      if (String(dados[i][idx]).trim() !== numero) continue;
+      if (ehConcluida_(dados[i][h.indexOf('Status')])) return vErro_('Esta O.S. já está concluída.', 'JA_CONCLUIDA');
+      var quando = agoraTxt_(), cE = h.indexOf('Impressa_Em') + 1, cP = h.indexOf('Impressa_Por') + 1;
+      sh.getRange(i + 1, cE).setNumberFormat('@').setValue(quando);
+      sh.getRange(i + 1, cP).setValue(usuario);
+      return { ok: true, impressaEm: quando, impressaPor: usuario };
+    }
+    return vErro_('Não encontrada: ' + numero, 'NOTFOUND');
+  });
+  logGravacao(usuario, 'marcarImpressa', org.key, numero, res.ok ? 'sucesso' : 'falha', res.error || '');
+  return res;
+}
+
+// Guarda do 'update' genérico: não deixa concluir planejada/solicitação por fora de concluirOS,
+// nem mexer nos campos de auditoria. Editar O.S. que JÁ está concluída (correção de admin) continua valendo.
+function guardaUpdateGenerico_(sheet, id, idCol, row) {
+  if (!row || typeof row !== 'object') return null;
+  var ehOrigem = (sheet === 'planejadas' || sheet === 'solicitacoes');
+  if (sheet === 'ordens' && own_(row, 'Baixado_Por')) return negar_('Campo Baixado_Por é gravado só pelo servidor.');
+  if (!ehOrigem) return null;
+  for (var i = 0; i < CAMPOS_BAIXA_PROTEGIDOS.length; i++) {
+    if (own_(row, CAMPOS_BAIXA_PROTEGIDOS[i])) return negar_('Campo ' + CAMPOS_BAIXA_PROTEGIDOS[i] + ' é gravado só pelo servidor.');
+  }
+  if (BLOQUEAR_BAIXA_GENERICA && own_(row, 'Status') && ehConcluida_(row.Status)) {
+    var sh = getSheet(sheet), dados = sh.getDataRange().getValues(), h = dados[0];
+    var iId = h.indexOf(idCol), iSt = h.indexOf('Status');
+    for (var j = 1; j < dados.length; j++) {
+      if (String(dados[j][iId]) === String(id)) {
+        if (ehConcluida_(dados[j][iSt])) return null; // já concluída: edição de correção
+        break;
+      }
+    }
+    return negar_('Para concluir use o botão Concluir (a baixa é feita pelo servidor).');
+  }
+  return null;
+}
+
+// ── Checklist do PM (3c) ─────────────────────────────────────────────────────
+var PM_RESULTADOS = ['OK', 'CORRIGI', 'CORRETIVA', 'PARAR'];
+var PM_ORDEM_FREQ = ['Q', 'M', 'T', 'S', 'A'];
+
+// Itens que a OS da chave exige: ativos, do(s) modelo(s) dos planos da ocorrência, com Freq <= frequência da OS (cascata).
+function pmItensExigidos_(modelos, freq, itensRows) {
+  var r = PM_ORDEM_FREQ.indexOf(freq), out = [];
+  itensRows.forEach(function(it) {
+    if (!ativoSim_(it.Ativo)) return;
+    if (modelos.indexOf(String(it.Modelo).trim()) < 0) return;
+    var fi = PM_ORDEM_FREQ.indexOf(String(it.Freq).trim());
+    if (fi < 0 || fi > r) return;
+    out.push(it);
+  });
+  return out;
+}
+
+// Valida a lista enviada contra os itens exigidos. Puro. Devolve '' ou a mensagem.
+function pmChecklistValidar_(enviados, exigidos) {
+  var porId = {}, vistos = {};
+  exigidos.forEach(function(it) { porId[String(it.ID_Item).trim()] = it; });
+  for (var i = 0; i < enviados.length; i++) {
+    var e = enviados[i] || {}, id = String(e.ID_Item === undefined ? '' : e.ID_Item).trim();
+    if (!own_(porId, id)) return 'Item fora do checklist desta OS: ' + id;
+    if (own_(vistos, id)) return 'Item repetido na lista: ' + id;
+    vistos[id] = 1;
+    if (PM_RESULTADOS.indexOf(e.Resultado) < 0) return 'Resultado inválido no item ' + id + ' (use OK, CORRIGI, CORRETIVA ou PARAR).';
+    if (e.Resultado !== 'OK' && String(e.Observacao || '').trim().length < 3) return 'Descreva o problema no item ' + id + ' (observação obrigatória quando não está OK).';
+    if (String(e.Observacao || '').length > 1000) return 'Observação longa demais no item ' + id + '.';
+    if (e.Foto_URL && !/^https:\/\//.test(String(e.Foto_URL))) return 'Endereço de foto inválido no item ' + id + '.';
+  }
+  return '';
+}
+
+// POST pmGravarChecklist — única porta de escrita em ExecucaoItens (v18 tirou o append genérico).
+// d: { chave:'ID_Maquina|AAAA-MM-DD', itens:[{ID_Item,Resultado,Observacao,Foto_URL}], finalizar:bool, manutentor, feitaEm?, osNumero? }
+// Só a ocorrência que existe na grade de PM é aceita. CORRETIVA/PARAR abrem O.S. corretiva (PARAR = prioridade 1).
+// A OS do PM só conta como feita (Feita_Em) quando finalizar=true e TODOS os itens exigidos têm resultado.
+function pmGravarChecklist(sess, d) {
+  var usuario = sess ? sess.nome : String(d.usuario || '');
+  var m = /^(.+)\|(\d{4}-\d{2}-\d{2})$/.exec(String(d.chave || '').trim());
+  if (!m || !PMMotor.dataValida(m[2])) return vErro_('Chave inválida (use ID_Maquina|AAAA-MM-DD).');
+  var chave = m[1] + '|' + m[2], idMaq = m[1], venc = m[2];
+  if (!Array.isArray(d.itens) || d.itens.length > 600) return vErro_('Lista de itens inválida (máx. 600).');
+  var canon = manutentorCanonico_(d.manutentor);
+  if (!canon) return vErro_('Manutentor inválido: escolha um usuário ativo de Manutenção ou Administração.');
+  var hoje = pmHoje_(), feitaEm = String(d.feitaEm || hoje).trim();
+  if (d.finalizar === true && (!PMMotor.dataValida(feitaEm) || feitaEm > hoje)) return vErro_('Data de conclusão inválida ou futura.');
+  var osNum = String(d.osNumero || '').trim();
+  if (osNum && !/^PL-\d{1,8}$/.test(osNum)) return vErro_('Número de O.S. inválido.');
+
+  var res = comLock(function() {
+    var shE = getSheet('execItens');
+    var cE = cabecalho_(shE, SCHEMAS.ExecucaoItens);
+    if (cE.falta.length) return erroMigracao_(cE.falta, 'ExecucaoItens');
+    var shP = getSheet('planejadas');
+    var cP = cabecalho_(shP, ['PL_Numero', 'Sala', 'Maquina', 'Tag_Maquina', 'Tipo', 'Prioridade', 'Prazo_Limite', 'Horas_Turno', 'Descricao_Planejada', 'Status', 'Criado_Em']);
+    if (cP.falta.length) return erroMigracao_(cP.falta, 'OS_Planejadas');
+
+    var maq = null;
+    sheetToObjects(getSheet('maquinas')).forEach(function(x) { if (String(x.ID_Maquina).trim() === idMaq) maq = x; });
+    if (!maq) return vErro_('ID_Maquina não existe em Maquinas: ' + idMaq, 'NOTFOUND');
+
+    var planos = [];
+    sheetToObjects(getSheet('planosPM')).forEach(function(r) {
+      if (String(r.ID_Maquina).trim() !== idMaq || !ativoSim_(r.Ativo)) return;
+      var p = { id: String(r.ID_Plano).trim(), maquina: idMaq, freq: String(r.Freq).trim().toUpperCase(), primeira: String(r.Primeira).trim(),
+                ciclo: r.Ciclo_Dias, tol: r.Tol_Dias, ativo: true, modelo: String(r.Modelo || '').trim() };
+      if (!PMMotor.validar(p)) planos.push(p);
+    });
+    var occ = null;
+    PMMotor.gerar(planos, venc).forEach(function(o) { if (o.chave === chave) occ = o; });
+    if (!occ) return vErro_('Esta chave não existe na grade de PM (máquina/data sem plano ativo).', 'NOTFOUND');
+    var modelos = [];
+    planos.forEach(function(p) { if (occ.planos.indexOf(p.id) >= 0 && p.modelo && modelos.indexOf(p.modelo) < 0) modelos.push(p.modelo); });
+    if (!modelos.length) return vErro_('Os planos desta ocorrência não têm Modelo definido.');
+
+    var exigidos = pmItensExigidos_(modelos, occ.freq, sheetToObjects(getSheet('modelosItens')));
+    if (!exigidos.length) return vErro_('Nenhum item de checklist cadastrado para ' + modelos.join(', ') + ' na frequência ' + occ.freq + '.');
+    var erroLista = pmChecklistValidar_(d.itens, exigidos);
+    if (erroLista) return vErro_(erroLista);
+
+    var dados = shE.getDataRange().getValues(), h = dados[0];
+    var iCh = h.indexOf('Chave'), iId = h.indexOf('ID_Exec'), iFe = h.indexOf('Feita_Em'), iRes = h.indexOf('Resultado');
+    var existentes = {}, linhasChave = [], jaFinal = false;
+    for (var i = 1; i < dados.length; i++) {
+      if (String(dados[i][iCh]).trim() !== chave) continue;
+      existentes[String(dados[i][iId])] = { res: String(dados[i][iRes]), linha: i };
+      linhasChave.push(i);
+      if (String(dados[i][iFe]).trim()) jaFinal = true;
+    }
+    var novos = d.itens.filter(function(e) { return !own_(existentes, chave + '|' + String(e.ID_Item).trim()); });
+    var conflito = d.itens.filter(function(e) { var x = existentes[chave + '|' + String(e.ID_Item).trim()]; return x && x.res !== e.Resultado; });
+    if (conflito.length) return vErro_('Item já registrado com outro resultado: ' + String(conflito[0].ID_Item) + '. Só a administração corrige.', 'DUP');
+    if (jaFinal && novos.length) return vErro_('Esta ocorrência já foi finalizada.', 'JA_FINALIZADA');
+
+    var totalApos = linhasChave.length + novos.length;
+    var faltam = [];
+    if (d.finalizar === true) {
+      var ja = {}; Object.keys(existentes).forEach(function(k) { ja[k] = 1; });
+      novos.forEach(function(e) { ja[chave + '|' + String(e.ID_Item).trim()] = 1; });
+      exigidos.forEach(function(it) { if (!ja[chave + '|' + String(it.ID_Item).trim()]) faltam.push(String(it.ID_Item).trim()); });
+      if (faltam.length) return vErro_('Faltam ' + faltam.length + ' item(ns) para finalizar: ' + faltam.slice(0, 10).join(', ') + (faltam.length > 10 ? '…' : ''));
+      if (jaFinal && !novos.length) return { ok: true, duplicataEvitada: true, gravados: 0, finalizada: true, corretivas: [] };
+    }
+
+    var porId = {}; exigidos.forEach(function(it) { porId[String(it.ID_Item).trim()] = it; });
+    var agora = new Date().toISOString(), corretivas = [], linhasNovas = [];
+    novos.forEach(function(e) {
+      var id = String(e.ID_Item).trim(), it = porId[id], osCor = '';
+      if (e.Resultado === 'CORRETIVA' || e.Resultado === 'PARAR') {
+        var parar = e.Resultado === 'PARAR';
+        var prazo = parar ? hoje : pmSomaDias_(hoje, PM_PRAZO_CORRETIVA_DIAS);
+        var r = appendComNumero_('planejadas', 'PL_Numero', 'PL-', {
+          Sala: maq.Sala, Maquina: maq.Nome, Tag_Maquina: maq.Tag || '', Tipo: 'Corretiva', Prioridade: parar ? '1' : '2',
+          Prazo_Limite: prazo, Horas_Turno: 10, Status: 'Pendente', Criado_Em: agora,
+          Descricao_Planejada: '[PM ' + chave + '] ' + String(it.Descricao).trim() + ' — ' + String(e.Observacao).trim()
+        });
+        if (!r.ok) throw new Error('Falha ao abrir a corretiva do item ' + id + ': ' + (r.error || ''));
+        osCor = r.numero; corretivas.push({ item: id, os: r.numero, prioridade: parar ? '1' : '2' });
+      }
+      var reg = {
+        ID_Exec: chave + '|' + id, OS_Numero: osNum, Chave: chave, ID_Maquina: idMaq, Venc: venc, Tol_Ate: occ.tolAte,
+        Feita_Em: '', Manutentor: canon, Modelo: String(it.Modelo).trim(), Disciplina: String(it.Disciplina).trim(),
+        Ordem: it.Ordem, Item: String(it.Descricao).trim(), Resultado: e.Resultado, Observacao: String(e.Observacao || '').trim(),
+        Foto_URL: String(e.Foto_URL || ''), OS_Corretiva: osCor, Criado_Em: agora, Idempotency_Key: ''
+      };
+      linhasNovas.push(h.map(function(c) { return reg[c] !== undefined ? reg[c] : ''; }));
+    });
+    if (d.finalizar === true) {
+      var cFe = iFe + 1;
+      linhasNovas.forEach(function(l) { l[iFe] = feitaEm; });
+      linhasChave.forEach(function(li) { shE.getRange(li + 1, cFe).setNumberFormat('@').setValue(feitaEm); });
+    }
+    if (linhasNovas.length) shE.getRange(shE.getLastRow() + 1, 1, linhasNovas.length, h.length).setValues(linhasNovas);
+    return { ok: true, gravados: linhasNovas.length, ja_registrados: d.itens.length - novos.length, total: totalApos,
+             exigidos: exigidos.length, finalizada: d.finalizar === true, corretivas: corretivas };
+  });
+  logGravacao(usuario, 'pmGravarChecklist', 'execItens', chave, res.ok ? 'sucesso' : 'falha', res.error || ((res.gravados || 0) + ' item(ns)'));
+  return res;
+}
+
+// ── Importador dos modelos (3b) ──────────────────────────────────────────────
+// Lê a planilha preenchida pelo PCM (Google Sheets, aba "Itens") e grava em ModelosItens com a MESMA regra do servidor.
+// Tudo ou nada POR MODELO: um erro em qualquer linha de um modelo deixa o modelo inteiro de fora (checklist pela metade engana).
+// Idempotente por ID_Item. Nunca apaga linha: "APAGAR" na Obs_PCM vira Ativo = Nao. Texto livre na Obs_PCM NÃO altera a Descricao.
+var PM_IMPORT_PLANILHA_ID  = '';    // cole aqui o ID da planilha do PCM (Google Sheets) antes de rodar
+var PM_IMPORT_ABA          = 'Itens';
+var PM_IMPORT_OBS_VIRA_DESCRICAO = false; // true = texto da Obs_PCM (≠ APAGAR) substitui a Descricao
+
+function pmImportarCalc_(fonte, existentes, opts) {
+  opts = opts || {};
+  var erros = [], avisos = [], ignoradas = [], validas = [], vistos = {}, porModelo = {};
+  var ex = {}; existentes.forEach(function(r) { ex[String(r.ID_Item).trim()] = r; });
+  fonte.forEach(function(r, n) {
+    var linha = n + 2;
+    var id = String(r.ID_Item === undefined ? '' : r.ID_Item).trim();
+    var desc = String(r.Descricao === undefined ? '' : r.Descricao).replace(/\s+/g, ' ').trim();
+    if (!id && !desc) return; // linha em branco
+    var obs = String(r.Obs_PCM === undefined ? '' : r.Obs_PCM).trim();
+    var modelo = String(r.Modelo === undefined ? '' : r.Modelo).trim();
+    var falhas = [];
+    if (!/^[A-Z0-9][A-Z0-9-]{2,60}$/.test(id)) falhas.push('ID_Item inválido');
+    if (own_(vistos, id)) falhas.push('ID_Item repetido na planilha (linha ' + vistos[id] + ')'); else if (id) vistos[id] = linha;
+    if (!modelo || modelo.length > 60) falhas.push('Modelo vazio ou longo');
+    var disc = normLower_(r.Disciplina);
+    disc = disc === 'mecanico' ? 'Mecanico' : disc === 'eletrico' ? 'Eletrico' : '';
+    if (!disc) falhas.push('Disciplina inválida (Mecanico ou Eletrico)');
+    var ordem = Number(r.Ordem);
+    if (!isFinite(ordem) || Math.floor(ordem) !== ordem || ordem < 1 || ordem > 9999) falhas.push('Ordem inválida');
+    var freqTxt = String(r.Freq === undefined ? '' : r.Freq).trim().toUpperCase();
+    if (!freqTxt) falhas.push('Freq vazia (o PCM ainda não preencheu)'); else if (!/^[QMTSA]$/.test(freqTxt)) falhas.push('Freq inválida (' + freqTxt + ')');
+    var atv = normLower_(r.Ativo === undefined || String(r.Ativo).trim() === '' ? 'sim' : r.Ativo);
+    var ativo = atv === 'sim' ? 'Sim' : (atv === 'nao' ? 'Nao' : '');
+    if (!ativo) falhas.push('Ativo inválido (Sim ou Nao)');
+    if (obs.toUpperCase() === 'APAGAR') {
+      if (own_(ex, id)) validas.push({ linha: linha, apagar: true, id: id, modelo: modelo || String(ex[id].Modelo).trim() });
+      else ignoradas.push({ linha: linha, id: id, motivo: 'APAGAR: não importado' });
+      return;
+    }
+    if (obs) {
+      if (opts.obsViraDescricao) desc = obs.replace(/\s+/g, ' ');
+      else avisos.push({ linha: linha, id: id, motivo: 'Obs_PCM tem texto e NÃO foi aplicada: "' + obs.substring(0, 80) + '"' });
+    }
+    if (desc.length < 3 || desc.length > 500) falhas.push('Descricao vazia ou acima de 500 caracteres');
+    if (falhas.length) { erros.push({ linha: linha, id: id, modelo: modelo, motivo: falhas.join('; ') }); (porModelo[modelo] = porModelo[modelo] || {}).erro = true; return; }
+    validas.push({ linha: linha, id: id, modelo: modelo, obj: { ID_Item: id, Modelo: modelo, Disciplina: disc, Ordem: ordem, Descricao: desc, Ativo: ativo, Freq: freqTxt } });
+  });
+  var modelosComErro = {};
+  erros.forEach(function(e) { if (e.modelo) modelosComErro[e.modelo] = 1; });
+  var novos = [], atualizar = [], apagar = [], iguais = 0, excluidos = [];
+  validas.forEach(function(x) {
+    if (own_(modelosComErro, x.modelo)) { excluidos.push({ linha: x.linha, id: x.id, modelo: x.modelo, motivo: 'modelo com erro em outra linha: nada deste modelo foi importado' }); return; }
+    if (x.apagar) { if (normLower_(ex[x.id].Ativo) !== 'nao') apagar.push(x.id); else iguais++; return; }
+    var a = ex[x.id];
+    if (!a) { novos.push(x.obj); return; }
+    var igual = String(a.Modelo).trim() === x.obj.Modelo && normLower_(a.Disciplina) === normLower_(x.obj.Disciplina) &&
+                Number(a.Ordem) === x.obj.Ordem && String(a.Descricao).trim() === x.obj.Descricao &&
+                normLower_(a.Ativo || 'sim') === normLower_(x.obj.Ativo) && String(a.Freq).trim().toUpperCase() === x.obj.Freq;
+    if (igual) iguais++; else atualizar.push(x.obj);
+  });
+  return { novos: novos, atualizar: atualizar, apagar: apagar, iguais: iguais, erros: erros, avisos: avisos,
+           ignoradas: ignoradas, excluidos: excluidos, modelosComErro: Object.keys(modelosComErro) };
+}
+
+function pmImportarLer_() {
+  if (!PM_IMPORT_PLANILHA_ID) throw new Error('Preencha PM_IMPORT_PLANILHA_ID com o ID da planilha do PCM.');
+  var sh = SpreadsheetApp.openById(PM_IMPORT_PLANILHA_ID).getSheetByName(PM_IMPORT_ABA);
+  if (!sh) throw new Error('A planilha não tem a aba "' + PM_IMPORT_ABA + '".');
+  var v = sh.getDataRange().getValues(), h = v[0].map(function(c) { return String(c).trim(); });
+  ['ID_Item', 'Modelo', 'Disciplina', 'Ordem', 'Descricao', 'Freq'].forEach(function(c) {
+    if (h.indexOf(c) < 0) throw new Error('Coluna ausente na planilha do PCM: ' + c);
+  });
+  return v.slice(1).map(function(l) { var o = {}; h.forEach(function(c, j) { o[c] = l[j]; }); return o; });
+}
+
+function pmImportarLog_(r, real) {
+  Logger.log((real ? 'IMPORTAÇÃO REAL' : 'PRÉVIA (nada foi gravado)') + ' | novos ' + r.novos.length + ' | atualizar ' + r.atualizar.length +
+             ' | desativar (APAGAR) ' + r.apagar.length + ' | iguais ' + r.iguais + ' | erros ' + r.erros.length +
+             ' | fora por modelo com erro ' + r.excluidos.length + ' | avisos ' + r.avisos.length);
+  r.modelosComErro.forEach(function(m) { Logger.log('MODELO FORA: ' + m); });
+  r.erros.slice(0, 40).forEach(function(e) { Logger.log('ERRO linha ' + e.linha + ' ' + e.id + ': ' + e.motivo); });
+  r.avisos.slice(0, 40).forEach(function(e) { Logger.log('AVISO linha ' + e.linha + ' ' + e.id + ': ' + e.motivo); });
+}
+
+function pmImportarModelosPreview() {
+  var r = pmImportarCalc_(pmImportarLer_(), sheetToObjects(getSheet('modelosItens')), { obsViraDescricao: PM_IMPORT_OBS_VIRA_DESCRICAO });
+  pmImportarLog_(r, false);
+}
+
+function pmImportarModelosReal() {
+  var fonte = pmImportarLer_();
+  var res = comLock(function() {
+    var sh = getSheet('modelosItens'), c = cabecalho_(sh, SCHEMAS.ModelosItens);
+    if (c.falta.length) return erroMigracao_(c.falta, 'ModelosItens');
+    var r = pmImportarCalc_(fonte, sheetToObjects(sh), { obsViraDescricao: PM_IMPORT_OBS_VIRA_DESCRICAO });
+    var dados = sh.getDataRange().getValues(), h = dados[0], iId = h.indexOf('ID_Item'), iAt = h.indexOf('Ativo'), pos = {};
+    for (var i = 1; i < dados.length; i++) pos[String(dados[i][iId]).trim()] = i;
+    r.atualizar.forEach(function(o) {
+      var l = pos[o.ID_Item]; sh.getRange(l + 1, 1, 1, h.length).setValues([h.map(function(col, j) { return o[col] !== undefined ? o[col] : dados[l][j]; })]);
+    });
+    r.apagar.forEach(function(id) { sh.getRange(pos[id] + 1, iAt + 1).setValue('Nao'); });
+    if (r.novos.length) {
+      var rows = r.novos.map(function(o) { return h.map(function(col) { return o[col] !== undefined ? o[col] : ''; }); });
+      sh.getRange(sh.getLastRow() + 1, 1, rows.length, h.length).setValues(rows);
+    }
+    return { ok: true, r: r };
+  });
+  if (!res.ok) { Logger.log('❌ ' + res.error); return; }
+  pmImportarLog_(res.r, true);
+  logGravacao('editor', 'pmImportarModelos', 'modelosItens', '', 'sucesso', res.r.novos.length + ' novos, ' + res.r.atualizar.length + ' atualizados');
+}
+
+// Rodar UMA vez no editor após colar o v18 (pode repetir): acrescenta no fim as colunas novas
+// (Baixado_Por, Impressa_Em, Impressa_Por) e deixa Impressa_Em como TEXTO. Não mexe nos dados.
+function migrarColunasV18() {
+  var n = 0;
+  ['ordens', 'planejadas', 'solicitacoes', 'execItens'].forEach(function(k) { n += pmGarantirColunas_(k); });
+  ['planejadas', 'solicitacoes'].forEach(function(k) {
+    var sh = getSheet(k), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0], i = h.indexOf('Impressa_Em');
+    if (i >= 0) sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+  });
+  Logger.log('✅ Migração v18 concluída: ' + n + ' coluna(s) acrescentada(s).');
 }
