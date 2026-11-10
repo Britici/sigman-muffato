@@ -288,7 +288,7 @@ async function apiGet(params, _tentativa = 1) {
 
 // Erros em que reenviar o MESMO corpo só repetiria a recusa: não entram na
 // fila (e, se já estavam nela, vão para a "fila morta" em vez de ficar em loop).
-const FILA_ERROS_PERMANENTES = ['FORBIDDEN', 'VALIDATION', 'NOTFOUND', 'DUP'];
+const FILA_ERROS_PERMANENTES = ['FORBIDDEN', 'VALIDATION', 'NOTFOUND', 'DUP', 'JA_CONCLUIDA', 'MIGRACAO'];
 const FILA_KEY = 'sigman_fila';
 const FILA_MORTA_KEY = 'sigman_fila_morta';
 const FILA_MAX_TENTATIVAS = 8;                    // recusas do servidor (não conta queda de rede)
@@ -378,7 +378,8 @@ async function apiFlushQueue() {
   if (_flushEmAndamento) return;
   if (!CU || !getToken()) return; // sem sessão não há como enviar; a fila espera o próximo login
   _flushEmAndamento = true;
-  let mortas = 0;
+  let mortas = 0, recarregar = false;
+  const complementares = [];
   try {
     const fila = _filaLer(FILA_KEY);
     if (!fila.length) return;
@@ -406,7 +407,7 @@ async function apiFlushQueue() {
       } catch (e) { json = null; }
 
       authAplicarResposta(json); // AUTH → derruba a sessão; a fila continua guardada
-      if (json && json.ok) continue;                                  // enviado
+      if (json && json.ok) { if (item.body && item.body.action === 'concluirOS') recarregar = true; if (json.complementar && !json.duplicataEvitada) complementares.push(json); continue; } // enviado
       if (!json || json.code === 'AUTH') { restante.push(item); parar = true; continue; }
       if (json.code === 'BUSY') { restante.push(item); continue; }    // servidor ocupado: tenta no próximo ciclo, sem contar
       item.tries = (item.tries || 0) + 1;
@@ -424,6 +425,10 @@ async function apiFlushQueue() {
   } catch(e) {
   } finally {
     _flushEmAndamento = false;
+    if (mortas) recarregar = true;
+    // Baixa enviada (ou recusada): traz o estado real do servidor (número definitivo da OS, conflitos).
+    if (recarregar) { try { apiLoadAll(true, true); } catch (e) {} }
+    complementares.forEach(j => showToast('ℹ️ Sua baixa da ' + j.origem + ' foi registrada como O.S. COMPLEMENTAR ' + j.numero + ' (a O.S. já tinha sido concluída por ' + j.concluidaPor + '). Confira nas O.S. Executadas.', 'war', 12000));
     if (mortas) showToast('⚠️ ' + mortas + ' registro(s) pendente(s) foram recusados pelo servidor e separados (console: sigmanFilaMorta()). Confira se estão no sistema.', 'war', 9000);
   }
 }
@@ -661,6 +666,7 @@ async function _apiLoadAllImpl(silent = false, force = false) {
       tipo: normStr(r.Tipo),
       prioridade: normStr(r.Prioridade),
       manut: normStr(r.Manutentor),
+      baixadoPor: normStr(r.Baixado_Por),
       data: normDate(r.Data),
       ini: normTime(r.Hora_Inicio),
       fim: normTime(r.Hora_Fim),
@@ -693,6 +699,9 @@ async function _apiLoadAllImpl(silent = false, force = false) {
       desc: normStr(r.Descricao_Planejada),
       status: normStr(r.Status) || 'Pendente',
       manut: normStr(r.Manutentor_Exec),
+      baixadoPor: normStr(r.Baixado_Por),
+      impressaEm: normStr(r.Impressa_Em),
+      impressaPor: normStr(r.Impressa_Por),
       dtExec: normDate(r.Data_Execucao),
       ini: normTime(r.Hora_Inicio),
       fim: normTime(r.Hora_Fim),
@@ -718,6 +727,9 @@ async function _apiLoadAllImpl(silent = false, force = false) {
       status: normStr(r.Status) || 'Não Executada',
       solicitante:normStr(r.Solicitante),
       manut: normStr(r.Manutentor_Exec),
+      baixadoPor: normStr(r.Baixado_Por),
+      impressaEm: normStr(r.Impressa_Em),
+      impressaPor: normStr(r.Impressa_Por),
       dtExec: normDate(r.Data_Execucao),
       desc2: normStr(r.Servico_Executado),
       criadoEm: normStr(r.Criado_Em),
@@ -787,9 +799,52 @@ async function _apiLoadAllImpl(silent = false, force = false) {
     });
   }
 
+  aplicarBaixasPendentes_();
   saveDB();
   if (!silent) console.log('[SIGMAN] ✅ Dados carregados do Sheets');
 }
+
+// ═══ BAIXA OFFLINE:INICIO ═══
+// Aplica uma baixa (concluirOS) no db local. res = resposta do servidor; res === null = baixa feita sem conexão (número provisório).
+// Devolve o número da OS (definitivo ou PEND-<origem>).
+function aplicarBaixaLocal_(item, b, res) {
+  const agora = new Date().toISOString(), pend = !res;
+  const nome = (typeof CU !== 'undefined' && CU) ? CU.nome : '';
+  const ini = b.ini || '', fim = b.fim || '';
+  let dur = 0;
+  if (res && res.durMin !== undefined) dur = res.durMin;
+  else if (ini && fim) { const [h1, m1] = ini.split(':').map(Number), [h2, m2] = fim.split(':').map(Number); dur = (h2 * 60 + m2) - (h1 * 60 + m1); if (dur < 0) dur += 1440; }
+  let par = (res && res.paradaMin !== undefined) ? res.paradaMin : (parseInt(b.parada, 10) || 0);
+  if (!res && !par && ini && fim) par = dur;
+  const manut = (res && res.manutentor) || b.manutentor, data = (res && res.data) || b.data || '';
+  const numero = res ? res.numero : 'PEND-' + item.numero;
+  Object.assign(item, { status: 'Concluída', concluidoEm: (res && res.concluidoEm) || agora, manut, ini, fim, dtExec: data,
+    desc2: b.desc, durMin: dur, baixadoPor: (res && res.baixadoPor) || nome, baixaPendente: pend });
+  if (res) db.ordens = db.ordens.filter(o => o.numero !== 'PEND-' + item.numero);
+  if (!db.ordens.some(o => o.numero === numero)) {
+    db.ordens.push({ id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()), numero,
+      sala: item.sala, maq: item.maq, tipo: item.tipo, prioridade: item.prioridade, manut, baixadoPor: item.baixadoPor,
+      data: data || (typeof today === 'function' ? today() : ''), ini, fim, durMin: dur, paradaMin: par, prob: item.desc || '', acao: b.desc,
+      fotoUrl: (b.fotos && b.fotos[0]) || item.fotoUrl || '', fotos: b.fotos || [], criadoEm: agora, origem: b.tipo, origemNum: item.numero, pendente: pend });
+  }
+  return numero;
+}
+
+// Baixas feitas offline que ainda estão na fila: o servidor ainda não as conhece, então o readAll as "desfaz".
+// Reaplica no db local para a O.S. não reaparecer como pendente e ninguém executar de novo.
+function aplicarBaixasPendentes_() {
+  try {
+    const dono = (typeof CU !== 'undefined' && CU) ? CU.login : '';
+    _filaLer(FILA_KEY).forEach(q => {
+      const b = q && q.body;
+      if (!b || b.action !== 'concluirOS' || (q.user && q.user !== dono)) return;
+      const it = (b.tipo === 'sol' ? db.solicitacoes : db.planejadas).find(x => x.numero === b.numero);
+      if (!it || it.status === 'Concluída' || it.status === 'Executada') return;
+      aplicarBaixaLocal_(it, b, null);
+    });
+  } catch (e) { console.warn('[SIGMAN] baixas pendentes:', e); }
+}
+// ═══ BAIXA OFFLINE:FIM ═══
 
 // ── Lazy loaders — chamados sob demanda ao entrar nas páginas ──────────────
 async function apiLoadInspecoes() {

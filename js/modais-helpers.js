@@ -60,12 +60,15 @@ function verDet(id,tipo) {
       ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}`;
     waEl.style.display='none';waBtn.style.display='none';
   }
+  if(tipo!=='os' && item.status!=='Concluída' && item.impressaEm) rows+=`<div class="dr"><span class="dl">🖨️ Folha impressa</span><span class="dv">${_escP(fdt_(item.impressaEm))} por ${_escP(item.impressaPor||'—')}</span></div>`;
+  if(item.baixaPendente||item.pendente) rows+=`<div class="dr"><span class="dl">⏳ Envio</span><span class="dv">Salva neste aparelho. Será enviada quando houver conexão.</span></div>`;
+  if(item.baixadoPor && item.baixadoPor!==item.manut) rows+=`<div class="dr"><span class="dl">Baixa registrada por</span><span class="dv">${_escP(item.baixadoPor)}</span></div>`;
   document.getElementById('md-b').innerHTML=rows;
   _curDet={item,tipo};
   const pBtn=document.getElementById('md-print-btn');
   pBtn.style.display='inline-block';
   // O.S. planejada / solicitação ainda aberta: imprime folha em branco para preencher à mão.
-  pBtn.textContent = (tipo!=='os' && item.status!=='Concluída') ? '🖨️ Imprimir O.S.' : '🖨️ Imprimir O.S.';
+  pBtn.textContent = '🖨️ Imprimir O.S.';
   // Mostrar botão GERAR RCA apenas se precisaRAC()
   const racBtn = document.getElementById('md-rac-btn');
   if (tipo === 'os' && precisaRAC(item)) {
@@ -78,6 +81,21 @@ function verDet(id,tipo) {
 
 function copyWA(){navigator.clipboard.writeText(document.getElementById('md-wa').textContent||'').then(()=>showToast('Copiado!'));}
 
+// 'AAAA-MM-DD HH:MM' → 'DD/MM HH:MM'
+function fdt_(s){const x=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(s||''));return x?`${x[3]}/${x[2]} ${x[4]}:${x[5]}`:String(s||'—');}
+
+// Registra (servidor + aparelho) que a folha em branco foi impressa. Não conclui nada; se falhar, a impressão segue.
+function registrarImpressaoFolha_(item, tipo) {
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  item.impressaEm=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  item.impressaPor=(typeof CU!=='undefined'&&CU)?CU.nome:'';
+  try{saveDB();}catch(e){}
+  apiPost({action:'marcarImpressa',tipo:tipo==='sol'?'sol':'plan',numero:item.numero,usuario:item.impressaPor},true).then(res=>{
+    if(res&&res.ok){item.impressaEm=res.impressaEm;item.impressaPor=res.impressaPor;try{saveDB();}catch(e){}}
+    else if(res&&res.code==='JA_CONCLUIDA'){showToast('Atenção: esta O.S. já foi concluída por outra pessoa. Não use a folha impressa.','war',9000);}
+  }).catch(()=>{});
+}
+
 function _escP(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // Folha em branco: O.S. planejada (preventiva/outras) ou solicitação ainda aberta.
@@ -86,10 +104,12 @@ function _escP(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g
 // Não conclui nada. A baixa é feita depois, no botão Concluir.
 function imprimirFolhaBranco_(item, tipo) {
   const ehSol = tipo === 'sol';
+  const jaImpressa = item.impressaEm ? ('Reimpressão. Folha anterior impressa em ' + fdt_(item.impressaEm) + (item.impressaPor ? ' por ' + item.impressaPor : '') + '. Execute e dê baixa UMA vez só.') : '';
   const box = (label, val) =>
     `<div class="info-box"><div class="info-label">${label}</div><div class="info-val">${val===''?'&nbsp;':_escP(val)}</div></div>`;
   const win = window.open('','_blank');
   if (!win) { showToast('Libere os pop-ups do navegador para imprimir.','er',6000); return; }
+  registrarImpressaoFolha_(item, tipo);
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>ORDEM DE SERVIÇO ${_escP(item.numero)}</title>
 <style>
@@ -138,7 +158,7 @@ h1{font-size:17px;color:#C41230;margin-bottom:2px}
   <div><div class="assinatura">Assinatura do Manutentor</div></div>
   <div><div class="assinatura">Visto do Supervisor</div></div>
 </div>
-<div class="nota">Após a execução, dar baixa no SIGMAN (botão Concluir) com os dados preenchidos nesta folha.</div>
+<div class="nota">Após a execução, dar baixa no SIGMAN (botão Concluir) com os dados preenchidos nesta folha.${jaImpressa ? '<br><b>' + _escP(jaImpressa) + '</b>' : ''}</div>
 <script>window.onload=function(){window.print();};<\/script></body></html>`);
   win.document.close();
 }

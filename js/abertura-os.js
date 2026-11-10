@@ -246,44 +246,63 @@ async function concluir() {
   if (item.status==='Concluída') { showToast('Esta O.S. já está concluída. Atualize a tela.','er',6000); return; }
   // Validações ANTES de gerar número e subir fotos (nada é consumido se recusar).
   if (data && data>today()) { showToast('A data de execução não pode ser futura.','er',6000); return; }
-  let durMin=0,paradaMin=parada;
+  let durMin=0,paradaMin=parada,virou=false;
   if(ini&&fim){
     const[h1,m1]=ini.split(':').map(Number),[h2,m2]=fim.split(':').map(Number);
     durMin=(h2*60+m2)-(h1*60+m1);
     if(durMin<0){
       // Hora fim menor que início: só aceita se o serviço realmente virou a meia-noite.
       if(!confirm('Hora fim ('+fim+') é menor que o início ('+ini+').\nO serviço virou a meia-noite?\n\nOK = sim, virou. Cancelar = vou corrigir os horários.')) return;
-      durMin+=1440;
+      durMin+=1440;virou=true;
     }
     if(!paradaMin)paradaMin=durMin;
     if(paradaMin>durMin){ showToast('Tempo de parada ('+paradaMin+' min) maior que a duração ('+durMin+' min).','er',6000); return; }
   }
   const agora=new Date().toISOString();
-  // Número da OS e fotos da conclusão: sobe antes de gravar, com o modal ainda aberto
-  // (botão em "ocupado"), no mesmo padrão da Abertura de O.S.
-  const numero=genOS();
-  const fotosConc=await uploadFotos(numero,_mcPhotos);
-  Object.assign(item,{status:'Concluída',concluidoEm:agora,manut,ini,fim,dtExec:data,desc2:desc,durMin});
-  const os={id:crypto.randomUUID(),numero,sala:item.sala,maq:item.maq,tipo:item.tipo,prioridade:item.prioridade,
-    manut,data:data||today(),ini,fim,durMin,paradaMin,prob:item.desc||'',acao:desc,
-    fotoUrl:fotosConc[0]||item.fotoUrl||'',fotos:fotosConc,criadoEm:agora,origem:_ctp,origemNum:item.numero};
-  db.osC++;db.ordens.push(os);saveDB();closeM('m-con');
+  // A baixa é feita pelo SERVIDOR (concluirOS): ele confere a O.S., gera o número da OS e grava tudo de uma vez.
+  // Fotos sobem antes (pasta = número da O.S. de origem); o servidor só recebe os endereços.
+  const fotosConc=await uploadFotos(item.numero,_mcPhotos);
+  const corpo={action:'concluirOS',tipo:_ctp,numero:item.numero,manutentor:manut,desc,data:data||today(),
+    ini,fim,parada,viradaMeiaNoite:virou,fotos:fotosConc,usuario:(CU?CU.nome:'')};
+  const res=await apiPost(corpo,true);
+  if(res===null){
+    // Sem conexão (ou 40 s sem resposta): guarda a baixa na fila do aparelho e envia sozinha quando a conexão voltar.
+    // O servidor reconhece reenvio da mesma baixa, então não duplica mesmo se a 1ª tentativa tiver chegado.
+    if(_mcPhotos.length&&!fotosConc.length&&!confirm('Sem conexão: as fotos não podem ser guardadas no aparelho.\n\nOK = salvar a baixa SEM as fotos (envia sozinha quando a conexão voltar).\nCancelar = esperar a conexão e tentar de novo.')) return;
+    apiQueueFailed(Object.assign({},corpo,{offline:true}));
+    aplicarBaixaLocal_(item,corpo,null);
+    saveDB();closeM('m-con');
+    logEdit('Concluiu (offline)', item.numero, item.sala + ' · ' + item.maq);
+    if (typeof renderPlan === 'function') renderPlan();
+    if (typeof renderSol === 'function') renderSol();
+    updStats();
+    showToast('📴 Sem conexão: a baixa ficou salva neste aparelho e será enviada sozinha quando a conexão voltar. Não limpe os dados do navegador.','war',10000);
+    return;
+  }
+  if(!res.ok){
+    if(res.code==='JA_CONCLUIDA'){
+      showToast(res.error||'Esta O.S. já foi concluída por outra pessoa.','er',9000);
+      closeM('m-con');
+      try{ await apiLoadAll(true,true); }catch(e){}
+      if (typeof renderPlan === 'function') renderPlan();
+      if (typeof renderSol === 'function') renderSol();
+      updStats();
+      return;
+    }
+    showToast('Não foi possível concluir: '+(res.error||res.code||'erro desconhecido'),'er',9000);
+    return;
+  }
+  const numero=aplicarBaixaLocal_(item,corpo,res);
+  const nNum=parseInt(String(numero).replace(/\D/g,''),10);
+  if(isFinite(nNum)) db.osC=Math.max(db.osC,nNum+1);
+  saveDB();closeM('m-con');
   logEdit('Concluiu', item.numero, item.sala + ' · ' + item.maq);
   // Atualiza qualquer tela aberta: a mesma conclusão pode ter sido disparada
   // da tela de Solicitação OU da aba "Solicitações" em Planejadas.
   if (typeof renderPlan === 'function') renderPlan();
   if (typeof renderSol === 'function') renderSol();
   updStats();
-  if(_ctp==='plan'){apiUpdate('planejadas',item.numero,'PL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,Servico_Executado:desc,Concluido_Em:agora});}
-  else{apiUpdate('solicitacoes',item.numero,'SOL_Numero',{Status:'Concluída',Manutentor_Exec:manut,Data_Execucao:data,Servico_Executado:desc,Concluido_Em:agora});}
-  const row = {OS_Numero:numero,Data:data||today(),Sala:item.sala,Maquina:item.maq,Tipo:item.tipo,
-    Prioridade:item.prioridade,Manutentor:manut,Hora_Inicio:ini,Hora_Fim:fim,Duracao_Min:durMin,
-    Tempo_Parada_Min:paradaMin,Problema:item.desc||'',Acao_Executada:desc,Origem:_ctp,
-    Foto_URL:fotosConc[0]||'',Fotos:JSON.stringify(fotosConc),
-    OS_Origem_Ref:item.numero,Criado_Em:agora};
-  const rAp = await apiAppendComRetryNumero('ordens', row, 'OS_Numero', 'OS-', 'osC');
-  if (rAp.numero !== numero) { os.numero = rAp.numero; saveDB(); }
-    if (document.getElementById('pg-dashboard').classList.contains('on')) renderDash();
+  if (document.getElementById('pg-dashboard').classList.contains('on')) renderDash();
     } catch(e) { showToast('Erro ao concluir: '+e.message,'er',8000); }
     finally { _savingConcluir = false; setBtnBusy('mc', false); }
   }
