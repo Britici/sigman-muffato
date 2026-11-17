@@ -13,7 +13,7 @@ async function initPreventiva() {
   const selSala = document.getElementById('prev-sala');
   if (!selSala) return;
   selSala.innerHTML = '<option value="">Todas as Salas</option>' +
-    [...db.salas].sort().map(s=>`<option value="${s}">${s}</option>`).join('');
+    [...db.salas].sort().map(s=>`<option value="${_esc(s)}">${_esc(s)}</option>`).join('');
   filtrarPrevMaq();
 
   const selModelo = document.getElementById('prev-modelo');
@@ -22,7 +22,7 @@ async function initPreventiva() {
     try {
       if (!PREV_MODELOS_CACHE) PREV_MODELOS_CACHE = await apiGet({ action: 'planos_list' });
       selModelo.innerHTML = '<option value="">Selecione o modelo...</option>' +
-        PREV_MODELOS_CACHE.map(nome => `<option value="${nome}">${nome}</option>`).join('');
+        PREV_MODELOS_CACHE.map(nome => `<option value="${_esc(nome)}">${_esc(nome)}</option>`).join('');
     } catch (e) {
       selModelo.innerHTML = '<option value="">Erro ao carregar modelos</option>';
     }
@@ -46,7 +46,7 @@ function filtrarPrevMaq() {
     .filter(m => !salaFiltro || m.sala === salaFiltro)
     .sort((a,b)=>a.nome.localeCompare(b.nome))
     .forEach(m=>{
-      sel.innerHTML += `<option value="${m.sala}|${m.nome}|${m.tag}|${m.periodicidade||'Mensal'}|${m.modeloPadrao||''}">${m.nome} (${m.sala})${m.tag?' – '+m.tag:''}</option>`;
+      sel.innerHTML += `<option value="${_esc(m.sala)}|${_esc(m.nome)}|${_esc(m.tag)}|${_esc(m.periodicidade||'Mensal')}|${_esc(m.modeloPadrao||'')}">${_esc(m.nome)} (${_esc(m.sala)})${m.tag?_esc(' – '+m.tag):''}</option>`;
     });
   document.getElementById('prev-body').innerHTML = '';
   sv('prev-modelo','');
@@ -90,7 +90,7 @@ async function carregarTarefasPreventiva() {
 
   if (!plano || (!plano.mecanico?.length && !plano.eletrico?.length)) {
     body.innerHTML = `<div class="card" style="padding:16px;text-align:center;color:var(--txt-muted,#999)">
-      Modelo <b>${nomeModelo}</b> não tem tarefas cadastradas.
+      Modelo <b>${_esc(nomeModelo)}</b> não tem tarefas cadastradas.
     </div>`;
     PREV_PLANO_ATUAL = { mecanico: [], eletrico: [] };
     return;
@@ -108,7 +108,7 @@ async function carregarTarefasPreventiva() {
         const key = `${grp}-${ti}`;
         return `
         <div class="prev-row" data-key="${key}" style="display:grid;grid-template-columns:1fr auto 1.5fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bord)">
-          <div style="font-size:15px">${tarefaTexto}</div>
+          <div style="font-size:15px">${_esc(tarefaTexto)}</div>
           <div style="display:flex;gap:5px">
             <button class="iok" onclick="setPrevStatus('${key}','ok',this)">OK</button>
             <button class="inok" onclick="setPrevStatus('${key}','nok',this)">NOK</button>
@@ -195,7 +195,7 @@ function _imprimirPreventivaBase({ titulo, doc, colunas, colMateriais }) {
 
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>${titulo}</title>
+<title>${_esc(titulo)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#000;padding:15mm}
 h1{font-size:17px;text-align:center;color:#C41230;margin-bottom:4px}
@@ -222,24 +222,24 @@ td{padding:5px 7px;border:1px solid #ddd}
     <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" style="height:44px;object-fit:contain" alt="Muffato">
     <div><b>MUFFATO FOODS</b><br>Gestão de Manutenção — PCM</div>
   </div>
-  <div><h1>${titulo}</h1></div>
+  <div><h1>${_esc(titulo)}</h1></div>
   <div style="text-align:right;font-size:11px">Doc: ${doc}<br>Rev: 02</div>
 </div>
 <div class="info-grid">
-  <div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${maqVal[1]||'___'}</div></div>
-  <div class="info-box"><div class="info-label">Tag</div><div class="info-val">${maqVal[2]||'___'}</div></div>
+  <div class="info-box"><div class="info-label">Máquina</div><div class="info-val">${_esc(maqVal[1]||'___')}</div></div>
+  <div class="info-box"><div class="info-label">Tag</div><div class="info-val">${_esc(maqVal[2]||'___')}</div></div>
   <div class="info-box"><div class="info-label">Data</div><div class="info-val">${data==='___/___/____'?data:fd(data)}</div></div>
-  <div class="info-box"><div class="info-label">Periodicidade</div><div class="info-val">${per}</div></div>
-  <div class="info-box" style="grid-column:span 2"><div class="info-label">Manutentor</div><div class="info-val">${manut}</div></div>
-  <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">${horaIni}</div></div>
-  <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${horaFim}</div></div>
+  <div class="info-box"><div class="info-label">Periodicidade</div><div class="info-val">${_esc(per)}</div></div>
+  <div class="info-box" style="grid-column:span 2"><div class="info-label">Manutentor</div><div class="info-val">${_esc(manut)}</div></div>
+  <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">${_esc(horaIni)}</div></div>
+  <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${_esc(horaFim)}</div></div>
 </div>
 ${Object.entries(grupos).map(([grp,tarefas])=>`
 <h2>${grp}</h2>
 <table>
 <tr><th style="width:${colMateriais?60:76}%">Tarefa</th><th style="width:8%">${c1}</th><th style="width:8%">${c2}</th><th style="width:8%">${c3}</th>${colMateriais?'<th>Materiais / Observações</th>':''}</tr>
 ${tarefas.map(tarefaTexto=>`<tr>
-  <td>${tarefaTexto}</td>
+  <td>${_esc(tarefaTexto)}</td>
   <td style="text-align:center"><span class="cb"></span></td>
   <td style="text-align:center"><span class="cb"></span></td>
   <td style="text-align:center"><span class="cb"></span></td>

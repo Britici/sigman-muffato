@@ -161,25 +161,25 @@ function prio(p) {
   const c = {'1':'b-c1','2':'b-c2','3':'b-c3','4':'b-c4','Alta':'b-c2','Média':'b-c3','Baixa':'b-c4','Urgente':'b-c1'};
   const d = {'1':'d-1','2':'d-2','3':'d-3','4':'d-4','Alta':'d-2','Média':'d-3','Baixa':'d-4','Urgente':'d-1'};
   const lbl = {'1':'1 – Crítico','2':'2 – Alta','3':'3 – Média','4':'4 – Baixa'};
-  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${lbl[p]||p}</span>`;
+  return `<span class="badge ${c[p]||''}"><span class="pdot ${d[p]||''}"></span>${_esc(lbl[p]||p)}</span>`;
 }
 
 function tipoBadge(t) {
   if (!t) return '';
   const c = {Corretiva:'b-cor',Preventiva:'b-pre',Preditiva:'b-prd',Melhoria:'b-mel','Inspeção':'b-pre'};
-  return `<span class="badge ${c[t]||''}">${t}</span>`;
+  return `<span class="badge ${c[t]||''}">${_esc(t)}</span>`;
 }
 
 function stBadge(s) {
   const c = {Pendente:'b-pen',Concluída:'b-con',Atrasada:'b-atr',Executada:'b-exe','Não Executada':'b-nexe'};
-  return `<span class="badge ${c[s]||''}">${s}</span>`;
+  return `<span class="badge ${c[s]||''}">${_esc(s)}</span>`;
 }
 
 function roleBadge(t) {
   const c = {administracao:'b-adm',manutencao:'b-man',producao:'b-pro',diretoria:'b-dir'};
   const l = {administracao:'Administração',manutencao:'Manutenção',producao:'Produção',diretoria:'Diretoria'};
 
-  return `<span class="badge ${c[t]||''}">${l[t]||t}</span>`;
+  return `<span class="badge ${c[t]||''}">${_esc(l[t]||t)}</span>`;
 }
 
 function showAlert(id, msg, type='ok') {
@@ -283,7 +283,7 @@ function renderSalasStatus(ordPer, horasTurno1, horasTurno2, horasTurno3, diasPe
     return `
       <div class="sc-card" style="color:${cor};position:relative">
         ${checkboxHtml}
-        <div class="sc-lbl">${s.sala}</div>
+        <div class="sc-lbl">${_esc(s.sala)}</div>
         <div class="sc-val">${s.disp}%</div>
         <div style="font-size:11px;color:var(--txt3);margin-top:4px">Parada: ${s.minParada}min</div>
         <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${cor};opacity:.5"></div>
@@ -410,7 +410,8 @@ function abrirFotoLightbox(fotoUrl) {
 
 function abrirFotoImprimir(fotoUrl) {
   if (!fotoUrl) { showToast('Sem foto para exibir.'); return; }
-  const imgSrc = driveThumb(fotoUrl);
+  if (!/^https:\/\//i.test(String(fotoUrl))) { showToast('Foto inválida.'); return; }
+  const imgSrc = _esc(driveThumb(fotoUrl));
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>Foto — SIGMAN</title>

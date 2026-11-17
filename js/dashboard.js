@@ -159,8 +159,8 @@ function renderDash() {
       banner.innerHTML = `<div style="background:rgba(196,18,48,.12);border:1px solid rgba(196,18,48,.4);border-radius:var(--rs);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
         <span style="font-size:22px">⚠️</span>
         <div style="font-size:15px;line-height:1.5">
-          ${venceHoje.length ? `<strong style="color:#ff2244">${venceHoje.length} OS vence hoje!</strong><br>` : ''}
-          ${venceAmanha.length ? `<span style="color:var(--org)">${venceAmanha.length} OS vence amanhã.</span>` : ''}
+          ${venceHoje.length ? `<strong style="color:#ff2244">${_esc(venceHoje.length)} OS vence hoje!</strong><br>` : ''}
+          ${venceAmanha.length ? `<span style="color:var(--org)">${_esc(venceAmanha.length)} OS vence amanhã.</span>` : ''}
         </div>
       </div>`;
     } else { banner.style.display = 'none'; }
@@ -174,15 +174,15 @@ function renderDash() {
         <div style=\"font-size:22px\">${salaComAlerta.length === 0 ? '🟢' : '🔴'}</div>
         <div>
           <div style=\"font-size:13px;color:var(--txt3);font-variant:small-caps;font-weight:700\">Disponibilidade</div>
-          <div style=\"font-size:16px;font-weight:700;color:var(--txt)\">${dispParaKpi.length - salaComAlerta.length}/${dispParaKpi.length} operando</div>
+          <div style=\"font-size:16px;font-weight:700;color:var(--txt)\">${dispParaKpi.length - salaComAlerta.length}/${_esc(dispParaKpi.length)} operando</div>
         </div>
       </div>
       ${salaComAlerta.length > 0 ? `<div style=\"border-top:1px solid var(--bord);padding-top:8px;font-size:14px\">
         ${salaComAlerta.slice(0, 3).map(s => 
           `<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:4px\">
             <span style=\"color:${s.disp < 85 && s.disp >= 75 ? 'var(--org)' : 'var(--red)'}; font-size:11px\">●</span>
-            <span style=\"color:var(--txt)\">${s.sala}</span>
-            <span style=\"margin-left:auto;font-weight:700;color:${s.disp < 85 ? 'var(--org)' : 'var(--red)'}\">${s.disp}%</span>
+            <span style=\"color:var(--txt)\">${_esc(s.sala)}</span>
+            <span style=\"margin-left:auto;font-weight:700;color:${s.disp < 85 ? 'var(--org)' : 'var(--red)'}\">${_esc(s.disp)}%</span>
           </div>`
         ).join('')}
         ${salaComAlerta.length > 3 ? `<div style=\"color:var(--txt3);font-size:13px;margin-top:4px\">+${salaComAlerta.length - 3} mais</div>` : ''}
@@ -212,8 +212,8 @@ function renderDash() {
     </div>
     <div class="sc-card ${racNaoAbertas.length > 0 ? 'c-r' : 'c-o'}" onclick="irParaCard('analise-causa-raiz')" style="cursor:pointer">
       <div class="sc-lbl">RAC</div>
-      <div class="sc-val">${racDevemAbrir.length}</div>
-      <div style="font-size:11px;color:var(--txt3);margin-top:4px">${racNaoAbertas.length} não abertas</div>
+      <div class="sc-val">${_esc(racDevemAbrir.length)}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">${_esc(racNaoAbertas.length)} não abertas</div>
     </div>
     <div class="sc-card c-r">
       <div class="sc-lbl">Preventivas</div>
@@ -275,13 +275,13 @@ function renderDash() {
     : rec.map(o => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
         <div>
-          <span class="osn">${o.numero}</span>
-          <div style="font-size:15px;font-weight:500;margin-top:2px">${o.sala} · ${o.maq}</div>
-          <div style="font-size:13px;color:var(--txt3)">${o.manut} · ${fd(o.data)}${o.ini?' · '+o.ini+'-'+o.fim:''}</div>
+          <span class="osn">${_esc(o.numero)}</span>
+          <div style="font-size:15px;font-weight:500;margin-top:2px">${_esc(o.sala)} · ${_esc(o.maq)}</div>
+          <div style="font-size:13px;color:var(--txt3)">${_esc(o.manut)} · ${_esc(fd(o.data))}${o.ini?' · '+o.ini+'-'+o.fim:''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${tipoBadge(o.tipo)}${prio(o.prioridade)}
-          ${o.durMin ? `<span style="font-size:11px;color:var(--txt3)">${o.durMin}min</span>` : ''}
+          ${o.durMin ? `<span style="font-size:11px;color:var(--txt3)">${_esc(o.durMin)}min</span>` : ''}
         </div>
       </div>`).join('');
 
@@ -292,8 +292,8 @@ function renderDash() {
     : plA.map(p => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
         <div>
-          <span class="osn">${p.numero}</span>
-          <div style="font-size:15px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
+          <span class="osn">${_esc(p.numero)}</span>
+          <div style="font-size:15px;font-weight:500;margin-top:2px">${_esc(p.sala)} · ${_esc(p.maq)}</div>
           <div style="font-size:13px;color:var(--txt3)">${(()=>{
             if (!p.prazo) return 'Sem prazo';
             const dias = Math.ceil((new Date(p.prazo) - new Date(today())) / 86400000);
@@ -305,7 +305,7 @@ function renderDash() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(p.prioridade)}${stBadge(p.status)}
-          ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
+          ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${_escAttr(p.numero)}','plan')">Concluir</button>`:''}
         </div>
       </div>`).join('');
 
@@ -316,14 +316,14 @@ function renderDash() {
     : spL.map(s => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bord);gap:8px">
         <div>
-          <span class="osn">${s.numero}</span>
-          <div style="font-size:15px;font-weight:500;margin-top:2px">${s.sala} · ${s.maq}</div>
-          <div style="font-size:13px;color:var(--txt3)">${s.solicitante} · ${fd(s.criadoEm.slice(0,10))}</div>
+          <span class="osn">${_esc(s.numero)}</span>
+          <div style="font-size:15px;font-weight:500;margin-top:2px">${_esc(s.sala)} · ${_esc(s.maq)}</div>
+          <div style="font-size:13px;color:var(--txt3)">${_esc(s.solicitante)} · ${fd(s.criadoEm.slice(0,10))}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${prio(s.prioridade)}
           ${(CU&&(CU.tipo==='administracao'||CU.tipo==='manutencao'))
-            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${s.numero}','sol')">Concluir</button>`            : stBadge(s.status)}
+            ? `<button class="btn btn-sm btn-g" onclick="abrirConcluir('${_escAttr(s.numero)}','sol')">Concluir</button>`            : stBadge(s.status)}
         </div>
       </div>`).join('');
 
@@ -350,7 +350,7 @@ function renderDash() {
         <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
           <span style="font-family:var(--fm);font-size:13px;color:var(--txt3);min-width:14px">${i+1}</span>
           <div style="flex:1">
-            <div style="font-size:15px;font-weight:500">${sala}</div>
+            <div style="font-size:15px;font-weight:500">${_esc(sala)}</div>
             <div style="height:5px;background:var(--surf3);border-radius:3px;margin-top:4px;overflow:hidden">
               <div style="height:100%;width:${Math.round(n/maxSala*100)}%;background:var(--red);border-radius:3px"></div>
             </div>
@@ -375,10 +375,10 @@ function renderDash() {
             <div style="flex:1;min-width:0">
               <div style="font-size:14px;font-weight:600">
                 ${h.acao}
-                <span style="font-family:var(--fm);color:var(--red);font-size:13px">${h.numero}</span>
+                <span style="font-family:var(--fm);color:var(--red);font-size:13px">${_esc(h.numero)}</span>
               </div>
-              <div style="font-size:13px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.detalhe}</div>
-              <div style="font-size:11px;color:var(--txt3);margin-top:2px">${h.user} · ${dia} ${hora}</div>
+              <div style="font-size:13px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(h.detalhe)}</div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:2px">${_esc(h.user)} · ${dia} ${hora}</div>
             </div>
           </div>`;
       }).join('');
@@ -464,7 +464,7 @@ async function exportDashPDF() {
   const topSalas = Object.entries(bySala).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>SIGMAN — Dashboard ${fd(t)}</title>
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>SIGMAN — Dashboard ${_esc(fd(t))}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size:13px; color: #111; padding: 14mm 16mm; }
@@ -490,7 +490,7 @@ async function exportDashPDF() {
   <div class="header">
     <div><b style="font-size:15px; color: #C41230;">MUFFATO FOODS</b><br><span style="font-size:10px; color: #666;">SIGMAN — Gestão de Manutenção</span></div>
     <h1>RELATÓRIO — DASHBOARD</h1>
-    <div style="text-align: right; font-size:10px; color: #666;">Período: ${perLbl}<br>Gerado em: ${fd(t)}</div>
+    <div style="text-align: right; font-size:10px; color: #666;">Período: ${perLbl}<br>Gerado em: ${_esc(fd(t))}</div>
   </div>
 
   <h2>KPIs do Período — ${perLbl}</h2>
@@ -500,12 +500,12 @@ async function exportDashPDF() {
     <div class="card"><div class="card-label">MTBF (min)</div><div class="card-value">${mtbf}</div></div>
     <div class="card"><div class="card-label">MTTR (min)</div><div class="card-value">${mttr}</div></div>
     <div class="card"><div class="card-label">Solicitações de Compra</div><div class="card-value">${solPend}</div><div class="card-sub">${solAtras} atrasadas</div></div>
-    <div class="card"><div class="card-label">RAC</div><div class="card-value">${racDevemAbrir.length}</div><div class="card-sub">${racNaoAbertas.length} não abertas</div></div>
-    <div class="card"><div class="card-label">Preventivas</div><div class="card-value">${ordPrev.length}</div></div>
-    <div class="card"><div class="card-label">Corretivas</div><div class="card-value">${ordCorr.length}</div></div>
-    <div class="card"><div class="card-label">Melhoria</div><div class="card-value">${ordMelh.length}</div></div>
-    <div class="card"><div class="card-label">Inspeção</div><div class="card-value">${ordInsp.length}</div></div>
-    <div class="card"><div class="card-label">Preditiva</div><div class="card-value">${ordPred.length}</div></div>
+    <div class="card"><div class="card-label">RAC</div><div class="card-value">${_esc(racDevemAbrir.length)}</div><div class="card-sub">${_esc(racNaoAbertas.length)} não abertas</div></div>
+    <div class="card"><div class="card-label">Preventivas</div><div class="card-value">${_esc(ordPrev.length)}</div></div>
+    <div class="card"><div class="card-label">Corretivas</div><div class="card-value">${_esc(ordCorr.length)}</div></div>
+    <div class="card"><div class="card-label">Melhoria</div><div class="card-value">${_esc(ordMelh.length)}</div></div>
+    <div class="card"><div class="card-label">Inspeção</div><div class="card-value">${_esc(ordInsp.length)}</div></div>
+    <div class="card"><div class="card-label">Preditiva</div><div class="card-value">${_esc(ordPred.length)}</div></div>
     <div class="card"><div class="card-label">Backlog OS</div><div class="card-value">${plOpen}</div><div class="card-sub">${plAtras} atrasadas</div></div>
   </div>
 
@@ -518,7 +518,7 @@ async function exportDashPDF() {
         <circle cx="50" cy="40" r="25" fill="none" stroke="#C41230" stroke-width="8" stroke-dasharray="${disponib * 1.57} 157" stroke-linecap="round" transform="rotate(-90 50 40)"></circle>
         <text x="50" y="45" text-anchor="middle" font-size="16" font-weight="bold" fill="#C41230">${disponib}%</text>
         <text x="120" y="20" font-size="10" fill="#666">Meta: ${metaDisp}%</text>
-        <text x="120" y="35" font-size="10" fill="#666">Salas: ${dispParaKpiPdf.length}</text>
+        <text x="120" y="35" font-size="10" fill="#666">Salas: ${_esc(dispParaKpiPdf.length)}</text>
       </svg>
     </div>
     <div class="chart-box">
@@ -535,7 +535,7 @@ async function exportDashPDF() {
       <div style="font-size:11px; font-weight: 600; margin-bottom: 8px;">Tendência — OS por Mês</div>
       <svg width="100%" height="80" viewBox="0 0 140 90" preserveAspectRatio="xMidYMid meet">
         <text x="70" y="50" text-anchor="middle" font-size="10" fill="#666">Últimos 6 meses</text>
-        <text x="70" y="65" text-anchor="middle" font-size="10" fill="#999">Corr: ${ordCorr.length} | Prev: ${ordPrev.length}</text>
+        <text x="70" y="65" text-anchor="middle" font-size="10" fill="#999">Corr: ${_esc(ordCorr.length)} | Prev: ${_esc(ordPrev.length)}</text>
       </svg>
     </div>
   </div>
@@ -546,7 +546,7 @@ async function exportDashPDF() {
       <div style="font-size:11px; font-weight: 600; color: #C41230; margin-bottom: 6px;">Ranking Salas — Corretivas</div>
       <table>
         <tr><th>Sala</th><th>OS</th></tr>
-        ${topSalas.map(([sala, n]) => `<tr><td>${sala}</td><td>${n}</td></tr>`).join('')}
+        ${topSalas.map(([sala, n]) => `<tr><td>${_esc(sala)}</td><td>${_esc(n)}</td></tr>`).join('')}
         ${topSalas.length === 0 ? `<tr><td colspan="2" style="text-align: center; color: #999;">Sem dados</td></tr>` : ''}
       </table>
     </div>
@@ -554,13 +554,13 @@ async function exportDashPDF() {
       <div style="font-size:11px; font-weight: 600; color: #C41230; margin-bottom: 6px;">Ranking Máquinas — Corretivas</div>
       <table>
         <tr><th>Máquina</th><th>OS</th></tr>
-        ${topMaqs.map(m => `<tr><td>${m.maq}</td><td>${m.n}</td></tr>`).join('')}
+        ${topMaqs.map(m => `<tr><td>${_esc(m.maq)}</td><td>${_esc(m.n)}</td></tr>`).join('')}
         ${topMaqs.length === 0 ? `<tr><td colspan="2" style="text-align: center; color: #999;">Sem dados</td></tr>` : ''}
       </table>
     </div>
   </div>
 
-  <div class="foot"><span>SIGMAN — Muffato Foods</span><span>Confidencial</span><span>${fd(t)}</span></div>
+  <div class="foot"><span>SIGMAN — Muffato Foods</span><span>Confidencial</span><span>${_esc(fd(t))}</span></div>
   <script>setTimeout(()=>window.print(),400);<\/script>
   </body></html>`);
   win.document.close();
@@ -666,9 +666,9 @@ function renderTrend(containerId) {
     const pH = prevData[i] > 0 ? Math.max(4, Math.round(prevData[i]/maxVal*chartH)) : 0;
     bars += `
       <rect x="${x}" y="${chartH-cH+topPad}" width="${barW}" height="${cH||1}" rx="3" fill="var(--red)" opacity=".85"/>
-      ${corrData[i]?`<text x="${x+barW/2}" y="${chartH-cH+topPad-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${corrData[i]}</text>`:''}
+      ${corrData[i]?`<text x="${x+barW/2}" y="${chartH-cH+topPad-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${_esc(corrData[i])}</text>`:''}
       <rect x="${x+barW+gap}" y="${chartH-pH+topPad}" width="${barW}" height="${pH||1}" rx="3" fill="var(--grn)" opacity=".85"/>
-      ${prevData[i]?`<text x="${x+barW+gap+barW/2}" y="${chartH-pH+topPad-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${prevData[i]}</text>`:''}
+      ${prevData[i]?`<text x="${x+barW+gap+barW/2}" y="${chartH-pH+topPad-3}" text-anchor="middle" font-size="9" fill="var(--txt2)" font-family="var(--fw)">${_esc(prevData[i])}</text>`:''}
       <text x="${x+groupW/2}" y="${chartH+topPad+12}" text-anchor="middle" font-size="9" fill="var(--txt3)" font-family="var(--fw)">${lbl}</text>`;
       });
   cont.innerHTML = `
@@ -700,8 +700,8 @@ function renderProximas(containerId) {
       <div style="padding:9px 0;border-bottom:1px solid var(--bord)">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <span class="osn">${p.numero}</span>
-            <div style="font-size:14px;font-weight:500;margin-top:2px">${p.sala} · ${p.maq}</div>
+            <span class="osn">${_esc(p.numero)}</span>
+            <div style="font-size:14px;font-weight:500;margin-top:2px">${_esc(p.sala)} · ${_esc(p.maq)}</div>
           </div>
           <div style="text-align:right">
             ${prio(p.prioridade)}
@@ -735,12 +735,12 @@ function renderTopMaquinas(containerId, ordPer) {
     <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bord)">
       <span style="font-family:var(--fm);font-size:13px;color:var(--txt3);min-width:14px">${i+1}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.maq}</div>
-        <div style="font-size:11px;color:var(--txt3)">${m.sala}${m.min?' · '+m.min+'min parada':''}</div>
+        <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(m.maq)}</div>
+        <div style="font-size:11px;color:var(--txt3)">${_esc(m.sala)}${m.min?' · '+m.min+'min parada':''}</div>
         <div style="height:4px;background:var(--surf3);border-radius:2px;margin-top:3px;overflow:hidden">
           <div style="height:100%;width:${Math.round(m.n/maxN*100)}%;background:var(--org);border-radius:2px"></div>
         </div>
       </div>
-      <span style="font-family:var(--fw);font-size:18px;font-weight:800;color:var(--org)">${m.n}</span>
+      <span style="font-family:var(--fw);font-size:18px;font-weight:800;color:var(--org)">${_esc(m.n)}</span>
     </div>`).join('');
 }

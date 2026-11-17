@@ -10,54 +10,54 @@ function verDet(id,tipo) {
     :db.planejadas.find(p=>p.numero===id);
   if(!item)return;
   document.getElementById('md-n').textContent=item.numero;
-  document.getElementById('md-t').textContent=`${item.sala} · ${item.maq}`;
+  document.getElementById('md-t').textContent=`${_escP(item.sala)} · ${_escP(item.maq)}`;
   let rows=`
-    <div class="dr"><span class="dl">Sala</span><span class="dv">${item.sala}</span></div>
-    <div class="dr"><span class="dl">Máquina</span><span class="dv">${item.maq}</span></div>
+    <div class="dr"><span class="dl">Sala</span><span class="dv">${_escP(item.sala)}</span></div>
+    <div class="dr"><span class="dl">Máquina</span><span class="dv">${_escP(item.maq)}</span></div>
     <div class="dr"><span class="dl">Tipo</span><span class="dv">${tipoBadge(item.tipo)}</span></div>
     <div class="dr"><span class="dl">Prioridade</span><span class="dv">${prio(item.prioridade)}</span></div>`;
   const waEl=document.getElementById('md-wa'),waBtn=document.getElementById('md-wa-btn');
   if(tipo==='os'){
     rows+=`
-      <div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>
-      <div class="dr"><span class="dl">Data</span><span class="dv">${fd(item.data)}</span></div>
-      <div class="dr"><span class="dl">Horário</span><span class="dv">${item.ini||'—'} – ${item.fim||'—'}${item.durMin?' ('+item.durMin+'min)':''}</span></div>
-      ${item.paradaMin?`<div class="dr"><span class="dl">Tempo de Parada</span><span class="dv">${item.paradaMin}min</span></div>`:''}
-      <div class="dr"><span class="dl">Problema</span><span class="dv">${item.prob||'—'}</span></div>
-      <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${item.acao||'—'}</span></div>
-      ${item.acaoPrev?`<div class="dr"><span class="dl">Ação Preventiva</span><span class="dv">${item.acaoPrev}</span></div>`:''}
+      <div class="dr"><span class="dl">Manutentor</span><span class="dv">${_escP(item.manut)}</span></div>
+      <div class="dr"><span class="dl">Data</span><span class="dv">${_escP(fd(item.data))}</span></div>
+      <div class="dr"><span class="dl">Horário</span><span class="dv">${_escP(item.ini||'—')} – ${_escP(item.fim||'—')}${item.durMin?' ('+_escP(item.durMin)+'min)':''}</span></div>
+      ${item.paradaMin?`<div class="dr"><span class="dl">Tempo de Parada</span><span class="dv">${_escP(item.paradaMin)}min</span></div>`:''}
+      <div class="dr"><span class="dl">Problema</span><span class="dv">${_escP(item.prob||'—')}</span></div>
+      <div class="dr"><span class="dl">Ação Executada</span><span class="dv">${_escP(item.acao||'—')}</span></div>
+      ${item.acaoPrev?`<div class="dr"><span class="dl">Ação Preventiva</span><span class="dv">${_escP(item.acaoPrev)}</span></div>`:''}
       ${(()=>{
-        const fs = item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[]);
+        const fs = (item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[])).filter(u=>/^https:\/\//i.test(String(u)));
         if (!fs.length) return '';
-        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${driveThumb(fs[0])}" loading="lazy" decoding="async" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto OS" onclick="abrirFotoImprimir('${fs[0]}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${fs[0]}')">🖨️</button></div></span></div>`;
-        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${u}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
+        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${_escP(driveThumb(fs[0]))}" loading="lazy" decoding="async" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto OS" onclick="abrirFotoImprimir('${_escAttr(fs[0])}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${_escAttr(fs[0])}')">🖨️</button></div></span></div>`;
+        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${_escP(driveThumb(u))}" loading="lazy" decoding="async" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${_escAttr(u)}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
       })()}
-      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${item.origemNum}</span></div>`:''}`;
-    const wa=`*${item.numero} — Ordem de Serviço*\n\n*Sala:* ${item.sala}\n*Máquina:* ${item.maq}\n*Problema:* ${item.prob||'—'}\n*Ação:* ${item.tipo}\n*Prioridade:* ${item.prioridade}\n*Tempo:* ${item.ini||'?'} - ${item.fim||'?'} (${item.durMin||'?'}min)\n*Parada:* ${item.paradaMin||'?'}min\n\n${item.acao||''}\n\n_Manutentor: ${item.manut}_`;
+      ${item.origem!=='direta'?`<div class="dr"><span class="dl">OS Origem</span><span class="dv" style="color:var(--red)">${_escP(item.origemNum)}</span></div>`:''}`;
+    const wa=`*${_escP(item.numero)} — Ordem de Serviço*\n\n*Sala:* ${_escP(item.sala)}\n*Máquina:* ${_escP(item.maq)}\n*Problema:* ${_escP(item.prob||'—')}\n*Ação:* ${_escP(item.tipo)}\n*Prioridade:* ${_escP(item.prioridade)}\n*Tempo:* ${_escP(item.ini||'?')} - ${_escP(item.fim||'?')} (${_escP(item.durMin||'?')}min)\n*Parada:* ${_escP(item.paradaMin||'?')}min\n\n${_escP(item.acao||'')}\n\n_Manutentor: ${_escP(item.manut)}_`;
     waEl.textContent=wa;waEl.style.display='block';waBtn.style.display='inline-block';
   } else if(tipo==='sol'){
     rows+=`
       <div class="dr"><span class="dl">Status</span><span class="dv">${stBadge(item.status)}</span></div>
-      <div class="dr"><span class="dl">Solicitante</span><span class="dv">${item.solicitante||'—'}</span></div>
-      <div class="dr"><span class="dl">Data da Solicitação</span><span class="dv">${fd((item.criadoEm||'').slice(0,10))}</span></div>
-      <div class="dr"><span class="dl">Serviço Solicitado</span><span class="dv">${item.desc||'—'}</span></div>
-      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>`:''}
-      ${item.dtExec?`<div class="dr"><span class="dl">Data da Execução</span><span class="dv">${fd(item.dtExec)}</span></div>`:''}
-      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}
+      <div class="dr"><span class="dl">Solicitante</span><span class="dv">${_escP(item.solicitante||'—')}</span></div>
+      <div class="dr"><span class="dl">Data da Solicitação</span><span class="dv">${_escP(fd((item.criadoEm||'').slice(0,10)))}</span></div>
+      <div class="dr"><span class="dl">Serviço Solicitado</span><span class="dv">${_escP(item.desc||'—')}</span></div>
+      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${_escP(item.manut)}</span></div>`:''}
+      ${item.dtExec?`<div class="dr"><span class="dl">Data da Execução</span><span class="dv">${_escP(fd(item.dtExec))}</span></div>`:''}
+      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${_escP(item.desc2)}</span></div>`:''}
       ${(()=>{
-        const fs = item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[]);
+        const fs = (item.fotos&&item.fotos.length ? item.fotos : (item.fotoUrl?[item.fotoUrl]:[])).filter(u=>/^https:\/\//i.test(String(u)));
         if (!fs.length) return '';
-        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${driveThumb(fs[0])}" loading="lazy" decoding="async" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto Solicitação" onclick="abrirFotoImprimir('${fs[0]}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${fs[0]}')">🖨️</button></div></span></div>`;
-        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${u}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
+        if (fs.length === 1) return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Foto</span><span class="dv"><div class="foto-wrap"><img src="${_escP(driveThumb(fs[0]))}" loading="lazy" decoding="async" style="max-width:100%;max-height:220px;border-radius:var(--rs);object-fit:contain;border:1px solid var(--bord);cursor:zoom-in" alt="Foto Solicitação" onclick="abrirFotoImprimir('${_escAttr(fs[0])}')"><button class="foto-print-btn" title="Imprimir / Salvar como PDF" onclick="abrirFotoImprimir('${_escAttr(fs[0])}')">🖨️</button></div></span></div>`;
+        return `<div class="dr" style="flex-direction:column;gap:8px"><span class="dl">📷 Fotos (${fs.length})</span><span class="dv"><div style="display:flex;flex-wrap:wrap;gap:8px">${fs.map(u=>`<div style="position:relative"><img src="${_escP(driveThumb(u))}" loading="lazy" decoding="async" style="width:90px;height:90px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--bord);cursor:zoom-in" onclick="abrirFotoImprimir('${_escAttr(u)}')" title="Clique para ampliar"></div>`).join('')}</div></span></div>`;
       })()}`;
     waEl.style.display='none';waBtn.style.display='none';
   } else {
     rows+=`
-      <div class="dr"><span class="dl">Prazo</span><span class="dv">${fd(item.prazo)}</span></div>
+      <div class="dr"><span class="dl">Prazo</span><span class="dv">${_escP(fd(item.prazo))}</span></div>
       <div class="dr"><span class="dl">Status</span><span class="dv">${stBadge(item.status)}</span></div>
-      <div class="dr"><span class="dl">Serviço Planejado</span><span class="dv">${item.desc||'—'}</span></div>
-      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${item.manut}</span></div>`:''}
-      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${item.desc2}</span></div>`:''}`;
+      <div class="dr"><span class="dl">Serviço Planejado</span><span class="dv">${_escP(item.desc||'—')}</span></div>
+      ${item.manut?`<div class="dr"><span class="dl">Manutentor</span><span class="dv">${_escP(item.manut)}</span></div>`:''}
+      ${item.desc2?`<div class="dr"><span class="dl">Serviço Executado</span><span class="dv">${_escP(item.desc2)}</span></div>`:''}`;
     waEl.style.display='none';waBtn.style.display='none';
   }
   if(tipo!=='os' && item.status!=='Concluída' && item.impressaEm) rows+=`<div class="dr"><span class="dl">🖨️ Folha impressa</span><span class="dv">${_escP(fdt_(item.impressaEm))} por ${_escP(item.impressaPor||'—')}</span></div>`;
@@ -193,42 +193,42 @@ h1{font-size:17px;color:#C41230;margin-bottom:2px}
     <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" alt="Muffato Foods">
     <div><div style="font-weight:bold;font-size:15px">MUFFATO FOODS</div><div style="font-size:11px;color:#666">Gestão de Manutenção — SIGMAN</div></div>
   </div>
-  <div style="text-align:center"><h1>${titulo}</h1><div style="font-size:13px;font-weight:bold;color:#C41230">${item.numero}</div></div>
+  <div style="text-align:center"><h1>${titulo}</h1><div style="font-size:13px;font-weight:bold;color:#C41230">${_escP(item.numero)}</div></div>
   <div style="text-align:right;font-size:10px;color:#666">Doc: SIGMAN<br>Rev: 01</div>
 </div>
 <div class="info-grid">
-  <div class="info-box"><div class="info-label">Sala / Local</div><div class="info-val">${item.sala}</div></div>
-  <div class="info-box"><div class="info-label">Máquina / Ativo</div><div class="info-val">${item.maq}</div></div>
-  <div class="info-box"><div class="info-label">Tipo</div><div class="info-val">${item.tipo}</div></div>
-  <div class="info-box"><div class="info-label">Prioridade</div><div class="info-val">${item.prioridade||'—'}</div></div>
+  <div class="info-box"><div class="info-label">Sala / Local</div><div class="info-val">${_escP(item.sala)}</div></div>
+  <div class="info-box"><div class="info-label">Máquina / Ativo</div><div class="info-val">${_escP(item.maq)}</div></div>
+  <div class="info-box"><div class="info-label">Tipo</div><div class="info-val">${_escP(item.tipo)}</div></div>
+  <div class="info-box"><div class="info-label">Prioridade</div><div class="info-val">${_escP(item.prioridade||'—')}</div></div>
   ${tipo==='os'?`
-  <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${item.manut||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(item.data)}</div></div>
-  <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">${item.ini||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${item.fim||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Duração (min)</div><div class="info-val">${item.durMin||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Parada (min)</div><div class="info-val">${item.paradaMin||'—'}</div></div>
+  <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${_escP(item.manut||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Data</div><div class="info-val">${_escP(fd(item.data))}</div></div>
+  <div class="info-box"><div class="info-label">Hora Início</div><div class="info-val">${_escP(item.ini||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Hora Fim</div><div class="info-val">${_escP(item.fim||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Duração (min)</div><div class="info-val">${_escP(item.durMin||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Parada (min)</div><div class="info-val">${_escP(item.paradaMin||'—')}</div></div>
   `:tipo==='sol'?`
-  <div class="info-box"><div class="info-label">Status</div><div class="info-val">${item.status||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Solicitante</div><div class="info-val">${item.solicitante||'—'}</div></div>
-  <div class="info-box"><div class="info-label">Data da Solicitação</div><div class="info-val">${fd((item.criadoEm||'').slice(0,10))}</div></div>
-  ${item.manut?`<div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${item.manut}</div></div>`:''}
-  ${item.dtExec?`<div class="info-box"><div class="info-label">Data da Execução</div><div class="info-val">${fd(item.dtExec)}</div></div>`:''}
+  <div class="info-box"><div class="info-label">Status</div><div class="info-val">${_escP(item.status||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Solicitante</div><div class="info-val">${_escP(item.solicitante||'—')}</div></div>
+  <div class="info-box"><div class="info-label">Data da Solicitação</div><div class="info-val">${_escP(fd((item.criadoEm||'').slice(0,10)))}</div></div>
+  ${item.manut?`<div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${_escP(item.manut)}</div></div>`:''}
+  ${item.dtExec?`<div class="info-box"><div class="info-label">Data da Execução</div><div class="info-val">${_escP(fd(item.dtExec))}</div></div>`:''}
   `:`
-  <div class="info-box"><div class="info-label">Prazo Limite</div><div class="info-val">${fd(item.prazo)}</div></div>
-  <div class="info-box"><div class="info-label">Status</div><div class="info-val">${item.status||'—'}</div></div>
+  <div class="info-box"><div class="info-label">Prazo Limite</div><div class="info-val">${_escP(fd(item.prazo))}</div></div>
+  <div class="info-box"><div class="info-label">Status</div><div class="info-val">${_escP(item.status||'—')}</div></div>
   `}
 </div>
 ${tipo==='os'?`
-<div class="section"><div class="section-title">Problema / Ocorrência</div><div class="section-content">${item.prob||'—'}</div></div>
-<div class="section"><div class="section-title">Ação / Serviço Executado</div><div class="section-content">${item.acao||'—'}</div></div>
-${item.acaoPrev?`<div class="section"><div class="section-title">Ação Preventiva Identificada</div><div class="section-content">${item.acaoPrev}</div></div>`:''}
+<div class="section"><div class="section-title">Problema / Ocorrência</div><div class="section-content">${_escP(item.prob||'—')}</div></div>
+<div class="section"><div class="section-title">Ação / Serviço Executado</div><div class="section-content">${_escP(item.acao||'—')}</div></div>
+${item.acaoPrev?`<div class="section"><div class="section-title">Ação Preventiva Identificada</div><div class="section-content">${_escP(item.acaoPrev)}</div></div>`:''}
 `:tipo==='sol'?`
-<div class="section"><div class="section-title">Serviço Solicitado</div><div class="section-content">${item.desc||'—'}</div></div>
-${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${item.desc2}</div></div>`:''}
+<div class="section"><div class="section-title">Serviço Solicitado</div><div class="section-content">${_escP(item.desc||'—')}</div></div>
+${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${_escP(item.desc2)}</div></div>`:''}
 `:`
-<div class="section"><div class="section-title">Serviço Planejado</div><div class="section-content">${item.desc||'—'}</div></div>
-${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${item.desc2}</div></div>`:''}
+<div class="section"><div class="section-title">Serviço Planejado</div><div class="section-content">${_escP(item.desc||'—')}</div></div>
+${item.desc2?`<div class="section"><div class="section-title">Serviço Executado</div><div class="section-content">${_escP(item.desc2)}</div></div>`:''}
 `}
 <div style="display:flex;justify-content:space-between;margin-top:20px">
   <div><div class="assinatura">Assinatura do Manutentor</div></div>

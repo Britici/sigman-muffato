@@ -16,7 +16,7 @@ function initManuaisSenhas() {
   const selSala = document.getElementById('ms-sala');
   if (selSala) {
     selSala.innerHTML = '<option value="">Selecione...</option>' +
-      [...db.salas].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+      [...db.salas].sort().map(s => `<option value="${_esc(s)}">${_esc(s)}</option>`).join('');
   }
   const selMaq = document.getElementById('ms-maq');
   if (selMaq) selMaq.innerHTML = '<option value="">Selecione a sala primeiro...</option>';
@@ -27,7 +27,7 @@ function initManuaisSenhas() {
   const selListaSala = document.getElementById('ms-lista-sala');
   if (selListaSala) {
     selListaSala.innerHTML = '<option value="">Todas as salas</option>' +
-      [...db.salas].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+      [...db.salas].sort().map(s => `<option value="${_esc(s)}">${_esc(s)}</option>`).join('');
   }
 }
 
@@ -38,7 +38,7 @@ function filtrarMSMaq() {
     [...db.maquinas]
       .filter(m => !sala || m.sala === sala)
       .sort((a, b) => a.nome.localeCompare(b.nome))
-      .map(m => `<option value="${m.sala}|${m.nome}">${m.nome}${m.tag ? ' – ' + m.tag : ''}</option>`)
+      .map(m => `<option value="${_esc(m.sala)}|${_esc(m.nome)}">${_esc(m.nome)}${m.tag ? _esc(' – ' + m.tag) : ''}</option>`)
       .join('');
   document.getElementById('ms-card-edicao').style.display = 'none';
 }

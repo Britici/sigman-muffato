@@ -20,7 +20,7 @@ function renderExec() {
   if (mnSel) {
     const cur = mnSel.value;
     const manuts = [...new Set(db.ordens.map(o=>o.manut).filter(Boolean))].sort();
-    mnSel.innerHTML = '<option value="">Todos os Manut.</option>' + manuts.map(m=>`<option value="${m}">${m}</option>`).join('');
+    mnSel.innerHTML = '<option value="">Todos os Manut.</option>' + manuts.map(m=>`<option value="${_esc(m)}">${_esc(m)}</option>`).join('');
     if (cur) mnSel.value = cur;
   }
 
@@ -64,24 +64,24 @@ function renderExec() {
     <td style="white-space:nowrap;width:110px">
       <span style="display:flex;align-items:center;gap:4px;justify-content:flex-start">
         ${precisaRAC(o)?`<span class="rac-dot" title="RAC obrigatório" style="cursor:default;flex-shrink:0"></span>`:''}
-        <span class="osn">${o.numero}</span>
+        <span class="osn">${_esc(o.numero)}</span>
       </span>
-      ${(o.origem==='plan'||o.origem==='sol')&&o.origemNum?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${o.origemNum})</div>`:''}
+      ${(o.origem==='plan'||o.origem==='sol')&&o.origemNum?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${_esc(o.origemNum)})</div>`:''}
     </td>
-    <td style="font-size:14px">${fd(o.data)}</td>
-    <td>${o.sala}</td>
-    <td><div>${o.maq}</div><div style="font-size:11px;color:var(--txt3)">${getCriticidadeBadge(o.maq)}</div></td>
+    <td style="font-size:14px">${_esc(fd(o.data))}</td>
+    <td>${_esc(o.sala)}</td>
+    <td><div>${_esc(o.maq)}</div><div style="font-size:11px;color:var(--txt3)">${getCriticidadeBadge(o.maq)}</div></td>
     <td>${tipoBadge(o.tipo)}</td>
     <td>${prio(o.prioridade)}</td>
-    <td style="font-size:14px">${o.manut}</td>
+    <td style="font-size:14px">${_esc(o.manut)}</td>
     <td style="font-family:var(--fm);font-size:13px">${o.ini&&o.fim?o.ini+' – '+o.fim:'—'}${o.durMin?' ('+o.durMin+'min)':''}</td>
     <td style="width:52px;text-align:center">
-      ${(()=>{const fs=o.fotos&&o.fotos.length?o.fotos:(o.fotoUrl?[o.fotoUrl]:[]);return fs.length?`<div class="foto-wrap" style="display:inline-block"><img src="${driveThumb(fs[0])}" loading="lazy" decoding="async" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bord);cursor:zoom-in;display:block" alt="Foto" onclick="abrirFotoLightbox('${fs[0]}')" onerror="this.style.display='none'">${fs.length>1?`<span style="font-size:10px;color:var(--txt3);display:block;text-align:center">+${fs.length-1}</span>`:''}</div>`:`<span style="font-size:13px;color:var(--txt3)">—</span>`})()}
+      ${(()=>{const fs=o.fotos&&o.fotos.length?o.fotos:(o.fotoUrl?[o.fotoUrl]:[]);return fs.length?`<div class="foto-wrap" style="display:inline-block"><img src="${_esc(driveThumb(fs[0]))}" loading="lazy" decoding="async" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bord);cursor:zoom-in;display:block" alt="Foto" onclick="abrirFotoLightbox('${_escAttr(fs[0])}')" onerror="this.style.display='none'">${fs.length>1?`<span style="font-size:10px;color:var(--txt3);display:block;text-align:center">+${fs.length-1}</span>`:''}</div>`:`<span style="font-size:13px;color:var(--txt3)">—</span>`})()}
     </td>
     <td><div style="display:flex;gap:4px;flex-wrap:nowrap">
-      <button class="btn btn-sm btn-gh" onclick="verDet('${o.numero}','os')">Ver</button>
-      ${podeEditar(o.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarOS('${o.numero}')">✎</button>`:''}
-      ${podeEditar(o.criadoEm)?`<button class="btn btn-d" onclick="delOS('${o.numero}')">✕</button>`:''}
+      <button class="btn btn-sm btn-gh" onclick="verDet('${_escAttr(o.numero)}','os')">Ver</button>
+      ${podeEditar(o.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarOS('${_escAttr(o.numero)}')">✎</button>`:''}
+      ${podeEditar(o.criadoEm)?`<button class="btn btn-d" onclick="delOS('${_escAttr(o.numero)}')">✕</button>`:''}
     </div></td>
   </tr>`).join('');
 }
@@ -96,7 +96,7 @@ function abrirRAC(osNumero) {
 
   const osSel = document.getElementById('racr-os');
   if (osSel) {
-    osSel.innerHTML = `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`;
+    osSel.innerHTML = `<option value="${_esc(o.numero)}">${_esc(o.numero)} — ${_esc(o.sala)} / ${_esc(o.maq)}</option>`;
     osSel.setAttribute('disabled', '');
   }
   closeM('m-det');
@@ -110,7 +110,7 @@ function racrFiltrarMaq() {
   if (!maqSel) return;
   const maquinas = db.maquinas.filter(m => !sala || m.sala === sala);
   maqSel.innerHTML = '<option value="">Selecione...</option>' +
-    maquinas.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+    maquinas.map(m => `<option value="${_esc(m.nome)}">${_esc(m.nome)}</option>`).join('');
 }
 
 function delOS(id) {
@@ -155,7 +155,7 @@ function editarOS(numero) {
   const existGrid = document.getElementById('eoe-fotos-exist');
   const fs = o.fotos && o.fotos.length ? o.fotos : (o.fotoUrl ? [o.fotoUrl] : []);
   existGrid.innerHTML = fs.length
-    ? fs.map(u => `<a href="${u}" target="_blank"><img src="${driveThumb(u)}" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)" title="Clique para ampliar"></a>`).join('')
+    ? fs.map(u => `<a href="${_esc(/^https:\/\//i.test(String(u))?u:'#')}" target="_blank"><img src="${_esc(driveThumb(u))}" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bord)" title="Clique para ampliar"></a>`).join('')
     : '<span style="color:var(--txt3);font-size:13px">Sem fotos</span>';
   renderPhotoGrid('eoe');
   openM('m-edit-exec');

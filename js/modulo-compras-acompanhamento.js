@@ -689,7 +689,7 @@ function _buildStep(ordem, etapa, isAdmin, isConcl) {
       onclick="this.closest('.cac-card-body').querySelector('.cac-btn-etapa[data-etapa=&quot;${etapa.idx}&quot;]')?.click()"`:''}>
       ${isDone?'✓':etapa.idx+1}
     </div>
-    <span class="cac-step-label">${etapa.label}</span>
+    <span class="cac-step-label">${_esc(etapa.label)}</span>
     ${dateInfo}
     ${prazoInfo}
     ${btnEditar}
@@ -739,22 +739,22 @@ function _abrirModal(ordem, etapaIdx, el) {
     if (ex.type==='toggle') return `
       <div class="mf">
         <div class="cac-toggle-row">
-          <label for="m-${ex.id}">${ex.label}</label>
+          <label for="m-${_esc(ex.id)}">${_esc(ex.label)}</label>
           <button type="button" class="cac-toggle${ordem[ex.id]==='TRUE'?' on':''}"
-            id="m-${ex.id}" aria-pressed="${ordem[ex.id]==='TRUE'}"></button>
+            id="m-${_esc(ex.id)}" aria-pressed="${ordem[ex.id]==='TRUE'}"></button>
         </div>
       </div>`;
     return `
       <div class="mf">
-        <label for="m-${ex.id}">${ex.label}</label>
-        <input type="${ex.type==='number'?'number':'text'}" id="m-${ex.id}"
+        <label for="m-${_esc(ex.id)}">${_esc(ex.label)}</label>
+        <input type="${ex.type==='number'?'number':'text'}" id="m-${_esc(ex.id)}"
           min="0" step="0.01" placeholder="${_esc(ex.placeholder||'')}"
           value="${_esc(String(ordem[ex.id]||''))}">
       </div>`;
   }).join('');
 
   const noteHtml = etapa.note
-    ? `<p style="font-size:.78rem;color:var(--txt3);margin:0 0 14px">${etapa.note}</p>` : '';
+    ? `<p style="font-size:.78rem;color:var(--txt3);margin:0 0 14px">${_esc(etapa.note)}</p>` : '';
 
   const obsAtual = etapa.obsCol ? (ordem[etapa.obsCol] || '') : '';
   const fotoAtual = etapa.fotoCol ? (ordem[etapa.fotoCol] || '') : '';
@@ -770,7 +770,7 @@ function _abrirModal(ordem, etapaIdx, el) {
   <div class="cac-modal-overlay" id="cac-modal-overlay">
     <div class="cac-modal">
       <div class="cac-modal-header">
-        <span class="cac-modal-title">${isDone?'✏️ Editar':'📝 Preencher'} Etapa ${etapaIdx+1} — ${etapa.label}</span>
+        <span class="cac-modal-title">${isDone?'✏️ Editar':'📝 Preencher'} Etapa ${etapaIdx+1} — ${_esc(etapa.label)}</span>
         <button class="cac-modal-close" id="cac-modal-close-btn">✕</button>
       </div>
       <div class="cac-modal-body">

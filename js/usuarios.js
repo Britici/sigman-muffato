@@ -82,7 +82,7 @@ function renderUsuarios() {
 // ══════════════════════════════════════════════════════════════════════
 function _usrPopulatePerfil() {
   const sel = document.getElementById('usr-perfil');
-  sel.innerHTML = Object.keys(ROLES).map(k => `<option value="${k}">${ROLES[k].label}</option>`).join('');
+  sel.innerHTML = Object.keys(ROLES).map(k => `<option value="${k}">${_esc(ROLES[k].label)}</option>`).join('');
 }
 
 function abrirNovoUsuario() {

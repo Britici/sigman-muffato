@@ -28,7 +28,7 @@ function renderAtivos() {
   const filSel = document.getElementById('at-ml-fil');
   if (filSel) {
     const curFil = filSel.value;
-    filSel.innerHTML = '<option value="">Todas as Salas</option>' + [...db.salas].sort().map(s=>`<option value="${s}">${s}</option>`).join('');
+    filSel.innerHTML = '<option value="">Todas as Salas</option>' + [...db.salas].sort().map(s=>`<option value="${_esc(s)}">${_esc(s)}</option>`).join('');
     if (curFil) filSel.value = curFil;
   }
   const filSala = filSel ? filSel.value : '';
@@ -49,17 +49,17 @@ function renderAtivos() {
     : Object.keys(bySala).sort().map(sala=>`
     <div style="margin-bottom:10px">
       <div style="font-size:13px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--bord);margin-bottom:4px;display:flex;justify-content:space-between">
-        <span>${sala}</span><span style="color:var(--txt3);font-weight:400">${bySala[sala].length}</span>
+        <span>${_esc(sala)}</span><span style="color:var(--txt3);font-weight:400">${_esc(bySala[sala].length)}</span>
       </div>
       ${bySala[sala].map((m,_i)=>{
         const gi=db.maquinas.indexOf(m);
         const critColor={'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)','Alta':'var(--red)','Média':'var(--org)','Baixa':'var(--grn)'}[m.criticidade]||'var(--txt3)';
         return `<div class="edit-row">
           <div>
-            <div style="font-size:15px;font-weight:500">${m.nome}${m.tag?` <span style="font-size:11px;color:var(--txt3)">${m.tag}</span>`:''}</div>
+            <div style="font-size:15px;font-weight:500">${_esc(m.nome)}${m.tag?` <span style="font-size:11px;color:var(--txt3)">${_esc(m.tag)}</span>`:''}</div>
             <div style="font-size:13px;color:var(--txt3)">
-              Criticidade: <span style="color:${critColor};font-weight:600">${m.criticidade||'—'}</span> |
-              Preventiva: ${m.periodicidade||'—'}${m.modeloPadrao?` | Modelo: <span style="color:var(--txt2)">${m.modeloPadrao}</span>`:''}
+              Criticidade: <span style="color:${critColor};font-weight:600">${_esc(m.criticidade||'—')}</span> |
+              Preventiva: ${_esc(m.periodicidade||'—')}${m.modeloPadrao?` | Modelo: <span style="color:var(--txt2)">${_esc(m.modeloPadrao)}</span>`:''}
             </div>
           </div>
           <div class="edit-acts">
@@ -81,7 +81,7 @@ async function popularModeloPadraoSelect() {
   try {
     if (!PREV_MODELOS_CACHE) PREV_MODELOS_CACHE = await apiGet({ action: 'planos_list' });
     sel.innerHTML = '<option value="">Nenhum (seleciona manual na OS)</option>' +
-      PREV_MODELOS_CACHE.map(n=>`<option value="${n}">${n}</option>`).join('');
+      PREV_MODELOS_CACHE.map(n=>`<option value="${_esc(n)}">${_esc(n)}</option>`).join('');
     if (cur) sel.value = cur;
   } catch(e) { /* silencioso — não bloqueia a página de Ativos por causa do modelo */ }
 }
@@ -113,14 +113,14 @@ function renderCritChart() {
       stroke-dasharray="${dash.toFixed(2)} ${circ.toFixed(2)}"
       stroke-dashoffset="${(-offset).toFixed(2)}"
       transform="rotate(-90 ${cx} ${cy})">
-      <title>${labels[k]}: ${n} (${Math.round(n/total*100)}%)</title></circle>`;
+      <title>${_esc(labels[k])}: ${n} (${Math.round(n/total*100)}%)</title></circle>`;
     offset += dash;
   });
 
   const legendaHtml = entries.map(([k, n]) => `
     <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
-      <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};flex-shrink:0"></span>
-      <span style="font-size:13px;font-weight:700;color:var(--txt2)">${k}</span>
+      <span style="width:10px;height:10px;border-radius:2px;background:${_esc(colors[k])};flex-shrink:0"></span>
+      <span style="font-size:13px;font-weight:700;color:var(--txt2)">${_esc(k)}</span>
       <span style="font-size:13px;color:var(--txt3)">${Math.round(n/total*100)}%</span>
     </div>`).join('');
 
@@ -141,7 +141,7 @@ function renderCritChart() {
       <text x="${x + barW/2}" y="${y - 4}" text-anchor="middle"
         font-size="11" font-weight="800" fill="var(--txt)" font-family="var(--fw)">${n}</text>
       <text x="${x + barW/2}" y="${chartH + topPad + 13}" text-anchor="middle"
-        font-size="9" fill="var(--txt3)" font-family="var(--fw)" font-weight="700">${barLbls[k]}</text>`;
+        font-size="9" fill="var(--txt3)" font-family="var(--fw)" font-weight="700">${_esc(barLbls[k])}</text>`;
   });
 
   cont.innerHTML = `
@@ -215,16 +215,16 @@ function openEdit(type,idx) {
   _editType=type;_editIdx=idx;
   if(type==='sala'){
     document.getElementById('me-t').textContent='Editar Sala';
-    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${db.salas[idx]}"></div>`;
+    document.getElementById('me-b').innerHTML=`<div class="fg"><label>Nome da Sala</label><input type="text" id="me-v" value="${_esc(db.salas[idx])}"></div>`;
   } else if(type==='maq') {
     const m=db.maquinas[idx];
     document.getElementById('me-t').textContent='Editar Máquina';
     document.getElementById('me-b').innerHTML=`
       <div class="fg"><label>Sala</label>
-        <select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${s}</option>`).join('')}</select>
+        <select id="me-sl">${db.salas.sort().map(s=>`<option${s===m.sala?' selected':''}>${_esc(s)}</option>`).join('')}</select>
       </div>
-      <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${m.nome}"></div>
-      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${m.tag||''}"></div>
+      <div class="fg"><label>Nome</label><input type="text" id="me-nm" value="${_esc(m.nome)}"></div>
+      <div class="fg"><label>Tag</label><input type="text" id="me-tg" value="${_esc(m.tag||'')}"></div>
       <div class="fg"><label>Criticidade</label>
         <select id="me-crit">
           <option value="1"${m.criticidade==='1'?' selected':''}>1 – Crítico</option>
@@ -244,7 +244,7 @@ function openEdit(type,idx) {
         </select>
       </div>
       <div class="fg"><label>Modelo de Manutenção Padrão</label>
-        <select id="me-mp">${['<option value="">Nenhum</option>'].concat((PREV_MODELOS_CACHE||[]).map(n=>`<option value="${n}"${n===m.modeloPadrao?' selected':''}>${n}</option>`)).join('')}</select>
+        <select id="me-mp">${['<option value="">Nenhum</option>'].concat((PREV_MODELOS_CACHE||[]).map(n=>`<option value="${_esc(n)}"${n===m.modeloPadrao?' selected':''}>${_esc(n)}</option>`)).join('')}</select>
       </div>`;
   } else if(type==='plan') {
     // editarPlan já preenche me-b antes de abrir

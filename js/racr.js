@@ -17,7 +17,7 @@ function abrirNovoRACR() {
   if (osSel) {
     const ordens = [...(db.ordens||[])].sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
     osSel.innerHTML = '<option value="">Selecione a OS...</option>' +
-      ordens.map(o => `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`).join('');
+      ordens.map(o => `<option value="${_esc(o.numero)}">${_esc(o.numero)} — ${_esc(o.sala)} / ${_esc(o.maq)}</option>`).join('');
     osSel.removeAttribute('disabled');
   }
   // Sala/equipamento ficam travados até a OS ser escolhida
@@ -183,11 +183,11 @@ function imprimirRACR() {
   const hora  = document.getElementById('racr-hora')?.value  || '';
   const fotos = [..._racrFotosSalvas, ..._racrFotosNovas.map(f => `data:${f.mime};base64,${f.b64}`)].slice(0, RACR_MAX_FOTOS);
   const fotosHtml = Array.from({ length: RACR_MAX_FOTOS }, (_, i) => fotos[i]
-    ? `<div class="foto-box"><img src="${fotos[i]}" alt="Foto ${i+1}"></div>`
+    ? `<div class="foto-box"><img src="${_esc(fotos[i])}" alt="Foto ${i+1}"></div>`
     : `<div class="foto-box foto-vazia">FOTO ${i+1}</div>`
   ).join('');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>RACR — ${dados?.maquina || ''}</title>
+  <title>RACR — ${_esc(dados?.maquina || '')}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:10mm 12mm}
@@ -217,7 +217,7 @@ function imprimirRACR() {
   <div class="logo-row">
     <div>
       <h1>RELATÓRIO ANÁLISE CAUSA RAIZ</h1>
-      <div class="sub">Muffato Foods · PCM · ${data} ${hora ? '· ' + hora : ''}</div>
+      <div class="sub">Muffato Foods · PCM · ${_esc(data)} ${hora ? '· ' + _esc(hora) : ''}</div>
     </div>
     <img src="https://muffatofoods.com.br/assets/images/foods_logo.png" style="height:36px">
   </div>
@@ -225,15 +225,15 @@ function imprimirRACR() {
   <div class="cols">
     <div>
       <div class="bar">1 - Identificação do Problema</div>
-      <div class="field"><label>Tag/Equip</label><p>${dados?.maquina||''}</p></div>
-      <div class="field"><label>Data</label><p>${data}</p></div>
-      <div class="field"><label>Hora da Parada</label><p>${hora}</p></div>
+      <div class="field"><label>Tag/Equip</label><p>${_esc(dados?.maquina||'')}</p></div>
+      <div class="field"><label>Data</label><p>${_esc(data)}</p></div>
+      <div class="field"><label>Hora da Parada</label><p>${_esc(hora)}</p></div>
 
       <div class="bar">2 - Falha / Efeito</div>
-      <div class="field"><label>Falha identificada</label><p style="min-height:30px">${dados?.falha||''}</p></div>
+      <div class="field"><label>Falha identificada</label><p style="min-height:30px">${_esc(dados?.falha||'')}</p></div>
 
       <div class="bar">3 - Causa</div>
-      <div class="field"><label>Detalhamento</label><p style="min-height:30px">${dados?.causaRaiz||''}</p></div>
+      <div class="field"><label>Detalhamento</label><p style="min-height:30px">${_esc(dados?.causaRaiz||'')}</p></div>
 
       <div class="bar">4 - Análise dos 5 Porquês</div>
       ${[dados?.why1,dados?.why2,dados?.why3,dados?.why4,dados?.why5].map((w,i)=>`
@@ -245,15 +245,15 @@ function imprimirRACR() {
       <div class="foto-grid">${fotosHtml}</div>
 
       <div class="bar">5 - Ação Imediata</div>
-      <div class="field"><p style="min-height:26px">${dados?.acaoImediata||''}</p></div>
+      <div class="field"><p style="min-height:26px">${_esc(dados?.acaoImediata||'')}</p></div>
 
       <div class="bar">6 - Ação Preventiva</div>
-      <div class="field"><p style="min-height:26px">${dados?.acaoPreventiva||''}</p></div>
+      <div class="field"><p style="min-height:26px">${_esc(dados?.acaoPreventiva||'')}</p></div>
 
       <div class="bar">7 - Equipe Responsável</div>
-      <div class="field"><label>Resp. Produção</label><p>${dados?.respProd||''}</p></div>
-      <div class="field"><label>Resp. Manutenção</label><p>${dados?.respManu||''}</p></div>
-      <div class="field"><label>Executantes</label><p>${dados?.executantes||''}</p></div>
+      <div class="field"><label>Resp. Produção</label><p>${_esc(dados?.respProd||'')}</p></div>
+      <div class="field"><label>Resp. Manutenção</label><p>${_esc(dados?.respManu||'')}</p></div>
+      <div class="field"><label>Executantes</label><p>${_esc(dados?.executantes||'')}</p></div>
     </div>
   </div>
 
@@ -282,26 +282,26 @@ function renderRACR() {
  
   tbAbertos.innerHTML = abertos.length ? abertos.map(r => `
     <tr>
-      <td class="osn">${r.id}</td>
-      <td>${fd(r.dataAbertura)}</td>
-      <td>${r.maquina||'—'}</td>
-      <td style="max-width:200px;white-space:normal">${r.falha||'—'}</td>
-      <td style="max-width:200px;white-space:normal">${r.causaRaiz||'—'}</td>
-      <td><span class="badge ${r.status==='Rascunho'?'b-pen':'b-cor'}">${r.status}</span></td>
+      <td class="osn">${_esc(r.id)}</td>
+      <td>${_esc(fd(r.dataAbertura))}</td>
+      <td>${_esc(r.maquina||'—')}</td>
+      <td style="max-width:200px;white-space:normal">${_esc(r.falha||'—')}</td>
+      <td style="max-width:200px;white-space:normal">${_esc(r.causaRaiz||'—')}</td>
+      <td><span class="badge ${r.status==='Rascunho'?'b-pen':'b-cor'}">${_esc(r.status)}</span></td>
       <td style="display:flex;gap:5px;flex-wrap:wrap">
-        <button class="btn btn-edit btn-sm" onclick="verRACR('${r.id}')">👁 Ver</button>
-        ${r.status!=='Fechado'?`<button class="btn btn-g btn-sm" onclick="encerrarRACR('${r.id}')">✅ Encerrar</button>`:''}
+        <button class="btn btn-edit btn-sm" onclick="verRACR('${_escAttr(r.id)}')">👁 Ver</button>
+        ${r.status!=='Fechado'?`<button class="btn btn-g btn-sm" onclick="encerrarRACR('${_escAttr(r.id)}')">✅ Encerrar</button>`:''}
       </td>
     </tr>`).join('')
     : `<tr><td colspan="7" class="empty"><div class="ei">✅</div><p>Nenhum RAC em Aberto</p></td></tr>`;
  
   tbFechados.innerHTML = fechados.length ? fechados.map(r => `
     <tr>
-      <td class="osn">${r.id}</td>
-      <td>${fd(r.dataAbertura)}</td>
-      <td>${r.maquina||'—'}</td>
-      <td>${fd(r.dataBaixa)}</td>
-      <td><button class="btn btn-edit btn-sm" onclick="verRACR('${r.id}')">👁 Ver</button></td>
+      <td class="osn">${_esc(r.id)}</td>
+      <td>${_esc(fd(r.dataAbertura))}</td>
+      <td>${_esc(r.maquina||'—')}</td>
+      <td>${_esc(fd(r.dataBaixa))}</td>
+      <td><button class="btn btn-edit btn-sm" onclick="verRACR('${_escAttr(r.id)}')">👁 Ver</button></td>
     </tr>`).join('')
     : `<tr><td colspan="7" class="empty"><div class="ei">✅</div><p>Nenhum RAC Concluído</p></td></tr>`;
 }
@@ -318,13 +318,13 @@ function verRACR(id) {
   if (osSel) {
     if (r.osNumero) {
       const o = db.ordens.find(x => x.numero === r.osNumero);
-      osSel.innerHTML = `<option value="${r.osNumero}">${r.osNumero}${o ? ' — ' + o.sala + ' / ' + o.maq : ''}</option>`;
+      osSel.innerHTML = `<option value="${_esc(r.osNumero)}">${_esc(r.osNumero)}${o ? _esc(' — ' + o.sala + ' / ' + o.maq) : ''}</option>`;
       osSel.setAttribute('disabled', '');
     } else {
       // Rascunho antigo salvo antes de OS virar obrigatória — deixa escolher agora
       const ordens = [...(db.ordens||[])].sort((a,b) => (b.criadoEm||'').localeCompare(a.criadoEm||''));
       osSel.innerHTML = '<option value="">Selecione a OS...</option>' +
-        ordens.map(o => `<option value="${o.numero}">${o.numero} — ${o.sala} / ${o.maq}</option>`).join('');
+        ordens.map(o => `<option value="${_esc(o.numero)}">${_esc(o.numero)} — ${_esc(o.sala)} / ${_esc(o.maq)}</option>`).join('');
       osSel.removeAttribute('disabled');
     }
   }
@@ -358,12 +358,12 @@ function _racrPreencherDeOS(o) {
   _racrOsRef = o.numero;
   const salaSel = document.getElementById('racr-sala');
   if (salaSel) {
-    salaSel.innerHTML = `<option value="${o.sala}">${o.sala}</option>`;
+    salaSel.innerHTML = `<option value="${_esc(o.sala)}">${_esc(o.sala)}</option>`;
     salaSel.setAttribute('disabled', '');
   }
   const equipSel = document.getElementById('racr-equip');
   if (equipSel) {
-    equipSel.innerHTML = `<option value="${o.maq}">${o.maq}</option>`;
+    equipSel.innerHTML = `<option value="${_esc(o.maq)}">${_esc(o.maq)}</option>`;
     equipSel.setAttribute('disabled', '');
   }
   const dtEl = document.getElementById('racr-data');
@@ -474,13 +474,13 @@ function _racrRenderFotos() {
   c.innerHTML =
     _racrFotosSalvas.map((url, i) => `
       <div class="racr-thumb">
-        <img src="${url}" alt="Foto salva">
+        <img src="${_esc(url)}" alt="Foto salva">
         <button type="button" class="racr-thumb-del" onclick="racrRemoveFotoSalva(${i})" title="Remover">✕</button>
         <span class="racr-thumb-tag">salva</span>
       </div>`).join('') +
     _racrFotosNovas.map((f, i) => `
       <div class="racr-thumb">
-        <img src="data:${f.mime};base64,${f.b64}" alt="${f.name}">
+        <img src="data:${_esc(f.mime)};base64,${_esc(f.b64)}" alt="${_esc(f.name)}">
         <button type="button" class="racr-thumb-del" onclick="racrRemoveFotoNova(${i})" title="Remover">✕</button>
       </div>`).join('');
 }

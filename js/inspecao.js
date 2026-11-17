@@ -10,7 +10,7 @@ function buildInsp() {
   c.innerHTML = INSP_TMPL.map(sec => `
     <div class="insp-sec open">
       <div class="insp-hd" onclick="this.parentElement.classList.toggle('open')">
-        <div class="insp-ht">${sec.sala}</div>
+        <div class="insp-ht">${_esc(sec.sala)}</div>
         <span class="insp-chev">▶</span>
       </div>
       <div class="insp-bd">
@@ -21,26 +21,26 @@ function buildInsp() {
 
 function renderEquip(eq) {
   let html = `
-    <div class="insp-row" id="row-${eq.id}">
-      <div class="insp-eq">${eq.nome}</div>
+    <div class="insp-row" id="row-${_esc(eq.id)}">
+      <div class="insp-eq">${_esc(eq.nome)}</div>
       <div class="insp-btns">
-        <button class="iok"  onclick="setStatus('${eq.id}','ok',this)">OK</button>
-        <button class="inok" onclick="setStatus('${eq.id}','nok',this)">NÃO OK</button>
+        <button class="iok"  onclick="setStatus('${_escAttr(eq.id)}','ok',this)">OK</button>
+        <button class="inok" onclick="setStatus('${_escAttr(eq.id)}','nok',this)">NÃO OK</button>
       </div>
-      <div class="itime"><input type="time" id="t-${eq.id}"></div>
-      <div class="iobs"><input type="text" id="o-${eq.id}" placeholder="Observações..."></div>
+      <div class="itime"><input type="time" id="t-${_esc(eq.id)}"></div>
+      <div class="iobs"><input type="text" id="o-${_esc(eq.id)}" placeholder="Observações..."></div>
     </div>`;
   if (eq.subs && eq.subs.length) {
-    html += `<div class="insp-sub-lbl">${eq.nome} — Sub-itens</div><div class="insp-sub">`;
+    html += `<div class="insp-sub-lbl">${_esc(eq.nome)} — Sub-itens</div><div class="insp-sub">`;
     html += eq.subs.map(s => `
-      <div class="insp-row" id="row-${s.id}">
-        <div class="insp-eq">${s.nome}</div>
+      <div class="insp-row" id="row-${_esc(s.id)}">
+        <div class="insp-eq">${_esc(s.nome)}</div>
         <div class="insp-btns">
-          <button class="iok"  onclick="setStatus('${s.id}','ok',this)">OK</button>
-          <button class="inok" onclick="setStatus('${s.id}','nok',this)">NÃO OK</button>
+          <button class="iok"  onclick="setStatus('${_escAttr(s.id)}','ok',this)">OK</button>
+          <button class="inok" onclick="setStatus('${_escAttr(s.id)}','nok',this)">NÃO OK</button>
         </div>
-        <div class="itime"><input type="time" id="t-${s.id}"></div>
-        <div class="iobs"><input type="text" id="o-${s.id}" placeholder="Observações..."></div>
+        <div class="itime"><input type="time" id="t-${_esc(s.id)}"></div>
+        <div class="iobs"><input type="text" id="o-${_esc(s.id)}" placeholder="Observações..."></div>
       </div>`).join('');
     html += '</div>';
   }
@@ -179,7 +179,7 @@ function mostrarInspRel(sorted,idx) {
   const insp=sorted[idx];
   const nav=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx-1})" ${idx===0?'disabled':''}>◀ Anterior</button>
-    <span style="font-size:14px;color:var(--txt3)">${idx+1} de ${sorted.length}</span>
+    <span style="font-size:14px;color:var(--txt3)">${idx+1} de ${_esc(sorted.length)}</span>
     <button class="btn btn-sm btn-gh" onclick="navInspRel(${idx+1})" ${idx===sorted.length-1?'disabled':''}>Próxima ▶</button>
   </div>`;
   document.getElementById('m-rel-b').innerHTML='';
@@ -225,24 +225,24 @@ function imprimirInspDiaria() {
   let linhas = '';
   if (isHierarquico) {
     insp.itens.forEach(sec => {
-      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${sec.sala}</td></tr>`;
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${_esc(sec.sala)}</td></tr>`;
       (sec.equips || []).forEach(eq => {
         if (!eq.status) return;
         const stOk  = eq.status === 'ok';
         linhas += `<tr>
-          <td style="padding-left:14px">${eq.nome}</td>
+          <td style="padding-left:14px">${_esc(eq.nome)}</td>
           <td style="text-align:center">${stOk ? '✔' : ''}</td>
           <td style="text-align:center">${!stOk ? '✘' : ''}</td>
-          <td>${eq.hora||''}${eq.obs?' — '+eq.obs:''}</td>
+          <td>${_esc(eq.hora||'')}${eq.obs?_esc(' — '+eq.obs):''}</td>
         </tr>`;
         (eq.subs || []).forEach(s => {
           if (!s.status) return;
           const sOk = s.status === 'ok';
           linhas += `<tr style="background:#fafafa">
-            <td style="padding-left:28px;font-size:11px;color:#444">↳ ${s.nome}</td>
+            <td style="padding-left:28px;font-size:11px;color:#444">↳ ${_esc(s.nome)}</td>
             <td style="text-align:center">${sOk ? '✔' : ''}</td>
             <td style="text-align:center">${!sOk ? '✘' : ''}</td>
-            <td style="font-size:11px">${s.hora||''}${s.obs?' — '+s.obs:''}</td>
+            <td style="font-size:11px">${_esc(s.hora||'')}${s.obs?_esc(' — '+s.obs):''}</td>
           </tr>`;
         });
       });
@@ -254,16 +254,16 @@ function imprimirInspDiaria() {
       bySala[item.sala].push(item);
     });
     Object.entries(bySala).forEach(([sala, items]) => {
-      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${sala}</td></tr>`;
+      linhas += `<tr><td colspan="4" style="background:#f0f0f0;font-weight:700;font-size:13px;padding:5px 8px;border-left:3px solid #C41230">● ${_esc(sala)}</td></tr>`;
       items.forEach(item => {
         if (!item.status) return;
         const stOk = item.status === 'ok';
         const nome = item.sub ? `${item.equip} / ${item.sub}` : item.equip;
         linhas += `<tr>
-          <td style="padding-left:14px">${nome}</td>
+          <td style="padding-left:14px">${_esc(nome)}</td>
           <td style="text-align:center">${stOk ? '✔' : ''}</td>
           <td style="text-align:center">${!stOk ? '✘' : ''}</td>
-          <td>${item.hora||''}${item.obs?' — '+item.obs:''}</td>
+          <td>${_esc(item.hora||'')}${item.obs?_esc(' — '+item.obs):''}</td>
         </tr>`;
       });
     });
@@ -299,10 +299,10 @@ function imprimirInspDiaria() {
     <div style="text-align:right;font-size:10px;color:#666">Doc: SIGMAN-INSP<br>Rev: 01</div>
   </div>
   <div class="info-grid">
-    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${fd(insp.data)}</div></div>
-    <div class="info-box"><div class="info-label">Turno</div><div class="info-val">${insp.turno||'—'}</div></div>
-    <div class="info-box"><div class="info-label">Horas do Turno</div><div class="info-val">${insp.horasTurno||8}h</div></div>
-    <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${insp.manut||'—'}</div></div>
+    <div class="info-box"><div class="info-label">Data</div><div class="info-val">${_esc(fd(insp.data))}</div></div>
+    <div class="info-box"><div class="info-label">Turno</div><div class="info-val">${_esc(insp.turno||'—')}</div></div>
+    <div class="info-box"><div class="info-label">Horas do Turno</div><div class="info-val">${_esc(insp.horasTurno||8)}h</div></div>
+    <div class="info-box"><div class="info-label">Manutentor</div><div class="info-val">${_esc(insp.manut||'—')}</div></div>
   </div>
   <table>
     <tr>

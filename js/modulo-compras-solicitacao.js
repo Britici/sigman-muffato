@@ -193,7 +193,7 @@
     ).join('');
 
     const opsPrioridade = PRIORIDADES.map(p =>
-      `<option value="${p.val}" class="pri-${p.val}">${p.val} – ${p.label} · ${p.desc}</option>`
+      `<option value="${_esc(p.val)}" class="pri-${_esc(p.val)}">${_esc(p.val)} – ${_esc(p.label)} · ${_esc(p.desc)}</option>`
     ).join('');
 
     return `
@@ -375,7 +375,7 @@
       <div class="csl-thumb">
         ${f.pdf
           ? '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:34px;background:var(--surf2)">📄</div>'
-          : `<img src="data:${f.mime};base64,${f.b64}" alt="${_esc(f.name)}">`}
+          : `<img src="data:${_esc(f.mime)};base64,${_esc(f.b64)}" alt="${_esc(f.name)}">`}
         <button type="button" class="csl-thumb-del" data-i="${i}" title="Remover">✕</button>
         <span class="csl-thumb-name">${_esc(f.name)}</span>
       </div>`).join('');

@@ -216,7 +216,7 @@ function solRowHtml_(s) {
   const podeExecutar = typeof CU !== 'undefined' && CU &&
     (CU.tipo === 'administracao' || CU.tipo === 'manutencao');
   const osGerada = (db.ordens.find(o => o.origem === 'sol' && o.origemNum === s.numero) || {}).numero;
-  const num = String(s.numero).replace(/'/g, "\\'");
+  const num = _escAttr(s.numero);
   const abertura = dtLocalSol_(s.criadoEm);
   return '<tr>' +
     '<td><span class="osn">' + _escPl(s.numero) + '</span>' +
@@ -232,7 +232,7 @@ function solRowHtml_(s) {
     '<td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">' +
       (s.status !== 'Concluída' && podeExecutar ? '<button class="btn btn-sm btn-g" onclick="abrirConcluir(\'' + num + '\',\'sol\')">Concluir</button>' : '') +
       (osGerada
-        ? '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + String(osGerada).replace(/'/g, "\\'") + '\',\'os\')">Ver</button>'
+        ? '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + _escAttr(osGerada) + '\',\'os\')">Ver</button>'
         : '<button class="btn btn-sm btn-gh" onclick="verDet(\'' + num + '\',\'sol\')">Ver</button>') +
     '</div></td></tr>';
 }
@@ -403,16 +403,16 @@ function renderPlan() {
       ? (db.ordens.find(o => o.origem==='plan' && o.origemNum===p.numero)||{}).numero
       : null;
     return `<tr>
-    <td><span class="osn">${p.numero}</span>${osGerada?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${osGerada})</div>`:''}</td>
-    <td>${p.sala}</td><td>${p.maq}</td>
+    <td><span class="osn">${_esc(p.numero)}</span>${osGerada?`<div style="text-align:left;font-size:11px;color:var(--txt2);margin-top:1px">(${osGerada})</div>`:''}</td>
+    <td>${_esc(p.sala)}</td><td>${_esc(p.maq)}</td>
     <td>${tipoBadge(p.tipo)}</td><td>${prio(p.prioridade)}</td>
-    <td style="font-family:var(--fm);font-size:13px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${fd(p.prazo)}</td>
+    <td style="font-family:var(--fm);font-size:13px;color:${p.prazo<t&&p.status!=='Concluída'?'var(--red)':'var(--txt)'}">${_esc(fd(p.prazo))}</td>
     <td>${stBadge(p.status)}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:nowrap;align-items:center">
-      ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${p.numero}','plan')">Concluir</button>`:''}
-      ${podeEditar(p.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarPlan('${p.numero}')">✎ Editar</button>`:''}
-      <button class="btn btn-sm btn-gh" onclick="verDet('${p.numero}','pl')">Ver</button>
-      ${podeEditar(p.criadoEm)?`<button class="btn btn-d" onclick="delPlan('${p.numero}')">✕</button>`:''}
+      ${p.status!=='Concluída'?`<button class="btn btn-sm btn-g" onclick="abrirConcluir('${_escAttr(p.numero)}','plan')">Concluir</button>`:''}
+      ${podeEditar(p.criadoEm)?`<button class="btn btn-sm btn-gh" onclick="editarPlan('${_escAttr(p.numero)}')">✎ Editar</button>`:''}
+      <button class="btn btn-sm btn-gh" onclick="verDet('${_escAttr(p.numero)}','pl')">Ver</button>
+      ${podeEditar(p.criadoEm)?`<button class="btn btn-d" onclick="delPlan('${_escAttr(p.numero)}')">✕</button>`:''}
     </div></td>
   </tr>`;
   };
@@ -478,12 +478,12 @@ function editarPlan(id) {
 
   const salaEhOutro = _outroSel_(p.sala), maqEhOutro = _outroSel_(p.maq);
   const salasOpts = db.salas.sort().map(s =>
-    `<option value="${s}"${s===p.sala?' selected':''}>${s}</option>`
+    `<option value="${_esc(s)}"${s===p.sala?' selected':''}>${_esc(s)}</option>`
   ).join('');
 
   const maqsFiltradas = db.maquinas.filter(m => m.sala === p.sala);
   const maqsOpts = maqsFiltradas.sort((a,b)=>a.nome.localeCompare(b.nome)).map(m =>
-    `<option value="${m.nome}"${m.nome===p.maq?' selected':''}>${m.nome}${m.tag?' ('+m.tag+')':''}</option>`
+    `<option value="${_esc(m.nome)}"${m.nome===p.maq?' selected':''}>${_esc(m.nome)}${m.tag?_esc(' ('+m.tag+')'):''}</option>`
   ).join('');
 
   document.getElementById('me-b').innerHTML = `
@@ -526,11 +526,11 @@ function editarPlan(id) {
       </select>
     </div>
     <div class="fg"><label>Prazo Limite</label>
-      <input type="hidden" id="ep-prazo" value="${p.prazo||''}">
+      <input type="hidden" id="ep-prazo" value="${_esc(p.prazo||'')}">
       <input type="text" id="ep-prazo_disp" class="date-mask" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" oninput="dateMaskInput(this)" value="${p.prazo?fd(p.prazo):''}">
     </div>
     <div class="fg" style="display:none"><label>Horas por Turno</label>
-      <input type="number" id="ep-horas" value="${p.horasTurno||10}" min="1" max="24">
+      <input type="number" id="ep-horas" value="${_esc(p.horasTurno||10)}" min="1" max="24">
     </div>
     <div class="fg"><label>Status</label>
       <select id="ep-status">
@@ -540,7 +540,7 @@ function editarPlan(id) {
       </select>
     </div>
     <div class="fg"><label>Descrição</label>
-      <textarea id="ep-desc">${p.desc||''}</textarea>
+      <textarea id="ep-desc">${_esc(p.desc||'')}</textarea>
     </div>`;
 
   initDateIcons(document.getElementById('me-b'));
@@ -557,7 +557,7 @@ function epFiltrarMaq() {
     .sort((a,b) => a.nome.localeCompare(b.nome));
   sel.innerHTML = '<option value="">Selecione...</option>' +
     maqsFiltradas.map(m =>
-      `<option value="${m.nome}">${m.nome}${m.tag?' ('+m.tag+')':''}</option>`
+      `<option value="${_esc(m.nome)}">${_esc(m.nome)}${m.tag?_esc(' ('+m.tag+')'):''}</option>`
     ).join('') +
     '<option value="__outros__">Outros</option>';
 }
@@ -600,7 +600,7 @@ function getCriticidadeBadge(maqNome) {
   const crit = getCriticidadeMaq(maqNome);
   const critMap = {'1':'Criticidade 1','2':'Criticidade 2','3':'Criticidade 3','4':'Criticidade 4'};
   const critColor = {'1':'#ff2244','2':'var(--red)','3':'var(--org)','4':'var(--grn)'}[String(crit)] || 'var(--txt3)';
-  return `<span style="font-size:11px;color:${critColor};font-weight:600">${critMap[String(crit)] || '—'}</span>`;
+  return `<span style="font-size:11px;color:${critColor};font-weight:600">${_esc(critMap[String(crit)] || '—')}</span>`;
 }
 function limiteRAC(crit) {
   return {1:60, 2:120, 3:10080, 4:20160}[crit] ?? 120;
