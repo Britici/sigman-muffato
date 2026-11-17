@@ -1459,7 +1459,7 @@ function populateMnSelects() {
   const nomes = getNomesManutentores();
   document.querySelectorAll('select.mn-select').forEach(sel => {
     const cur = sel.value;
-    sel.innerHTML = '<option value="">Selecione...</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join('');
+    sel.innerHTML = '<option value="">Selecione...</option>' + nomes.map(n => `<option value="${_esc(n)}">${_esc(n)}</option>`).join('');
     if (cur && nomes.includes(cur)) sel.value = cur;
   });
 }
@@ -1469,7 +1469,7 @@ function populateSalas(p) {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Selecione...</option>';
-  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${_esc(s)}">${_esc(s)}</option>`);
   sel.innerHTML += '<option value="__outros__">Outros (não listado)</option>';
   if (cur) sel.value = cur;
 }
@@ -1484,7 +1484,7 @@ function fMaq(p) {
   }
   [...db.maquinas].filter(m => m.sala === sala)
     .sort((a,b) => a.nome.localeCompare(b.nome))
-    .forEach(m => { sel.innerHTML += `<option value="${m.nome}">${m.nome}${m.tag?' ('+m.tag+')':''}</option>`; });
+    .forEach(m => { sel.innerHTML += `<option value="${_esc(m.nome)}">${_esc(m.nome)}${m.tag?_esc(' ('+m.tag+')'):''}</option>`; });
   sel.innerHTML += '<option value="__outros__">Outros (não listado)</option>';
 }
 
@@ -1501,7 +1501,7 @@ function populateAtMaqSala() {
   const sel = document.getElementById('at-ms');
   if (!sel) return;
   sel.innerHTML = '<option value="">Selecione...</option>';
-  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${_esc(s)}">${_esc(s)}</option>`);
 }
 
 function populateSalaFilter(id) {
@@ -1509,7 +1509,7 @@ function populateSalaFilter(id) {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Todas as Salas</option>';
-  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+  [...db.salas].sort().forEach(s => sel.innerHTML += `<option value="${_esc(s)}">${_esc(s)}</option>`);
   if (cur) sel.value = cur;
 }
 
