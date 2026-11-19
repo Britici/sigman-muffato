@@ -4,6 +4,10 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
+// v18.1 — Fecha brechas do lote e do append genérico (não muda colunas; NÃO precisa rodar migração):
+//   • appendBatch só aceita a aba de inspeções (antes qualquer aba com permissão de append, sem validação).
+//   • append em Ordens_Executadas só aceita abertura direta (Origem 'direta' e OS_Origem_Ref vazio); a baixa é só concluirOS.
+//   • PMMotor: frequência só vale se for chave própria de CICLO (antes 'constructor', ['Q'] etc. passavam).
 // v18 — Baixa no servidor, folha impressa, checklist do PM e importador dos modelos.
 //   • concluirOS (POST): única porta para concluir planejada/solicitação. Sob lock: valida, gera o número da OS no
 //     servidor, grava Ordens_Executadas e fecha a origem. Recusa baixa duplicada (JA_CONCLUIDA), data futura,
@@ -697,10 +701,11 @@ function doPost(e) {
     switch (d.action) {
       case 'append':
         nega = checarEscrita_(sess, 'append', d.sheet);
-        if (!nega && d.sheet === 'ordens' && d.row && typeof d.row === 'object') d.row.Baixado_Por = usuario; // auditoria: sempre a sessão
+        if (!nega && d.sheet === 'ordens') nega = guardaAppendOrdens_(d.row, usuario); // v18.1: só abertura direta; Baixado_Por = sessão
         return resp_(nega || appendRow(d.sheet, d.row, usuario, d.idempotencyKey), sess);
       case 'appendBatch':
         nega = checarEscrita_(sess, 'append', d.sheet);
+        if (!nega && APPEND_BATCH_PERMITIDO.indexOf(d.sheet) < 0) nega = negar_('Gravação em lote não permitida para ' + d.sheet + '.'); // v18.1
         if (!nega && (!Array.isArray(d.rows) || d.rows.length > 500)) nega = { ok: false, code: 'VALIDATION', error: 'Lote inválido (máx. 500 linhas).' };
         return resp_(nega || appendBatch(d.sheet, d.rows, usuario), sess);
       case 'update':
@@ -1956,11 +1961,12 @@ var PMMotor = (function () {
   function sd(n) { return new Date(n * 864e5).toISOString().slice(0, 10); }
   function dataValida(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && sd(ds(s)) === s; }
   function vazio(v) { return v === null || v === undefined || v === ''; }
+  function freqOk(f) { return typeof f === 'string' && Object.prototype.hasOwnProperty.call(CICLO, f); } // v18.1: 'constructor', '__proto__' etc. não são frequência
   function maior(a, b) { return ORDEM.indexOf(a) >= ORDEM.indexOf(b) ? a : b; }
 
   /* Números do plano (ciclo e tolerância) já normalizados, ou null se inválidos. */
   function numeros(plano) {
-    if (!plano || !CICLO[plano.freq]) return null;
+    if (!plano || !freqOk(plano.freq)) return null;
     var c = vazio(plano.ciclo) ? CICLO[plano.freq] : Number(plano.ciclo);
     var t = vazio(plano.tol) ? TOL[plano.freq] : Number(plano.tol);
     if (!isFinite(c) || c < 1 || Math.floor(c) !== c) return null; /* ciclo 0 ou inválido travaria o laço */
@@ -1971,7 +1977,7 @@ var PMMotor = (function () {
   /* Regra única de cadastro. Devolve '' se o plano é válido, senão a mensagem de erro.
      Mais rígida que 'ocorrencias': ciclo próprio tem de ser múltiplo de 7 (mesmo dia da semana) e tolerância até 60. */
   function validar(plano) {
-    if (!plano || !CICLO[plano.freq]) return 'Frequência inválida (use Q, M, T, S ou A).';
+    if (!plano || !freqOk(plano.freq)) return 'Frequência inválida (use Q, M, T, S ou A).';
     if (!dataValida(plano.primeira)) return 'Primeira data inválida (use AAAA-MM-DD, data real).';
     var n = numeros(plano);
     if (!n) return 'Ciclo ou tolerância inválidos (números inteiros, ciclo ≥ 1, tolerância ≥ 0).';
@@ -2480,6 +2486,22 @@ function marcarImpressa(sess, d) {
   });
   logGravacao(usuario, 'marcarImpressa', org.key, numero, res.ok ? 'sucesso' : 'falha', res.error || '');
   return res;
+}
+
+// v18.1: lote genérico NÃO valida campos nem aplica guardas (appendRow sim). Só inspeções usam lote.
+var APPEND_BATCH_PERMITIDO = ['inspecoes'];
+
+// v18.1: append genérico em Ordens_Executadas = só abertura direta de O.S. A baixa de planejada/solicitação é
+// SÓ por concluirOS. Impede o cliente de fabricar O.S. "executada" apontando para uma origem. Baixado_Por = sessão.
+function guardaAppendOrdens_(row, usuario) {
+  if (!row || typeof row !== 'object') return { ok: false, code: 'VALIDATION', error: 'Linha inválida.' };
+  var origem = String(row.Origem === undefined || row.Origem === null ? '' : row.Origem).trim();
+  var ref = String(row.OS_Origem_Ref === undefined || row.OS_Origem_Ref === null ? '' : row.OS_Origem_Ref).trim();
+  if ((origem !== '' && origem !== 'direta') || ref !== '') {
+    return negar_('Para concluir planejada ou solicitação use o botão Concluir (a baixa é feita pelo servidor).');
+  }
+  row.Baixado_Por = usuario;
+  return null;
 }
 
 // Guarda do 'update' genérico: não deixa concluir planejada/solicitação por fora de concluirOS,
