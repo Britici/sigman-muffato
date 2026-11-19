@@ -379,7 +379,7 @@ function renderPlan() {
   atualizarAbasPlan_();
 
   const { col, dir } = planSort;
-  const prioMap = { 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
+  const prioMap = { '1':1, '2':2, '3':3, '4':4, 'Urgente':1, 'Crítico':1, 'Alta':2, 'Média':3, 'Baixa':4 };
   const stMap   = { 'Atrasada':1, 'Pendente':2, 'Concluída':3 };
   data.sort((a, b) => {
     let va = a[col] || '', vb = b[col] || '';
@@ -519,7 +519,7 @@ function editarPlan(id) {
     </div>
     <div class="fg"><label>Prioridade</label>
       <select id="ep-prio">
-        <option value="1"${p.prioridade==='1'?' selected':''}>🔴 Crítico (Parada de Máquina)</option>
+        <option value="1"${(p.prioridade==='1'||p.prioridade==='Urgente'||p.prioridade==='Crítico')?' selected':''}>🔴 Crítico (Parada de Máquina)</option>
         <option value="2"${(p.prioridade==='2'||p.prioridade==='Alta')?' selected':''}>🟠 Alta (Risco de Parada)</option>
         <option value="3"${(p.prioridade==='3'||p.prioridade==='Média')?' selected':''}>🟡 Média (Importante - Planejamento)</option>
         <option value="4"${(p.prioridade==='4'||p.prioridade==='Baixa')?' selected':''}>🟢 Baixo (Melhoria - Planejamento)</option>

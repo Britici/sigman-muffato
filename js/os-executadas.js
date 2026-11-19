@@ -41,7 +41,7 @@ function renderExec() {
 
   // Ordenação
   const { col, dir } = execSort;
-  const prioMap = { 'Urgente':1, 'Alta':2, 'Média':3, 'Baixa':4 };
+  const prioMap = { '1':1, '2':2, '3':3, '4':4, 'Urgente':1, 'Crítico':1, 'Alta':2, 'Média':3, 'Baixa':4 };
   data.sort((a, b) => {
     let va = a[col] || '', vb = b[col] || '';
     if (col === 'prioridade') { va = prioMap[va] || 9; vb = prioMap[vb] || 9; return dir === 'asc' ? va - vb : vb - va; }
