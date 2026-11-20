@@ -4,115 +4,62 @@
 // Arquivo ÚNICO compartilhado por sigman-muffato e sigprod-muffato (colado
 // direto no editor do Apps Script; cópias de Code.gs no GitHub não valem).
 //
-// v18.1 — Fecha brechas do lote e do append genérico (não muda colunas; NÃO precisa rodar migração):
-//   • appendBatch só aceita a aba de inspeções (antes qualquer aba com permissão de append, sem validação).
-//   • append em Ordens_Executadas só aceita abertura direta (Origem 'direta' e OS_Origem_Ref vazio); a baixa é só concluirOS.
-//   • PMMotor: frequência só vale se for chave própria de CICLO (antes 'constructor', ['Q'] etc. passavam).
+// v20.1 — migrações pontuais removidas (migrarColunasV18/V19 já rodaram): pmCriarAbas() agora confere/cria as colunas de Ordens,
+//   Planejadas, Solicitações, PlanosPM, ModelosItens e ExecucaoItens, o formato texto das datas e as listas suspensas (idempotente).
+//   Colunas ausentes agora mandam rodar pmCriarAbas().
+// v20 — LIMPEZA (sem mudar regra de negócio)
+//   • Histórico de versões antigas (v9–v17) condensado no resumo abaixo; funções de teste que GRAVAM em produção
+//     (pmSemearTeste/pmLimparTeste) removidas. pmPrevisaoTeste (só lê) continua.
+//   • SCHEMAS alinhado à planilha real: Maquinas ganhou ModeloPadrao (a coluna existe e o front grava, mas o schema não a tinha);
+//     Ordens_Executadas perdeu Pecas_Utilizadas (nunca usada, 100% vazia).
+//   • Chave única no servidor também em Configuracoes (Chave), Usuarios (Login), Salas (ID_Sala) e Maquinas (ID_Maquina):
+//     append duplicado volta NUMERO_DUPLICADO. Motivo: Configuracoes tinha 'salas_disponibilidade' duplicada — o front LÊ a última
+//     linha e o update GRAVA na primeira, então a edição das salas do indicador não "pegava".
+//   • limparBaseV20Preview() / limparBaseV20Real() (editor): backup, remove chave duplicada de Configuracoes (fica a mais recente)
+//     e apaga a coluna Pecas_Utilizadas se estiver 100% vazia. A prévia não grava nada.
+// v19 — GATILHO DE APROVAÇÃO dos itens do checklist + importador em Rascunho + ciclos do legado alinhados ao motor.
+//   • ModelosItens ganha Status (Rascunho → Em revisao → Aprovado), Freq_Origem (Manual/PCM/Sugerida), Aprovado_Por, Aprovado_Em.
+//     SÓ item Aprovado entra no checklist (pmGravarChecklist). Sem Status = Rascunho = fora do motor.
+//   • POST pmAprovarItens {ids, para}: tudo ou nada, sob lock. Rascunho→Em revisao: Administração/Manutenção.
+//     Em revisao→Aprovado e devolver p/ Rascunho: Administração ou Manutenção com Cargo 'PCM' (conferido no servidor).
+//   • append/update genéricos em ModelosItens passam por pmCriarItem_/pmAtualizarItem_: cliente NÃO grava Status/Aprovado_*;
+//     item novo = Rascunho; mudar Modelo/Disciplina/Descricao/Freq de item aprovado volta p/ Rascunho e zera a aprovação.
+//   • Importador: item novo entra como Rascunho; Freq_Sugerida vira Freq com Freq_Origem 'Sugerida'; filtro de modelos (piloto TFS ULMA).
+//   • Legado: Trimestral 84, Semestral 168, Anual 336, janela 84 e horizonte 336 — iguais ao motor de PM.
+// v18.1 — appendBatch só aceita a aba de inspeções; append em Ordens_Executadas só aceita abertura direta; PMMotor: frequência só vale
+//   se for chave própria de CICLO.
 // v18 — Baixa no servidor, folha impressa, checklist do PM e importador dos modelos.
-//   • concluirOS (POST): única porta para concluir planejada/solicitação. Sob lock: valida, gera o número da OS no
-//     servidor, grava Ordens_Executadas e fecha a origem. Recusa baixa duplicada (JA_CONCLUIDA), data futura,
-//     parada > duração, hora fim < início sem confirmação de meia-noite e manutentor fora do cadastro.
-//     Baixado_Por (sessão) fica separado de Manutentor (quem executou).
-//   • Reenvio da fila offline (offline:true) de uma O.S. que outra pessoa já concluiu NÃO é descartado:
-//     vira OS COMPLEMENTAR (número novo, mesma origem, texto "[Complementar à PL-0001 …]"); a origem não é alterada.
-//     Online (sem offline:true) a baixa duplicada continua recusada (JA_CONCLUIDA).
+//   • concluirOS (POST): única porta para concluir planejada/solicitação. Sob lock: valida, gera o número da OS no servidor, grava
+//     Ordens_Executadas e fecha a origem. Recusa baixa duplicada (JA_CONCLUIDA), data futura, parada > duração, hora fim < início
+//     sem confirmação de meia-noite e manutentor fora do cadastro. Baixado_Por (sessão) fica separado de Manutentor.
+//   • Reenvio da fila offline (offline:true) de O.S. que outra pessoa já concluiu vira OS COMPLEMENTAR (número novo, mesma origem).
 //   • marcarImpressa (POST): grava Impressa_Em/Impressa_Por da folha em branco. Não conclui.
-//   • update genérico NÃO conclui mais planejada/solicitação nem toca em Baixado_Por/Impressa_*/Concluido_Em
-//     (BLOQUEAR_BAIXA_GENERICA). Em Ordens_Executadas, Baixado_Por é sempre o usuário da sessão.
-//   • ExecucaoItens perdeu o append genérico (risco nº 1 do v42): só entra por pmGravarChecklist (POST), que
-//     valida a ocorrência na grade de PM e os itens do modelo (cascata), abre corretiva em CORRETIVA/PARAR
-//     (PARAR = prioridade 1) e só marca Feita_Em ao finalizar com todos os itens.
+//   • update genérico NÃO conclui planejada/solicitação nem toca em Baixado_Por/Impressa_*/Concluido_Em (BLOQUEAR_BAIXA_GENERICA).
+//   • ExecucaoItens sem append genérico: só entra por pmGravarChecklist (POST), que valida a ocorrência na grade de PM e os itens
+//     do modelo, abre corretiva em CORRETIVA/PARAR (PARAR = prioridade 1) e só marca Feita_Em ao finalizar com todos os itens.
 //   • Importador dos modelos: pmImportarModelosPreview / pmImportarModelosReal (planilha do PCM).
-//   • Rode migrarColunasV18() UMA vez no editor após colar esta versão (acrescenta colunas; não mexe nos dados).
-//
-// v17 — ModelosItens ganha a coluna Freq (Q/M/T/S/A): cada item do checklist diz a partir de qual
-//   frequência entra (a OS anual inclui os itens das frequências menores).
-//   • SCHEMAS.ModelosItens: Freq no fim. Freq é obrigatória e validada no servidor (Q/M/T/S/A exato).
-//   • pmCriarAbas() agora CONFERE o cabeçalho das 3 abas PM e acrescenta no fim a coluna que faltar
-//     (migra a aba já criada sem tocar nos dados). Rode pmCriarAbas() UMA vez após colar esta versão.
-//   • Gravar em ModelosItens antes da migração é recusado (evita perder Freq em silêncio).
-// v16 — PLANO DE MANUTENÇÃO (PM) · Etapa 2 · SEM geração automática de OS
-//   • Abas novas: PlanosPM (plano por máquina e frequência), ModelosItens (itens do
-//     checklist por modelo) e ExecucaoItens (resposta de cada item: OK/CORRIGI/CORRETIVA/PARAR).
-//     Rode pmCriarAbas() UMA vez no editor (cria cabeçalhos, formato texto nas datas e listas).
-//   • Motor de vencimentos (seção PM-MOTOR no fim do arquivo): grade fixa por plano, ciclos
-//     ENCAIXADOS Q14/M28/T84/S168/A336, cascata (mesma máquina + mesma data = 1 OS, maior
-//     frequência), tolerância, "absorvida". Máquina é identificada por ID_Maquina, nunca por Tag.
-//   • GET pmPrevisao (admin/manutenção): SÓ LÊ. Mostra o que o motor geraria hoje + avisos
-//     (plano sem máquina, inválido, duplicado, tag repetida, início em fim de semana). Não grava OS.
-//   • Gravação em PlanosPM validada no servidor (frequência, data real, ciclo múltiplo de 7,
-//     tolerância, máquina existente). O gerador antigo (Ultima_Preventiva_Gerada, 91/182/364 dias)
-//     continua intacto e independente até a virada.
-//
-// v15 — readAll FILTRADO POR PERFIL (AUTH_ENFORCE = true)
-//   • readAll só devolve as abas que o perfil pode ler (ACL_LEITURA); as demais
-//     voltam como [] (o cliente não quebra) e nem são lidas da planilha.
-//   • ACL_LEITURA é a ÚNICA fonte: a action 'read' e o readAll usam a mesma tabela.
-//     Antes o readAll ignorava a ACL e mandava até 'preventiva' para todo login.
-//   • O cache do readAll agora é POR PERFIL (chave 'ra:<gen>:<perfil>:').
-//   • Perfil fora da lista (Tipo_Acesso com erro de digitação) recebe tudo vazio.
-//
-// v14 — SEGURANÇA: sessão por token + permissão por perfil no servidor
-//   • login emite token assinado (HMAC-SHA256, segredo em Script Properties).
-//     Validade ociosa 12h (renovada a cada uso, no máx. a cada 30 min) e teto
-//     absoluto de 7 dias. O token NÃO carrega perfil: perfil/ativo/senha vêm
-//     da aba Usuarios a cada validação (cache 60s) — desativar usuário, mudar
-//     perfil ou trocar/resetar senha derruba/atualiza a sessão em até 60s.
-//   • TODA ação exige token, exceto ping e login. ACL por ação e por aba
-//     (ACL_LEITURA / ACL_ESCRITA / ACL_GET). Aba fora da lista = negado.
-//   • "usuario" dos logs, Solicitante de compras e RACR vêm do token, não do cliente.
-//   • trocarSenha: só vale quando a senha atual é o sentinela 'mudar123'
-//     (antes qualquer um trocava a senha de qualquer login sem autenticar).
-//   • Login com bloqueio: 5 falhas → 10 min bloqueado (CacheService).
-//   • uploadFoto: só imagem, limite de tamanho, nome/pasta sanitizados.
-//   • Erros trazem "code" (AUTH, FORBIDDEN, VALIDATION, NOTFOUND, DUP, BUSY,
-//     LOCKED) para o cliente decidir entre reenviar ou descartar.
-//   • ROLLOUT: AUTH_ENFORCE=false aceita chamadas SEM token (clientes antigos);
-//     com token, valida e aplica ACL mesmo assim. Depois que todos estiverem no
-//     frontend novo, mudar para true e publicar nova versão.
-//   • Rodar UMA vez no editor: setupSessionSecret().
-// v13 — preventivas: ciclos em múltiplos de 7 + agendamento permanente
-//   • PERIODICIDADE_DIAS: Mensal 28, Trimestral 91, Semestral 182, Anual 364.
-//     A máquina vence sempre no mesmo dia da semana (30 dias empurrava 2 dias
-//     por ciclo e jogava OS em fim de semana).
-//   • Máquina SEM Ultima_Preventiva_Gerada não gera mais OS (antes usava
-//     Criado_Em e disparava rajada). Quem dá a data é agendarPreventivasInterno_
-//     (dia útil com vaga, 6 OS/dia), chamada no início de toda geração real —
-//     ativo novo entra na agenda sozinho. Preview e geração mostram
-//     semReferencia (máquinas ainda sem data).
-//   • A semeadura temporária da v12 virou agendamento permanente
-//     (agendarPreventivasPreview/Real); feriados 2026-2027 em AGENDAR_FERIADOS.
-// v12 — preventivas: preparo para a primeira geração
-//   • Maquinas no SCHEMAS agora inclui Ultima_Preventiva_Gerada.
-//   • Removidos setupPreventivaAutomaticaColuna e setupIdempotencyKeyColunasGeral
-//     (já rodaram; colunas existem).
-//   • Salas fora da preventiva automática (SALAS_FORA_PREVENTIVA): UTILIDADES,
-//     SECUNDÁRIA e as 3 de efluentes. Vale para preview e geração real.
-//   • Ativo lido por ativoSim_(): aceita 'Não'/'nao'/'N'/'false' etc. (antes só
-//     'nao' sem acento; 'Não' passava como ativo). Vale também no login.
-//   • Ultima_Preventiva_Gerada lida por dataLocal_(): texto 'yyyy-MM-dd' é
-//     interpretado em data LOCAL (new Date('yyyy-MM-dd') dá UTC e recuava 1 dia).
-// v11 — correções + limpeza
-//   • salvarManualSenha: upsert por ID agora ATÔMICO (um único comLock).
-//     Antes, updateRow e appendRow tomavam lock separados: dois envios
-//     simultâneos do mesmo ID podiam ambos cair em "não encontrado" e
-//     duplicar. Também parou de gravar "falha" no LogFila a cada registro
-//     novo (vinha do updateRow que não achava o ID).
-//   • Preventiva automática: a máquina é identificada pela LINHA da planilha,
-//     não pelo nome (duas máquinas de mesmo nome em salas diferentes se
-//     confundiam quando uma OS falhava). Ultima_Preventiva_Gerada agora é
-//     gravada logo após cada OS criada — se a execução morrer no meio, o que
-//     já foi gerado não é gerado de novo na rodada seguinte.
-//   • Removido (comprovadamente sem uso): appendComNumero (wrapper sem nenhum
-//     chamador — o núcleo virou appendComNumero_), sanitizarManuaisSenhasBulk
-//     e sua chamada em readAll (inalcançável: manuaisSenhas está em
-//     SKIP_READ_ALL), comentários de versões antigas.
-// v10 — performance do readAll: planilha aberta 1x por execução (getSS_) +
-//     cache de 20s com invalidação por geração. Corrige 404 em
-//     script.googleusercontent.com/macros/echo no polling (execução lenta).
-//     Edição manual direto na planilha pode aparecer com até 20s de atraso.
-// v9 — lock dedicado na geração de preventivas; idempotência genérica
-//     (Idempotency_Key) em appendRow; salvarManualSenha exige ID do cliente.
+// v16–v17 — PLANO DE MANUTENÇÃO (PM), sem geração automática de OS
+//   • Abas PlanosPM, ModelosItens (Freq Q/M/T/S/A por item) e ExecucaoItens. pmCriarAbas() cria/confere cabeçalhos, formato texto
+//     nas datas e listas suspensas (pode repetir).
+//   • Motor (seção PM-MOTOR): grade fixa por plano, ciclos ENCAIXADOS Q14/M28/T84/S168/A336, cascata (mesma máquina + mesma data =
+//     1 OS, maior frequência), tolerância, "absorvida". Máquina é identificada por ID_Maquina, nunca por Tag.
+//   • GET pmPrevisao (admin/manutenção): só lê.
+// v14–v15 — SEGURANÇA
+//   • Login emite token assinado (HMAC-SHA256, segredo em Script Properties; rodar setupSessionSecret() UMA vez). Validade ociosa 12h,
+//     teto de 7 dias. O token não carrega perfil: perfil/ativo/senha vêm da aba Usuarios a cada validação (cache 60s).
+//   • TODA ação exige token, exceto ping e login. ACL por ação e por aba (ACL_LEITURA / ACL_ESCRITA / ACL_GET), única fonte.
+//   • readAll só devolve as abas que o perfil pode ler; cache por perfil. Perfil fora da lista recebe tudo vazio.
+//   • "usuario" dos logs, Solicitante de compras e RACR vêm do token. trocarSenha só vale com o sentinela 'mudar123'.
+//   • Login com bloqueio: 5 falhas → 10 min. uploadFoto: só imagem, limite de tamanho, nome/pasta sanitizados.
+//   • Erros trazem "code" (AUTH, FORBIDDEN, VALIDATION, NOTFOUND, DUP, BUSY, LOCKED).
+//   • AUTH_ENFORCE=false aceitaria chamadas SEM token (rollout antigo); hoje está true.
+// v9–v13 — preventivas e desempenho
+//   • Ciclos em múltiplos de 7 (mesmo dia da semana). Máquina SEM Ultima_Preventiva_Gerada não gera OS: a data vem de
+//     agendarPreventivasInterno_ (dia útil com vaga, 6 OS/dia), chamada no início de toda geração real. Salas fora da preventiva:
+//     SALAS_FORA_PREVENTIVA. Ativo lido por ativoSim_(); datas 'yyyy-MM-dd' lidas em data LOCAL (dataLocal_).
+//   • Preventiva automática identifica a máquina pela LINHA da planilha e grava Ultima_Preventiva_Gerada após cada OS.
+//   • readAll: planilha aberta 1x por execução (getSS_) + cache de 20s com invalidação por geração.
+//   • Lock dedicado na geração de preventivas; idempotência genérica (Idempotency_Key) em appendRow; salvarManualSenha atômico.
 // ═══════════════════════════════════════════════════════════════════════════
 
 var SHEET_ID = '1zOXdRQoTOwPLhd3uPG7IdMx3rGTAtCM8wUm8WjvnDhg';
@@ -232,13 +179,13 @@ var SCHEMAS = {
   ],
   'Maquinas': [
     'ID_Maquina','Sala','Nome','Tag','Criticidade',
-    'Periodicidade_Preventiva','Descricao','Ativo','Criado_Em','Idempotency_Key',
-    'Ultima_Preventiva_Gerada'
+    'Periodicidade_Preventiva','ModeloPadrao','Descricao','Ativo','Criado_Em',
+    'Ultima_Preventiva_Gerada','Idempotency_Key'
   ],
   'Ordens_Executadas': [
     'OS_Numero','Data','Sala','Maquina','Tag_Maquina','Tipo','Prioridade',
     'Manutentor','Hora_Inicio','Hora_Fim','Duracao_Min','Tempo_Parada_Min',
-    'Problema','Acao_Executada','Acao_Preventiva','Foto_URL','Fotos','Pecas_Utilizadas',
+    'Problema','Acao_Executada','Acao_Preventiva','Foto_URL','Fotos',
     'Origem','OS_Origem_Ref','Criado_Em','Baixado_Por'
   ],
   'OS_Planejadas': [
@@ -306,7 +253,8 @@ var SCHEMAS = {
     'Ciclo_Dias','Tol_Dias','Duracao_Min','Parada','Ativo','Criado_Em','Atualizado_Em','Idempotency_Key'
   ],
   'ModelosItens': [
-    'ID_Item','Modelo','Disciplina','Ordem','Descricao','Ativo','Freq'
+    'ID_Item','Modelo','Disciplina','Ordem','Descricao','Ativo','Freq',
+    'Status','Freq_Origem','Aprovado_Por','Aprovado_Em'
   ],
   'ExecucaoItens': [
     'ID_Exec','OS_Numero','Chave','ID_Maquina','Venc','Tol_Ate','Feita_Em','Manutentor',
@@ -629,7 +577,7 @@ function checarEscrita_(sess, acao, sheet) {
 
 function doGet(e) {
   if (!e || !e.parameter) {
-    return jsonOut({ ok: true, msg: 'SIGMAN API v14 online', ts: new Date().toISOString() });
+    return jsonOut({ ok: true, msg: 'SIGMAN API v20 online', ts: new Date().toISOString() });
   }
   var sess = null;
   try {
@@ -701,6 +649,7 @@ function doPost(e) {
     switch (d.action) {
       case 'append':
         nega = checarEscrita_(sess, 'append', d.sheet);
+        if (!nega && d.sheet === 'modelosItens') return resp_(pmCriarItem_(sess, d), sess); // v19: sempre Rascunho; sem Status do cliente
         if (!nega && d.sheet === 'ordens') nega = guardaAppendOrdens_(d.row, usuario); // v18.1: só abertura direta; Baixado_Por = sessão
         return resp_(nega || appendRow(d.sheet, d.row, usuario, d.idempotencyKey), sess);
       case 'appendBatch':
@@ -710,6 +659,7 @@ function doPost(e) {
         return resp_(nega || appendBatch(d.sheet, d.rows, usuario), sess);
       case 'update':
         nega = checarEscrita_(sess, 'update', d.sheet);
+        if (!nega && d.sheet === 'modelosItens') return resp_(pmAtualizarItem_(sess, d), sess); // v19: mudou conteúdo → volta p/ Rascunho
         if (!nega) nega = guardaUpdateGenerico_(d.sheet, d.id, d.idCol, d.row);
         return resp_(nega || updateRow(d.sheet, d.id, d.idCol, d.row, usuario), sess);
       case 'delete':
@@ -746,6 +696,9 @@ function doPost(e) {
       case 'pmGravarChecklist':
         if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
         return resp_(pmGravarChecklist(sess, d), sess);
+      case 'pmAprovarItens':
+        if (!pode_(sess, P_OPER)) return resp_(negar_(), sess);
+        return resp_(pmAprovarItens(sess, d), sess);
       case 'gerarPreventivasManual':
         if (!pode_(sess, [P_ADM])) return resp_(negar_(), sess);
         return resp_(gerarPreventivasAutomaticas(false), sess);
@@ -853,7 +806,11 @@ var NUMERO_COLS = {
   planejadas:   'PL_Numero',
   solicitacoes: 'SOL_Numero',
   planosPM:     'ID_Plano',
-  modelosItens: 'ID_Item'
+  modelosItens: 'ID_Item',
+  configuracoes:'Chave',      // v20: Chave repetida fazia o front ler uma linha e o update gravar em outra
+  usuarios:     'Login',
+  salas:        'ID_Sala',
+  maquinas:     'ID_Maquina'
 };
 
 // Verifica se já existe uma linha recente (últimos `minutos`) com a mesma
@@ -1564,9 +1521,9 @@ function carregarPlanoPreventiva(nomeModelo) {
 var PERIODICIDADE_DIAS = {
   'Semanal':    7,
   'Mensal':     28,   // múltiplos de 7: mesmo dia da semana em todo ciclo
-  'Trimestral': 91,
-  'Semestral':  182,
-  'Anual':      364
+  'Trimestral': 84,   // v19: 84/168/336 = ciclos do motor de PM (T/S/A), todos múltiplos de 28
+  'Semestral':  168,
+  'Anual':      336
 };
 
 // Salas que NÃO entram na preventiva automática (decisão 01/10/2026: "não
@@ -1749,8 +1706,8 @@ function gerarPreventivasAutomaticasInterno_(dryRun) {
 // ═══════════════════════════════════════════════════════════════════════════
 var AGENDAR_INICIO_MIN     = '2026-10-13'; // não agenda antes desta data (yyyy-MM-dd); passou? usa o próximo dia útil
 var AGENDAR_CAPACIDADE_DIA = 6;
-var AGENDAR_JANELA_DIAS    = 91;           // 1º vencimento cai em até min(periodicidade, 91) dias
-var AGENDAR_HORIZONTE_DIAS = 364;          // até onde a carga futura é contada
+var AGENDAR_JANELA_DIAS    = 84;           // 1º vencimento cai em até min(periodicidade, 84) dias (v19: era 91)
+var AGENDAR_HORIZONTE_DIAS = 336;          // até onde a carga futura é contada (v19: era 364; múltiplo de 28/84/168/336)
 // Feriados nacionais (só afetam o 1º vencimento; ciclos seguintes repetem o dia da semana).
 // Feriado local/emenda: acrescentar aqui.
 var AGENDAR_FERIADOS = [
@@ -2159,7 +2116,8 @@ function pmValidarItemRow_(r, isUpdate) {
     if (!/^[QMTSA]$/.test(String(r.Freq === undefined ? '' : r.Freq))) return 'Frequência inválida (use Q, M, T, S ou A).';
     var sh = getSheet('modelosItens');
     var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    if (h.indexOf('Freq') < 0) return 'A aba ModelosItens ainda não tem a coluna Freq. Rode pmCriarAbas() no editor.';
+    var falta = ['Freq', 'Status', 'Freq_Origem', 'Aprovado_Por', 'Aprovado_Em'].filter(function(c) { return h.indexOf(c) < 0; });
+    if (falta.length) return 'A aba ModelosItens ainda não tem a(s) coluna(s) ' + falta.join(', ') + '. Rode pmCriarAbas() no editor.';
   }
   return null;
 }
@@ -2192,7 +2150,10 @@ function pmMaquinaExiste_(id) {
 // data como TEXTO (evita a planilha converter 2026-10-26 em data e deslocar 1 dia por fuso) e põe listas
 // suspensas em Freq, Ativo e Resultado.
 function pmCriarAbas() {
-  var txt = { planosPM: ['Primeira'], execItens: ['Venc', 'Tol_Ate', 'Feita_Em'] };
+  // Garante primeiro as colunas (acrescenta só o que falta, no fim) e depois formata: texto nas datas e listas suspensas.
+  ['ordens', 'planejadas', 'solicitacoes', 'planosPM', 'modelosItens', 'execItens'].forEach(pmGarantirColunas_);
+  var txt = { planosPM: ['Primeira'], execItens: ['Venc', 'Tol_Ate', 'Feita_Em'], modelosItens: ['Aprovado_Em'],
+              planejadas: ['Impressa_Em'], solicitacoes: ['Impressa_Em'] };
   Object.keys(txt).forEach(function(k) {
     var sh = getSheet(k), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
     txt[k].forEach(function(c) {
@@ -2200,13 +2161,14 @@ function pmCriarAbas() {
       if (i >= 0) sh.getRange(2, i + 1, 2000, 1).setNumberFormat('@');
     });
   });
-  ['planosPM', 'modelosItens', 'execItens'].forEach(pmGarantirColunas_);
   var listas = [
     ['planosPM', 'Freq', ['Q', 'M', 'T', 'S', 'A']],
     ['planosPM', 'Ativo', ['Sim', 'Nao']],
     ['modelosItens', 'Ativo', ['Sim', 'Nao']],
     ['modelosItens', 'Disciplina', ['Mecanico', 'Eletrico']],
     ['modelosItens', 'Freq', ['Q', 'M', 'T', 'S', 'A']],
+    ['modelosItens', 'Status', PM_STATUS_ITEM],
+    ['modelosItens', 'Freq_Origem', PM_FREQ_ORIGENS],
     ['execItens', 'Resultado', ['OK', 'CORRIGI', 'CORRETIVA', 'PARAR']]
   ];
   listas.forEach(function(l) {
@@ -2215,46 +2177,15 @@ function pmCriarAbas() {
     var regra = SpreadsheetApp.newDataValidation().requireValueInList(l[2], true).setAllowInvalid(false).build();
     sh.getRange(2, i + 1, 2000, 1).setDataValidation(regra);
   });
-  Logger.log('✅ PlanosPM, ModelosItens e ExecucaoItens prontas.');
+  Logger.log('✅ Colunas, formatos e listas conferidos (Ordens, Planejadas, Solicitações, PlanosPM, ModelosItens, ExecucaoItens).');
 }
 
-// ── TESTE NO EDITOR (não precisa implantar nada) ─────────────────────────────────────────────────────────
-// Ordem: pmCriarAbas → pmSemearTeste → pmPrevisaoTeste (ver o Registro de execução) → pmLimparTeste.
-// Só mexe em linhas de PlanosPM com ID_Plano começando por TESTE-PM-. Não gera OS e não toca em nenhuma outra aba.
-var PM_PREFIXO_TESTE = 'TESTE-PM-';
+// ── TESTE NO EDITOR (só lê; não precisa implantar nada) ─────────────────────────────────────────────────
+// pmPrevisaoTeste mostra no Registro de execução o que o motor geraria hoje, com os planos que existirem em PlanosPM.
 
 function pmSomaDias_(s, n) {
   var p = s.split('-');
   return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]) + n * 864e5).toISOString().slice(0, 10);
-}
-
-// Cria planos de teste nas 3 primeiras máquinas ativas:
-//   máquina 1: as 5 frequências na segunda-feira desta semana (mostra a cascata: tudo numa OS só);
-//   máquina 2: quinzenal começando na segunda da semana passada (mostra atrasada e a vencer);
-//   máquina 3: trimestral começando na segunda da semana que vem (mostra a vencer).
-function pmSemearTeste() {
-  pmCriarAbas();
-  var maqs = sheetToObjects(getSheet('maquinas')).filter(function(m) {
-    return String(m.ID_Maquina || '').trim() && ativoSim_(m.Ativo);
-  }).slice(0, 3);
-  if (maqs.length < 3) { Logger.log('❌ Precisa de pelo menos 3 máquinas ativas em Maquinas.'); return; }
-  var hoje = pmHoje_();
-  var segunda = pmSomaDias_(hoje, -((PMMotor.diaSemana(hoje) + 6) % 7));
-  var lista = [];
-  ['Q', 'M', 'T', 'S', 'A'].forEach(function(f) { lista.push([maqs[0], f, segunda]); });
-  lista.push([maqs[1], 'Q', pmSomaDias_(segunda, -7)]);
-  lista.push([maqs[2], 'T', pmSomaDias_(segunda, 7)]);
-  var ok = 0;
-  lista.forEach(function(x) {
-    var m = x[0], id = PM_PREFIXO_TESTE + m.ID_Maquina + '-' + x[1];
-    var r = appendRow('planosPM', {
-      ID_Plano: id, ID_Maquina: String(m.ID_Maquina).trim(), Sala: m.Sala, Maquina: m.Nome, Tag: m.Tag,
-      Freq: x[1], Primeira: x[2], Ativo: 'Sim', Criado_Em: hoje
-    }, 'teste-editor', '');
-    if (r.ok) ok++; else Logger.log('⚠ ' + id + ': ' + (r.error || r.code));
-  });
-  Logger.log('✅ ' + ok + ' de ' + lista.length + ' planos de teste gravados (hoje ' + hoje + ', segunda ' + segunda + ').');
-  Logger.log('Próximo: rode pmPrevisaoTeste.');
 }
 
 // Mostra no Registro de execução o que o motor geraria hoje (7 dias à frente). Só lê.
@@ -2268,18 +2199,7 @@ function pmPrevisaoTeste() {
                ' | ' + o.maquina + ' [' + o.maquina_id + '] ' + o.sala + ' | planos: ' + o.planos.join(', '));
   });
   r.avisos.forEach(function(a) { Logger.log('AVISO ' + a.tipo + ' ' + a.plano + ': ' + a.detalhe); });
-  if (!r.itens.length && !r.avisos.length) Logger.log('Nada previsto. Rode pmSemearTeste primeiro ou cadastre planos em PlanosPM.');
-}
-
-// Apaga só as linhas de teste (ID_Plano começando por TESTE-PM-).
-function pmLimparTeste() {
-  var sh = getSheet('planosPM'), dados = sh.getDataRange().getValues();
-  var idx = dados[0].indexOf('ID_Plano'), n = 0;
-  for (var i = dados.length - 1; i >= 1; i--) {
-    if (String(dados[i][idx]).indexOf(PM_PREFIXO_TESTE) === 0) { sh.deleteRow(i + 1); n++; }
-  }
-  invalidarCacheReadAll_();
-  Logger.log('✅ ' + n + ' linha(s) de teste removida(s) de PlanosPM.');
+  if (!r.itens.length && !r.avisos.length) Logger.log('Nada previsto. Cadastre planos em PlanosPM.');
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -2305,7 +2225,7 @@ function cabecalho_(sh, exigidas) {
   return { h: h, falta: falta };
 }
 function erroMigracao_(falta, aba) {
-  return vErro_('A aba ' + aba + ' ainda não tem a(s) coluna(s) ' + falta.join(', ') + '. Rode migrarColunasV18() no editor do Apps Script.', 'MIGRACAO');
+  return vErro_('A aba ' + aba + ' ainda não tem a(s) coluna(s) ' + falta.join(', ') + '. Rode pmCriarAbas() no editor do Apps Script.', 'MIGRACAO');
 }
 
 // Manutentor válido = usuário ATIVO de perfil administração ou manutenção. Devolve o Nome como está no cadastro.
@@ -2528,6 +2448,224 @@ function guardaUpdateGenerico_(sheet, id, idCol, row) {
   return null;
 }
 
+// ═════════════════════════════════════════════════════════════════
+// v19 — GATILHO DE APROVAÇÃO DOS ITENS DO CHECKLIST (Rascunho → Em revisao → Aprovado)
+// ═════════════════════════════════════════════════════════════════
+var PM_STATUS_ITEM = ['Rascunho', 'Em revisao', 'Aprovado'];
+var PM_FREQ_ORIGENS = ['Manual', 'PCM', 'Sugerida'];
+// Além da Administração, aprova quem é de Manutenção E tem Cargo exatamente igual a um destes (sem acento/caixa/espaços).
+var PM_CARGOS_APROVADORES = ['pcm'];
+// Só o servidor grava estes campos. Conteúdo = mudar qualquer um deles em item já enviado/aprovado invalida a aprovação.
+var PM_CAMPOS_ITEM_SERVIDOR = ['Status', 'Freq_Origem', 'Aprovado_Por', 'Aprovado_Em'];
+var PM_CAMPOS_ITEM_CONTEUDO = ['Modelo', 'Disciplina', 'Descricao', 'Freq'];
+
+// Qualquer valor → status canônico. Vazio/desconhecido = Rascunho (nunca Aprovado por acidente).
+function pmStatusItem_(v) {
+  var s = normLower_(v).replace(/\s+/g, '');
+  if (s === 'aprovado') return 'Aprovado';
+  if (s === 'emrevisao') return 'Em revisao';
+  return 'Rascunho';
+}
+
+// Quem aprova: Administração, ou Manutenção com Cargo na lista. Puro.
+function pmAprovadorCalc_(tipo, cargo) {
+  if (tipo === P_ADM) return true;
+  if (tipo !== P_MAN) return false;
+  return PM_CARGOS_APROVADORES.indexOf(normLower_(cargo).replace(/\s+/g, '')) >= 0;
+}
+
+// Lê o Cargo ao vivo na aba Usuarios (o token não carrega cargo). Sem sessão = ninguém aprova.
+function pmEhAprovador_(sess) {
+  if (!sess) return false;
+  if (sess.tipo === P_ADM) return true;
+  var cargo = '', alvo = String(sess.login || '').toLowerCase();
+  sheetToObjects(getSheet('usuarios')).forEach(function(u) {
+    if (String(u.Login || '').toLowerCase() === alvo) cargo = u.Cargo;
+  });
+  return pmAprovadorCalc_(sess.tipo, cargo);
+}
+
+// Campos do item (puro). parcial = só valida o que veio (update). Devolve '' ou a mensagem.
+function pmItemCamposErro_(r, parcial) {
+  function tem(c) { return !parcial || r[c] !== undefined; }
+  function txt(c) { return String(r[c] === undefined || r[c] === null ? '' : r[c]).trim(); }
+  if (tem('ID_Item') && !/^[A-Z0-9][A-Z0-9-]{2,60}$/.test(txt('ID_Item'))) return 'ID_Item inválido (A-Z, 0-9 e hífen; 3 a 61 caracteres).';
+  if (tem('Modelo') && (!txt('Modelo') || txt('Modelo').length > 60)) return 'Modelo vazio ou acima de 60 caracteres.';
+  if (tem('Disciplina') && !/^(Mecanico|Eletrico)$/.test(txt('Disciplina'))) return 'Disciplina inválida (Mecanico ou Eletrico).';
+  if (tem('Ordem')) {
+    var o = txt('Ordem') === '' ? NaN : Number(txt('Ordem'));
+    if (!isFinite(o) || Math.floor(o) !== o || o < 1 || o > 9999) return 'Ordem inválida (inteiro de 1 a 9999).';
+  }
+  if (tem('Descricao') && (txt('Descricao').length < 3 || txt('Descricao').length > 500)) return 'Descrição vazia ou acima de 500 caracteres.';
+  if (r.Ativo !== undefined && !/^(Sim|Nao)$/.test(txt('Ativo'))) return 'Ativo inválido (Sim ou Nao).';
+  return '';
+}
+
+function pmCampoServidor_(row) {
+  for (var i = 0; i < PM_CAMPOS_ITEM_SERVIDOR.length; i++) {
+    if (own_(row, PM_CAMPOS_ITEM_SERVIDOR[i])) return 'Campo ' + PM_CAMPOS_ITEM_SERVIDOR[i] + ' é gravado só pelo servidor (use a aprovação).';
+  }
+  return '';
+}
+
+function pmNormConteudo_(campo, v) {
+  var t = String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim();
+  return campo === 'Freq' ? t.toUpperCase() : t;
+}
+
+// Puro. atual = objeto da linha como está; novo = só os campos enviados. Devolve { valores, mudou, voltouRascunho }.
+function pmItemAtualizarCalc_(atual, novo) {
+  var mudou = false, freqMudou = false;
+  PM_CAMPOS_ITEM_CONTEUDO.forEach(function(c) {
+    if (novo[c] !== undefined && pmNormConteudo_(c, novo[c]) !== pmNormConteudo_(c, atual[c])) {
+      mudou = true;
+      if (c === 'Freq') freqMudou = true;
+    }
+  });
+  var st = pmStatusItem_(atual.Status), valores = {};
+  SCHEMAS.ModelosItens.forEach(function(c) {
+    if (PM_CAMPOS_ITEM_SERVIDOR.indexOf(c) >= 0) return;
+    valores[c] = novo[c] !== undefined ? novo[c] : atual[c];
+  });
+  if (valores.Freq !== undefined) valores.Freq = String(valores.Freq).trim().toUpperCase();
+  var volta = mudou && st !== 'Rascunho';
+  valores.Status = volta ? 'Rascunho' : st;
+  valores.Aprovado_Por = volta ? '' : (atual.Aprovado_Por === undefined ? '' : atual.Aprovado_Por);
+  valores.Aprovado_Em = volta ? '' : (atual.Aprovado_Em === undefined ? '' : atual.Aprovado_Em);
+  valores.Freq_Origem = freqMudou ? 'Manual' : (atual.Freq_Origem === undefined || atual.Freq_Origem === '' ? 'Manual' : atual.Freq_Origem);
+  return { valores: valores, mudou: mudou, voltouRascunho: volta };
+}
+
+// Transições permitidas. quem: 'oper' (Administração/Manutenção) ou 'aprov' (Administração/PCM).
+var PM_TRANSICOES = {
+  'Rascunho>Em revisao': 'oper',
+  'Em revisao>Aprovado': 'aprov',
+  'Em revisao>Rascunho': 'aprov',
+  'Aprovado>Rascunho':   'aprov'
+};
+
+// Puro. rows = linhas da aba (objetos). Tudo ou nada: qualquer problema devolve erro e NADA muda.
+function pmAprovarCalc_(rows, ids, para, ehAprovador, nome, agora) {
+  if (PM_STATUS_ITEM.indexOf(para) < 0) return vErro_('Status de destino inválido (use Rascunho, Em revisao ou Aprovado).');
+  if (!Array.isArray(ids) || !ids.length || ids.length > 600) return vErro_('Lista de itens inválida (1 a 600).');
+  var porId = {};
+  rows.forEach(function(r) { var k = String(r.ID_Item === undefined ? '' : r.ID_Item).trim(); if (k) porId[k] = r; });
+  var vistos = {}, lista = [];
+  for (var i = 0; i < ids.length; i++) {
+    var id = String(ids[i] === undefined || ids[i] === null ? '' : ids[i]).trim();
+    if (!id) return vErro_('ID de item vazio na lista.');
+    if (own_(vistos, id)) continue;
+    vistos[id] = 1; lista.push(id);
+  }
+  var faltam = lista.filter(function(id) { return !own_(porId, id); });
+  if (faltam.length) return vErro_('Item não encontrado: ' + faltam.slice(0, 10).join(', ') + (faltam.length > 10 ? '…' : ''), 'NOTFOUND');
+  var mudancas = [], iguais = [];
+  for (var j = 0; j < lista.length; j++) {
+    var it = porId[lista[j]], de = pmStatusItem_(it.Status);
+    if (de === para) { iguais.push(lista[j]); continue; }
+    var quem = PM_TRANSICOES[de + '>' + para];
+    if (!quem) return vErro_('Transição não permitida no item ' + lista[j] + ': ' + de + ' → ' + para + '.');
+    if (quem === 'aprov' && !ehAprovador) return negar_('Só a Administração ou o PCM aprova ou devolve itens.');
+    if (para !== 'Rascunho') {
+      if (!ativoSim_(it.Ativo)) return vErro_('Item inativo não pode ser enviado nem aprovado: ' + lista[j] + '.');
+      if (!/^[QMTSA]$/.test(String(it.Freq === undefined ? '' : it.Freq).trim())) return vErro_('Item sem frequência válida: ' + lista[j] + '.');
+    }
+    mudancas.push({ id: lista[j], de: de, Status: para,
+                    Aprovado_Por: para === 'Aprovado' ? nome : '', Aprovado_Em: para === 'Aprovado' ? agora : '' });
+  }
+  return { ok: true, mudancas: mudancas, iguais: iguais };
+}
+
+// POST pmAprovarItens: { ids:[ID_Item…], para:'Em revisao'|'Aprovado'|'Rascunho' }
+function pmAprovarItens(sess, d) {
+  if (!sess) return negar_('Sessão obrigatória para aprovar.');
+  var nome = sess.nome, aprov = pmEhAprovador_(sess);
+  var res = comLock(function() {
+    var sh = getSheet('modelosItens'), c = cabecalho_(sh, SCHEMAS.ModelosItens);
+    if (c.falta.length) return erroMigracao_(c.falta, 'ModelosItens');
+    var dados = sh.getDataRange().getValues(), h = c.h, iId = h.indexOf('ID_Item'), pos = {}, rows = [];
+    for (var i = 1; i < dados.length; i++) {
+      var o = {}; h.forEach(function(col, j) { o[col] = dados[i][j]; });
+      rows.push(o);
+      pos[String(dados[i][iId]).trim()] = i;
+    }
+    var r = pmAprovarCalc_(rows, d.ids, d.para, aprov, nome, agoraTxt_());
+    if (!r.ok) return r;
+    var iAe = h.indexOf('Aprovado_Em');
+    r.mudancas.forEach(function(m) {
+      var l = pos[m.id], linha = dados[l].slice();
+      linha[h.indexOf('Status')] = m.Status;
+      linha[h.indexOf('Aprovado_Por')] = m.Aprovado_Por;
+      linha[iAe] = m.Aprovado_Em;
+      sh.getRange(l + 1, iAe + 1).setNumberFormat('@');
+      sh.getRange(l + 1, 1, 1, h.length).setValues([linha]);
+    });
+    return { ok: true, para: d.para, alterados: r.mudancas.length, iguais: r.iguais.length };
+  });
+  logGravacao(nome, 'pmAprovarItens', 'modelosItens', String((d.ids || []).length) + ' item(ns)', res.ok ? 'sucesso' : 'falha',
+              res.error || (String(d.para) + ': ' + res.alterados + ' alterado(s)'));
+  return res;
+}
+
+// append genérico em ModelosItens: item novo é SEMPRE Rascunho; ID único; cliente não grava Status/Aprovado_*.
+function pmCriarItem_(sess, d) {
+  var usuario = sess ? sess.nome : String(d.usuario || '');
+  var row = d.row;
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return vErro_('Linha inválida.');
+  var prot = pmCampoServidor_(row);
+  if (prot) return negar_(prot);
+  var erro = validarObrigatorios('modelosItens', row, false) || pmItemCamposErro_(row, false);
+  if (erro) { logGravacao(usuario, 'append', 'modelosItens', String(row.ID_Item || ''), 'falha', erro); return vErro_(erro); }
+  var res = comLock(function() {
+    var sh = getSheet('modelosItens'), c = cabecalho_(sh, SCHEMAS.ModelosItens);
+    if (c.falta.length) return erroMigracao_(c.falta, 'ModelosItens');
+    var iId = c.h.indexOf('ID_Item'), id = String(row.ID_Item).trim();
+    var col = sh.getLastRow() > 1 ? sh.getRange(2, iId + 1, sh.getLastRow() - 1, 1).getValues() : [];
+    for (var i = 0; i < col.length; i++) {
+      if (String(col[i][0]).trim() === id) return { ok: false, code: 'DUP', error: 'ID_Item já existe: ' + id };
+    }
+    var reg = {};
+    SCHEMAS.ModelosItens.forEach(function(k) { reg[k] = row[k] !== undefined ? row[k] : ''; });
+    reg.ID_Item = id; reg.Freq = String(row.Freq).trim();
+    reg.Ativo = row.Ativo === undefined || String(row.Ativo).trim() === '' ? 'Sim' : String(row.Ativo).trim();
+    reg.Status = 'Rascunho'; reg.Freq_Origem = 'Manual'; reg.Aprovado_Por = ''; reg.Aprovado_Em = '';
+    sh.appendRow(c.h.map(function(k) { return reg[k] !== undefined ? reg[k] : ''; }));
+    return { ok: true, sheet: 'modelosItens' };
+  });
+  logGravacao(usuario, 'append', 'modelosItens', String(row.ID_Item || ''), res.ok ? 'sucesso' : 'falha', res.error || '');
+  return res;
+}
+
+// update genérico em ModelosItens: conteúdo mudou em item enviado/aprovado → volta p/ Rascunho e zera a aprovação.
+function pmAtualizarItem_(sess, d) {
+  var usuario = sess ? sess.nome : String(d.usuario || '');
+  var id = String(d.id === undefined || d.id === null ? '' : d.id).trim(), row = d.row;
+  if (!id || !row || typeof row !== 'object' || Array.isArray(row)) return vErro_('Dados inválidos.');
+  if (d.idCol !== undefined && d.idCol !== 'ID_Item') return vErro_('Coluna de identificação inválida.');
+  if (own_(row, 'ID_Item') && String(row.ID_Item).trim() !== id) return vErro_('ID_Item não pode ser alterado.');
+  var prot = pmCampoServidor_(row);
+  if (prot) return negar_(prot);
+  var erro = validarObrigatorios('modelosItens', row, true) || pmItemCamposErro_(row, true);
+  if (erro) { logGravacao(usuario, 'update', 'modelosItens', id, 'falha', erro); return vErro_(erro); }
+  var res = comLock(function() {
+    var sh = getSheet('modelosItens'), c = cabecalho_(sh, SCHEMAS.ModelosItens);
+    if (c.falta.length) return erroMigracao_(c.falta, 'ModelosItens');
+    var dados = sh.getDataRange().getValues(), h = c.h, iId = h.indexOf('ID_Item');
+    for (var i = 1; i < dados.length; i++) {
+      if (String(dados[i][iId]).trim() !== id) continue;
+      var atual = {}; h.forEach(function(col, j) { atual[col] = dados[i][j]; });
+      var r = pmItemAtualizarCalc_(atual, row);
+      var iAe = h.indexOf('Aprovado_Em');
+      sh.getRange(i + 1, iAe + 1).setNumberFormat('@');
+      sh.getRange(i + 1, 1, 1, h.length).setValues([h.map(function(col, j) { return r.valores[col] !== undefined ? r.valores[col] : dados[i][j]; })]);
+      return { ok: true, voltouRascunho: r.voltouRascunho };
+    }
+    return { ok: false, code: 'NOTFOUND', error: 'Não encontrado: ' + id };
+  });
+  logGravacao(usuario, 'update', 'modelosItens', id, res.ok ? 'sucesso' : 'falha', res.error || (res.voltouRascunho ? 'voltou p/ Rascunho' : ''));
+  return res;
+}
+
 // ── Checklist do PM (3c) ─────────────────────────────────────────────────────
 var PM_RESULTADOS = ['OK', 'CORRIGI', 'CORRETIVA', 'PARAR'];
 var PM_ORDEM_FREQ = ['Q', 'M', 'T', 'S', 'A'];
@@ -2537,6 +2675,7 @@ function pmItensExigidos_(modelos, freq, itensRows) {
   var r = PM_ORDEM_FREQ.indexOf(freq), out = [];
   itensRows.forEach(function(it) {
     if (!ativoSim_(it.Ativo)) return;
+    if (pmStatusItem_(it.Status) !== 'Aprovado') return; // v19: só item aprovado entra no checklist
     if (modelos.indexOf(String(it.Modelo).trim()) < 0) return;
     var fi = PM_ORDEM_FREQ.indexOf(String(it.Freq).trim());
     if (fi < 0 || fi > r) return;
@@ -2605,8 +2744,16 @@ function pmGravarChecklist(sess, d) {
     planos.forEach(function(p) { if (occ.planos.indexOf(p.id) >= 0 && p.modelo && modelos.indexOf(p.modelo) < 0) modelos.push(p.modelo); });
     if (!modelos.length) return vErro_('Os planos desta ocorrência não têm Modelo definido.');
 
-    var exigidos = pmItensExigidos_(modelos, occ.freq, sheetToObjects(getSheet('modelosItens')));
-    if (!exigidos.length) return vErro_('Nenhum item de checklist cadastrado para ' + modelos.join(', ') + ' na frequência ' + occ.freq + '.');
+    var itensTodos = sheetToObjects(getSheet('modelosItens'));
+    var exigidos = pmItensExigidos_(modelos, occ.freq, itensTodos);
+    if (!exigidos.length) {
+      var pend = itensTodos.filter(function(it) {
+        return ativoSim_(it.Ativo) && modelos.indexOf(String(it.Modelo).trim()) >= 0 && pmStatusItem_(it.Status) !== 'Aprovado';
+      }).length;
+      return vErro_(pend
+        ? 'Nenhum item APROVADO para ' + modelos.join(', ') + ' na frequência ' + occ.freq + ' (' + pend + ' item(ns) aguardando aprovação).'
+        : 'Nenhum item de checklist cadastrado para ' + modelos.join(', ') + ' na frequência ' + occ.freq + '.');
+    }
     var erroLista = pmChecklistValidar_(d.itens, exigidos);
     if (erroLista) return vErro_(erroLista);
 
@@ -2670,25 +2817,63 @@ function pmGravarChecklist(sess, d) {
   return res;
 }
 
-// ── Importador dos modelos (3b) ──────────────────────────────────────────────
+// ── Importador dos modelos (3b) — v19 ────────────────────────────────────────
 // Lê a planilha preenchida pelo PCM (Google Sheets, aba "Itens") e grava em ModelosItens com a MESMA regra do servidor.
 // Tudo ou nada POR MODELO: um erro em qualquer linha de um modelo deixa o modelo inteiro de fora (checklist pela metade engana).
 // Idempotente por ID_Item. Nunca apaga linha: "APAGAR" na Obs_PCM vira Ativo = Nao. Texto livre na Obs_PCM NÃO altera a Descricao.
+// v19: item NOVO entra como Rascunho (só vai ao motor depois de Em revisao → Aprovado). Item existente cujo conteúdo muda volta p/ Rascunho.
+//   Colunas da planilha: Freq (definida pelo PCM → Freq_Origem 'PCM') e/ou Freq_Sugerida (→ Freq com Freq_Origem 'Sugerida').
 var PM_IMPORT_PLANILHA_ID  = '';    // cole aqui o ID da planilha do PCM (Google Sheets) antes de rodar
 var PM_IMPORT_ABA          = 'Itens';
 var PM_IMPORT_OBS_VIRA_DESCRICAO = false; // true = texto da Obs_PCM (≠ APAGAR) substitui a Descricao
+var PM_IMPORT_MODELOS      = ['TFS ULMA'];  // piloto: só estes modelos (sem acento/caixa/pontuação). [] = todos
+// Correções de digitação conhecidas: [padrão regex, troca, flags]. Vazio de propósito: preencha depois da prévia mostrar os erros reais.
+var PM_IMPORT_CORRECOES    = [];
+
+function pmChaveTexto_(t) { return normLower_(t).replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+// Limpeza determinística (idempotente): espaços, espaço antes de pontuação, ponto final, 1ª letra maiúscula, correções do PCM.
+function pmLimparTexto_(t, correcoes) {
+  var x = String(t === undefined || t === null ? '' : t).replace(/\s+/g, ' ').trim();
+  x = x.replace(/\s+([,.;:!?])/g, '$1');
+  (correcoes || []).forEach(function(c) { x = x.replace(new RegExp(c[0], c[2] || 'g'), c[1]); });
+  x = x.replace(/[.\s]+$/, '');
+  if (x) x = x.charAt(0).toUpperCase() + x.slice(1);
+  return x;
+}
+
+// Distância de edição com teto: devolve max+1 quando passa do teto.
+function pmDistancia_(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  var prev = [], i, j;
+  for (j = 0; j <= b.length; j++) prev[j] = j;
+  for (i = 1; i <= a.length; i++) {
+    var cur = [i], menor = i;
+    for (j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      if (cur[j] < menor) menor = cur[j];
+    }
+    if (menor > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
 
 function pmImportarCalc_(fonte, existentes, opts) {
   opts = opts || {};
-  var erros = [], avisos = [], ignoradas = [], validas = [], vistos = {}, porModelo = {};
+  var erros = [], avisos = [], ignoradas = [], validas = [], vistos = {}, foraDoFiltro = 0, modelosVistos = {};
   var ex = {}; existentes.forEach(function(r) { ex[String(r.ID_Item).trim()] = r; });
+  var filtro = null;
+  if (opts.modelos && opts.modelos.length) { filtro = {}; opts.modelos.forEach(function(m) { filtro[pmChaveTexto_(m)] = 1; }); }
   fonte.forEach(function(r, n) {
     var linha = n + 2;
     var id = String(r.ID_Item === undefined ? '' : r.ID_Item).trim();
-    var desc = String(r.Descricao === undefined ? '' : r.Descricao).replace(/\s+/g, ' ').trim();
+    var desc = pmLimparTexto_(r.Descricao, opts.correcoes);
     if (!id && !desc) return; // linha em branco
     var obs = String(r.Obs_PCM === undefined ? '' : r.Obs_PCM).trim();
-    var modelo = String(r.Modelo === undefined ? '' : r.Modelo).trim();
+    var modelo = String(r.Modelo === undefined ? '' : r.Modelo).replace(/\s+/g, ' ').trim();
+    modelosVistos[modelo] = 1;
+    if (filtro && !own_(filtro, pmChaveTexto_(modelo))) { foraDoFiltro++; return; }
     var falhas = [];
     if (!/^[A-Z0-9][A-Z0-9-]{2,60}$/.test(id)) falhas.push('ID_Item inválido');
     if (own_(vistos, id)) falhas.push('ID_Item repetido na planilha (linha ' + vistos[id] + ')'); else if (id) vistos[id] = linha;
@@ -2697,9 +2882,14 @@ function pmImportarCalc_(fonte, existentes, opts) {
     disc = disc === 'mecanico' ? 'Mecanico' : disc === 'eletrico' ? 'Eletrico' : '';
     if (!disc) falhas.push('Disciplina inválida (Mecanico ou Eletrico)');
     var ordem = Number(r.Ordem);
-    if (!isFinite(ordem) || Math.floor(ordem) !== ordem || ordem < 1 || ordem > 9999) falhas.push('Ordem inválida');
+    if (String(r.Ordem === undefined ? '' : r.Ordem).trim() === '' || !isFinite(ordem) || Math.floor(ordem) !== ordem || ordem < 1 || ordem > 9999) falhas.push('Ordem inválida');
     var freqTxt = String(r.Freq === undefined ? '' : r.Freq).trim().toUpperCase();
-    if (!freqTxt) falhas.push('Freq vazia (o PCM ainda não preencheu)'); else if (!/^[QMTSA]$/.test(freqTxt)) falhas.push('Freq inválida (' + freqTxt + ')');
+    var sugTxt = String(r.Freq_Sugerida === undefined ? '' : r.Freq_Sugerida).trim().toUpperCase();
+    var origem = 'PCM';
+    if (!freqTxt && sugTxt) {
+      if (/^[QMTSA]$/.test(sugTxt)) { freqTxt = sugTxt; origem = 'Sugerida'; } else falhas.push('Freq_Sugerida inválida (' + sugTxt + ')');
+    } else if (!freqTxt) falhas.push('Freq vazia (o PCM ainda não preencheu e não há Freq_Sugerida)');
+    else if (!/^[QMTSA]$/.test(freqTxt)) falhas.push('Freq inválida (' + freqTxt + ')');
     var atv = normLower_(r.Ativo === undefined || String(r.Ativo).trim() === '' ? 'sim' : r.Ativo);
     var ativo = atv === 'sim' ? 'Sim' : (atv === 'nao' ? 'Nao' : '');
     if (!ativo) falhas.push('Ativo inválido (Sim ou Nao)');
@@ -2709,28 +2899,71 @@ function pmImportarCalc_(fonte, existentes, opts) {
       return;
     }
     if (obs) {
-      if (opts.obsViraDescricao) desc = obs.replace(/\s+/g, ' ');
+      if (opts.obsViraDescricao) desc = pmLimparTexto_(obs, opts.correcoes);
       else avisos.push({ linha: linha, id: id, motivo: 'Obs_PCM tem texto e NÃO foi aplicada: "' + obs.substring(0, 80) + '"' });
     }
     if (desc.length < 3 || desc.length > 500) falhas.push('Descricao vazia ou acima de 500 caracteres');
-    if (falhas.length) { erros.push({ linha: linha, id: id, modelo: modelo, motivo: falhas.join('; ') }); (porModelo[modelo] = porModelo[modelo] || {}).erro = true; return; }
-    validas.push({ linha: linha, id: id, modelo: modelo, obj: { ID_Item: id, Modelo: modelo, Disciplina: disc, Ordem: ordem, Descricao: desc, Ativo: ativo, Freq: freqTxt } });
+    if (falhas.length) { erros.push({ linha: linha, id: id, modelo: modelo, motivo: falhas.join('; ') }); return; }
+    if (/(^|\s)([a-zA-ZÀ-ÿ]{3,})\s+\2(\s|$)/i.test(desc)) avisos.push({ linha: linha, id: id, motivo: 'Palavra repetida na descrição (confira a digitação): "' + desc.substring(0, 80) + '"' });
+    validas.push({ linha: linha, id: id, modelo: modelo, obj: { ID_Item: id, Modelo: modelo, Disciplina: disc, Ordem: ordem, Descricao: desc, Ativo: ativo, Freq: freqTxt }, origem: origem });
   });
+
+  // Duplicados dentro do mesmo modelo + disciplina (só linhas válidas, não APAGAR).
+  var grupos = {}, descartadas = {};
+  validas.forEach(function(x) {
+    if (x.apagar) return;
+    var g = x.modelo + '|' + x.obj.Disciplina, k = pmChaveTexto_(x.obj.Descricao), lista = (grupos[g] = grupos[g] || []);
+    for (var i = 0; i < lista.length; i++) {
+      var o = lista[i];
+      if (o.k === k) {
+        if (o.x.obj.Freq === x.obj.Freq) {
+          ignoradas.push({ linha: x.linha, id: x.id, motivo: 'duplicado exato de ' + o.x.id + ' (linha ' + o.x.linha + '): não importado' });
+          descartadas[x.id] = 1; return;
+        }
+        avisos.push({ linha: x.linha, id: x.id, motivo: 'mesmo texto de ' + o.x.id + ' com frequência diferente (' + x.obj.Freq + ' x ' + o.x.obj.Freq + ')' });
+        break;
+      }
+      var max = Math.min(3, Math.floor(Math.max(k.length, o.k.length) * 0.12));
+      if (Math.min(k.length, o.k.length) >= 15 && max >= 1 && pmDistancia_(k, o.k, max) <= max) {
+        avisos.push({ linha: x.linha, id: x.id, motivo: 'quase duplicado de ' + o.x.id + ' (linha ' + o.x.linha + '): "' + x.obj.Descricao.substring(0, 60) + '"' });
+        break;
+      }
+    }
+    lista.push({ k: k, x: x });
+  });
+
   var modelosComErro = {};
   erros.forEach(function(e) { if (e.modelo) modelosComErro[e.modelo] = 1; });
-  var novos = [], atualizar = [], apagar = [], iguais = 0, excluidos = [];
+  var novos = [], atualizar = [], apagar = [], iguais = 0, excluidos = [], voltamRascunho = [];
   validas.forEach(function(x) {
+    if (own_(descartadas, x.id)) return;
     if (own_(modelosComErro, x.modelo)) { excluidos.push({ linha: x.linha, id: x.id, modelo: x.modelo, motivo: 'modelo com erro em outra linha: nada deste modelo foi importado' }); return; }
     if (x.apagar) { if (normLower_(ex[x.id].Ativo) !== 'nao') apagar.push(x.id); else iguais++; return; }
     var a = ex[x.id];
-    if (!a) { novos.push(x.obj); return; }
-    var igual = String(a.Modelo).trim() === x.obj.Modelo && normLower_(a.Disciplina) === normLower_(x.obj.Disciplina) &&
-                Number(a.Ordem) === x.obj.Ordem && String(a.Descricao).trim() === x.obj.Descricao &&
-                normLower_(a.Ativo || 'sim') === normLower_(x.obj.Ativo) && String(a.Freq).trim().toUpperCase() === x.obj.Freq;
-    if (igual) iguais++; else atualizar.push(x.obj);
+    if (!a) {
+      x.obj.Status = 'Rascunho'; x.obj.Freq_Origem = x.origem; x.obj.Aprovado_Por = ''; x.obj.Aprovado_Em = '';
+      novos.push(x.obj); return;
+    }
+    var freqMudou = String(a.Freq).trim().toUpperCase() !== x.obj.Freq;
+    var conteudoMudou = String(a.Modelo).trim() !== x.obj.Modelo || normLower_(a.Disciplina) !== normLower_(x.obj.Disciplina) ||
+                        String(a.Descricao).trim() !== x.obj.Descricao || freqMudou;
+    var outrosMudou = Number(a.Ordem) !== x.obj.Ordem || normLower_(a.Ativo || 'sim') !== normLower_(x.obj.Ativo);
+    if (!conteudoMudou && !outrosMudou) { iguais++; return; }
+    if (freqMudou) x.obj.Freq_Origem = x.origem;
+    if (conteudoMudou && pmStatusItem_(a.Status) !== 'Rascunho') {
+      x.obj.Status = 'Rascunho'; x.obj.Aprovado_Por = ''; x.obj.Aprovado_Em = '';
+      voltamRascunho.push(x.id);
+    }
+    atualizar.push(x.obj);
   });
+  var sugeridas = novos.filter(function(o) { return o.Freq_Origem === 'Sugerida'; }).length;
+  var avisosGlobais = [];
+  if (filtro && !Object.keys(modelosVistos).some(function(m) { return own_(filtro, pmChaveTexto_(m)); })) {
+    avisosGlobais.push('Nenhuma linha dos modelos do piloto (' + opts.modelos.join(', ') + ') na planilha. Modelos encontrados: ' + Object.keys(modelosVistos).join(', '));
+  }
   return { novos: novos, atualizar: atualizar, apagar: apagar, iguais: iguais, erros: erros, avisos: avisos,
-           ignoradas: ignoradas, excluidos: excluidos, modelosComErro: Object.keys(modelosComErro) };
+           ignoradas: ignoradas, excluidos: excluidos, modelosComErro: Object.keys(modelosComErro),
+           voltamRascunho: voltamRascunho, foraDoFiltro: foraDoFiltro, sugeridas: sugeridas, avisosGlobais: avisosGlobais };
 }
 
 function pmImportarLer_() {
@@ -2738,23 +2971,32 @@ function pmImportarLer_() {
   var sh = SpreadsheetApp.openById(PM_IMPORT_PLANILHA_ID).getSheetByName(PM_IMPORT_ABA);
   if (!sh) throw new Error('A planilha não tem a aba "' + PM_IMPORT_ABA + '".');
   var v = sh.getDataRange().getValues(), h = v[0].map(function(c) { return String(c).trim(); });
-  ['ID_Item', 'Modelo', 'Disciplina', 'Ordem', 'Descricao', 'Freq'].forEach(function(c) {
+  ['ID_Item', 'Modelo', 'Disciplina', 'Ordem', 'Descricao'].forEach(function(c) {
     if (h.indexOf(c) < 0) throw new Error('Coluna ausente na planilha do PCM: ' + c);
   });
+  if (h.indexOf('Freq') < 0 && h.indexOf('Freq_Sugerida') < 0) throw new Error('A planilha do PCM precisa da coluna Freq ou Freq_Sugerida.');
   return v.slice(1).map(function(l) { var o = {}; h.forEach(function(c, j) { o[c] = l[j]; }); return o; });
 }
 
+function pmImportarOpts_() {
+  return { obsViraDescricao: PM_IMPORT_OBS_VIRA_DESCRICAO, modelos: PM_IMPORT_MODELOS, correcoes: PM_IMPORT_CORRECOES };
+}
+
 function pmImportarLog_(r, real) {
-  Logger.log((real ? 'IMPORTAÇÃO REAL' : 'PRÉVIA (nada foi gravado)') + ' | novos ' + r.novos.length + ' | atualizar ' + r.atualizar.length +
-             ' | desativar (APAGAR) ' + r.apagar.length + ' | iguais ' + r.iguais + ' | erros ' + r.erros.length +
-             ' | fora por modelo com erro ' + r.excluidos.length + ' | avisos ' + r.avisos.length);
+  Logger.log((real ? 'IMPORTAÇÃO REAL' : 'PRÉVIA (nada foi gravado)') + ' | novos (Rascunho) ' + r.novos.length + ' (freq. sugerida ' + r.sugeridas +
+             ') | atualizar ' + r.atualizar.length + ' (voltam p/ Rascunho ' + r.voltamRascunho.length + ') | desativar (APAGAR) ' + r.apagar.length +
+             ' | iguais ' + r.iguais + ' | erros ' + r.erros.length + ' | fora por modelo com erro ' + r.excluidos.length +
+             ' | duplicados ignorados ' + r.ignoradas.length + ' | fora do piloto ' + r.foraDoFiltro + ' | avisos ' + r.avisos.length);
+  r.avisosGlobais.forEach(function(m) { Logger.log('⚠ ' + m); });
   r.modelosComErro.forEach(function(m) { Logger.log('MODELO FORA: ' + m); });
   r.erros.slice(0, 40).forEach(function(e) { Logger.log('ERRO linha ' + e.linha + ' ' + e.id + ': ' + e.motivo); });
+  r.ignoradas.slice(0, 40).forEach(function(e) { Logger.log('IGNORADA linha ' + e.linha + ' ' + e.id + ': ' + e.motivo); });
   r.avisos.slice(0, 40).forEach(function(e) { Logger.log('AVISO linha ' + e.linha + ' ' + e.id + ': ' + e.motivo); });
+  r.voltamRascunho.slice(0, 40).forEach(function(id) { Logger.log('VOLTA P/ RASCUNHO (conteúdo mudou): ' + id); });
 }
 
 function pmImportarModelosPreview() {
-  var r = pmImportarCalc_(pmImportarLer_(), sheetToObjects(getSheet('modelosItens')), { obsViraDescricao: PM_IMPORT_OBS_VIRA_DESCRICAO });
+  var r = pmImportarCalc_(pmImportarLer_(), sheetToObjects(getSheet('modelosItens')), pmImportarOpts_());
   pmImportarLog_(r, false);
 }
 
@@ -2763,8 +3005,9 @@ function pmImportarModelosReal() {
   var res = comLock(function() {
     var sh = getSheet('modelosItens'), c = cabecalho_(sh, SCHEMAS.ModelosItens);
     if (c.falta.length) return erroMigracao_(c.falta, 'ModelosItens');
-    var r = pmImportarCalc_(fonte, sheetToObjects(sh), { obsViraDescricao: PM_IMPORT_OBS_VIRA_DESCRICAO });
+    var r = pmImportarCalc_(fonte, sheetToObjects(sh), pmImportarOpts_());
     var dados = sh.getDataRange().getValues(), h = dados[0], iId = h.indexOf('ID_Item'), iAt = h.indexOf('Ativo'), pos = {};
+    var iAe = h.indexOf('Aprovado_Em');
     for (var i = 1; i < dados.length; i++) pos[String(dados[i][iId]).trim()] = i;
     r.atualizar.forEach(function(o) {
       var l = pos[o.ID_Item]; sh.getRange(l + 1, 1, 1, h.length).setValues([h.map(function(col, j) { return o[col] !== undefined ? o[col] : dados[l][j]; })]);
@@ -2772,6 +3015,7 @@ function pmImportarModelosReal() {
     r.apagar.forEach(function(id) { sh.getRange(pos[id] + 1, iAt + 1).setValue('Nao'); });
     if (r.novos.length) {
       var rows = r.novos.map(function(o) { return h.map(function(col) { return o[col] !== undefined ? o[col] : ''; }); });
+      sh.getRange(sh.getLastRow() + 1, iAe + 1, rows.length, 1).setNumberFormat('@');
       sh.getRange(sh.getLastRow() + 1, 1, rows.length, h.length).setValues(rows);
     }
     return { ok: true, r: r };
@@ -2781,14 +3025,92 @@ function pmImportarModelosReal() {
   logGravacao('editor', 'pmImportarModelos', 'modelosItens', '', 'sucesso', res.r.novos.length + ' novos, ' + res.r.atualizar.length + ' atualizados');
 }
 
-// Rodar UMA vez no editor após colar o v18 (pode repetir): acrescenta no fim as colunas novas
-// (Baixado_Por, Impressa_Em, Impressa_Por) e deixa Impressa_Em como TEXTO. Não mexe nos dados.
-function migrarColunasV18() {
-  var n = 0;
-  ['ordens', 'planejadas', 'solicitacoes', 'execItens'].forEach(function(k) { n += pmGarantirColunas_(k); });
-  ['planejadas', 'solicitacoes'].forEach(function(k) {
-    var sh = getSheet(k), h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0], i = h.indexOf('Impressa_Em');
-    if (i >= 0) sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+// ═════════════════════════════════════════════════════════════════
+// v20 — LIMPEZA DA BASE (rodar no editor: Preview, ler o Registro de execução, depois Real)
+// ═════════════════════════════════════════════════════════════════
+var LIMPEZA_COLUNAS_VAZIAS = [['ordens', 'Pecas_Utilizadas']]; // só apaga a coluna se TODA a coluna estiver vazia
+
+// Puro. rows = objetos de Configuracoes na ordem da aba. Devolve os índices (0 = 1ª linha de dados) a apagar:
+// por Chave repetida, fica a linha de Atualizado_Em mais recente (empate: a primeira). Chave vazia é ignorada.
+function limpezaConfigDuplicadas_(rows) {
+  var grupos = {}, apagar = [];
+  rows.forEach(function(r, i) {
+    var k = String(r.Chave === undefined || r.Chave === null ? '' : r.Chave).trim();
+    if (!k) return;
+    (grupos[k] = grupos[k] || []).push(i);
   });
-  Logger.log('✅ Migração v18 concluída: ' + n + ' coluna(s) acrescentada(s).');
+  Object.keys(grupos).forEach(function(k) {
+    var idx = grupos[k];
+    if (idx.length < 2) return;
+    var melhor = idx[0], melhorT = String(rows[idx[0]].Atualizado_Em === undefined ? '' : rows[idx[0]].Atualizado_Em);
+    idx.slice(1).forEach(function(i) {
+      var t = String(rows[i].Atualizado_Em === undefined ? '' : rows[i].Atualizado_Em);
+      if (t > melhorT) { melhor = i; melhorT = t; }
+    });
+    idx.forEach(function(i) { if (i !== melhor) apagar.push(i); });
+  });
+  return apagar.sort(function(a, b) { return a - b; });
+}
+
+// Puro. Coluna existe e nenhuma linha de dados tem valor (texto em branco conta como vazio).
+function limpezaColunaVazia_(valores, nomeColuna) {
+  var h = valores[0] || [], c = h.indexOf(nomeColuna);
+  if (c < 0) return { existe: false, vazia: false, col: -1 };
+  for (var i = 1; i < valores.length; i++) {
+    if (String(valores[i][c] === undefined || valores[i][c] === null ? '' : valores[i][c]).trim() !== '') return { existe: true, vazia: false, col: c };
+  }
+  return { existe: true, vazia: true, col: c };
+}
+
+// Só relata (não mexe): problemas de dados que precisam de decisão humana.
+function limpezaRelatorio_(maquinas, usuarios) {
+  var out = [], tags = {};
+  maquinas.forEach(function(m) {
+    var t = String(m.Tag === undefined ? '' : m.Tag).trim();
+    if (t) (tags[t] = tags[t] || []).push(String(m.ID_Maquina));
+  });
+  Object.keys(tags).forEach(function(t) { if (tags[t].length > 1) out.push('Tag repetida "' + t + '": ' + tags[t].join(' | ')); });
+  var padrao = usuarios.filter(function(u) { return String(u.Senha_Hash === undefined ? '' : u.Senha_Hash) === 'mudar123'; });
+  if (padrao.length) out.push(padrao.length + ' usuário(s) ainda com a senha padrão (troca pendente): ' + padrao.map(function(u) { return u.Login; }).join(', '));
+  return out;
+}
+
+function limparBaseV20Preview() { limparBaseV20_(false); }
+function limparBaseV20Real() { limparBaseV20_(true); }
+
+function limparBaseV20_(real) {
+  var plano = { cfgApagar: [], colunas: [] };
+  var shC = getSheet('configuracoes'), cfg = sheetToObjects(shC);
+  plano.cfgApagar = limpezaConfigDuplicadas_(cfg);
+  LIMPEZA_COLUNAS_VAZIAS.forEach(function(x) {
+    var sh = getSheet(x[0]), r = limpezaColunaVazia_(sh.getDataRange().getValues(), x[1]);
+    if (r.existe) plano.colunas.push({ key: x[0], nome: x[1], vazia: r.vazia });
+  });
+  Logger.log((real ? 'LIMPEZA REAL' : 'PRÉVIA (nada foi gravado)') + ' | Configuracoes: ' + plano.cfgApagar.length + ' linha(s) duplicada(s) a apagar | colunas: ' +
+             plano.colunas.map(function(c) { return c.nome + (c.vazia ? ' (vazia, será apagada)' : ' (TEM DADOS, será mantida)'); }).join('; '));
+  plano.cfgApagar.forEach(function(i) { Logger.log('  apagar Configuracoes linha ' + (i + 2) + ' (Chave ' + cfg[i].Chave + ', Atualizado_Em ' + cfg[i].Atualizado_Em + ')'); });
+  limpezaRelatorio_(sheetToObjects(getSheet('maquinas')), sheetToObjects(getSheet('usuarios'))).forEach(function(m) { Logger.log('ATENÇÃO (só relato): ' + m); });
+  if (!real) return;
+  if (!plano.cfgApagar.length && !plano.colunas.some(function(c) { return c.vazia; })) { Logger.log('Nada a limpar.'); return; }
+  var nome = 'SIGMAN_pre_limpeza_v20_' + Utilities.formatDate(new Date(), PM_TZ, 'yyyy-MM-dd_HHmm');
+  DriveApp.getFileById(SHEET_ID).makeCopy(nome); // falhou? lança e NADA é apagado
+  Logger.log('Backup criado: ' + nome);
+  var res = comLock(function() {
+    var cfg2 = sheetToObjects(getSheet('configuracoes')), apagar = limpezaConfigDuplicadas_(cfg2), sh = getSheet('configuracoes'), n = 0, c = 0;
+    // sheetToObjects descarta linhas totalmente vazias: pos[] mapeia o índice dele para a linha real da aba.
+    var dados = sh.getDataRange().getValues(), iK = dados[0].indexOf('Chave'), pos = [];
+    for (var i = 1; i < dados.length; i++) if (dados[i].some(function(x) { return x !== ''; })) pos.push(i);
+    apagar.forEach(function(k) { // confere TODAS antes de apagar qualquer uma
+      if (String(dados[pos[k]][iK]).trim() !== String(cfg2[k].Chave).trim()) throw new Error('Linha de Configuracoes mudou durante a limpeza. Nada foi apagado; rode de novo.');
+    });
+    apagar.slice().sort(function(a, b) { return b - a; }).forEach(function(k) { sh.deleteRow(pos[k] + 1); n++; }); // de baixo p/ cima
+    LIMPEZA_COLUNAS_VAZIAS.forEach(function(x) {
+      var s2 = getSheet(x[0]), r = limpezaColunaVazia_(s2.getDataRange().getValues(), x[1]);
+      if (r.existe && r.vazia) { s2.deleteColumn(r.col + 1); c++; }
+    });
+    return { ok: true, linhas: n, colunas: c };
+  });
+  if (!res.ok) { Logger.log('❌ ' + res.error); return; }
+  Logger.log('✅ Limpeza concluída: ' + res.linhas + ' linha(s) de Configuracoes e ' + res.colunas + ' coluna(s) apagada(s).');
+  logGravacao('editor', 'limparBaseV20', 'configuracoes', '', 'sucesso', res.linhas + ' linhas, ' + res.colunas + ' colunas');
 }
